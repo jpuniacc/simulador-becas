@@ -1,0 +1,239 @@
+// Tipos para el simulador y wizard
+export interface FormData {
+  // Datos Personales
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string
+  tieneRUT: boolean | undefined
+  tipoIdentificacion: 'rut' | 'pasaporte' | ''
+  identificacion: string
+  nacionalidad: string
+  fechaNacimiento: string
+
+  // Datos Académicos
+  nivelEducativo: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado'
+  colegio: string
+  carrera: string
+  nem: number | null
+  ranking: number | null
+  añoEgreso: string
+
+  // Datos Socioeconómicos
+  ingresoMensual: number | null
+  integrantes: string
+  tieneCAE: boolean
+
+  // PAES
+  rendioPAES: boolean
+  paes: {
+    matematica: number | null
+    lenguaje: number | null
+    ciencias: number | null
+    historia: number | null
+  }
+}
+
+export interface SimulationResults {
+  arancelBase: number
+  descuentoTotal: number
+  arancelFinal: number
+  beneficiosAplicables: BeneficioElegible[]
+  beneficiosNoAplicables: BeneficioElegible[]
+  decilCalculado: number
+  fechaSimulacion: string
+  prospectoId?: string
+}
+
+export interface BeneficioElegible {
+  codigo: number
+  descripcion: string
+  porcentajeMaximo: number | null
+  montoMaximo: number | null
+  tipoBeneficio: 'BECA' | 'FINANCIAMIENTO' | 'FINANCIERO'
+  origenBeneficio: 'INTERNO' | 'EXTERNO'
+  aplicacionConcepto: 'A' | 'M' // A = Arancel, M = Matrícula
+  prioridad: number | null
+  elegible: boolean
+  razonElegibilidad: string
+  descuentoAplicado?: number
+  montoAplicado?: number
+}
+
+export interface WizardStep {
+  id: number
+  title: string
+  description: string
+  isValid: boolean
+  isCompleted: boolean
+  isOptional?: boolean
+}
+
+export interface WizardState {
+  currentStep: number
+  totalSteps: number
+  isCompleted: boolean
+  canGoNext: boolean
+  canGoBack: boolean
+  isLastStep: boolean
+  progressPercentage: number
+}
+
+export interface StepValidation {
+  [key: number]: boolean
+}
+
+export interface SimulationProgress {
+  isSimulating: boolean
+  progress: number
+  currentStep: string
+  totalSteps: number
+}
+
+export interface ArancelInfo {
+  arancelBase: number
+  matriculaBase: number
+  totalBase: number
+  descuentos: DescuentoInfo[]
+  totalDescuentos: number
+  arancelFinal: number
+  matriculaFinal: number
+  totalFinal: number
+}
+
+export interface DescuentoInfo {
+  beneficio: BeneficioElegible
+  tipo: 'porcentaje' | 'monto_fijo'
+  valor: number
+  aplicadoA: 'arancel' | 'matricula' | 'total'
+  descuentoCalculado: number
+}
+
+export interface DecilInfo {
+  numero: number
+  descripcion: string
+  descripcionCorta: string
+  rangoIngresoMin: number
+  rangoIngresoMax: number
+  porcentajePoblacion: number
+}
+
+export interface NacionalidadInfo {
+  id: string
+  codigoIso: string
+  nombreEspanol: string
+  nombreIngles: string
+  continente: string
+  region?: string
+}
+
+export interface ColegioInfo {
+  id: string
+  rbd: string
+  nombre: string
+  nombreCorto?: string
+  dependencia: 'Municipal' | 'Particular Subvencionado' | 'Particular Pagado' | 'Corporación de Administración Delegada' | 'Servicio Local de Educación'
+  tipoEducacion: 'Básica' | 'Media' | 'Básica y Media' | 'Especial'
+  region: string
+  comuna: string
+}
+
+export interface CarreraInfo {
+  id: string
+  nombre: string
+  codigo: string
+  facultad: string
+  arancelAnual: number
+  matriculaAnual: number
+  duracion: number
+  modalidad: 'Presencial' | 'Online' | 'Híbrida'
+  jornada: 'Diurna' | 'Vespertina' | 'Nocturna'
+}
+
+export interface ValidationError {
+  field: string
+  message: string
+  code?: string
+}
+
+export interface FormFieldConfig {
+  name: keyof FormData
+  label: string
+  type: 'text' | 'email' | 'number' | 'select' | 'radio' | 'checkbox' | 'date' | 'tel'
+  required: boolean
+  placeholder?: string
+  options?: { value: string; label: string }[]
+  validation?: ValidationRule[]
+  dependsOn?: string
+  showWhen?: (data: FormData) => boolean
+  step: number
+}
+
+export interface ValidationRule {
+  type: 'required' | 'email' | 'min' | 'max' | 'pattern' | 'custom' | 'rut' | 'phone'
+  value?: any
+  message: string
+  validator?: (value: any, data?: FormData) => boolean
+}
+
+export interface SimulationConfig {
+  arancelBase: number
+  matriculaBase: number
+  maxDescuentoPorcentaje: number
+  maxDescuentoMonto: number
+  beneficiosActivos: boolean
+  calculoDecil: boolean
+  incluirPAES: boolean
+}
+
+export interface StepConfig {
+  id: number
+  title: string
+  description: string
+  fields: FormFieldConfig[]
+  validation: (data: FormData) => boolean
+  isOptional: boolean
+  showProgress: boolean
+  allowSkip: boolean
+}
+
+export interface WizardConfig {
+  steps: StepConfig[]
+  allowBackNavigation: boolean
+  saveProgress: boolean
+  autoSave: boolean
+  showProgressBar: boolean
+  showStepNumbers: boolean
+  theme: 'light' | 'dark' | 'auto'
+}
+
+export interface SimulationHistory {
+  id: string
+  prospectoId: string
+  fechaSimulacion: string
+  datosEntrada: FormData
+  resultados: SimulationResults
+  beneficiosAplicables: BeneficioElegible[]
+  beneficiosNoAplicables: BeneficioElegible[]
+  decilCalculado: number
+  arancelInfo: ArancelInfo
+}
+
+export interface ExportOptions {
+  format: 'pdf' | 'excel' | 'csv' | 'json'
+  includeDetails: boolean
+  includeBenefits: boolean
+  includeCalculations: boolean
+  language: 'es' | 'en'
+}
+
+export interface NotificationConfig {
+  type: 'success' | 'error' | 'warning' | 'info'
+  title: string
+  message: string
+  duration?: number
+  action?: {
+    label: string
+    handler: () => void
+  }
+}
