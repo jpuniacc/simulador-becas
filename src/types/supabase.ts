@@ -495,6 +495,44 @@ export interface Database {
           updated_at?: string
         }
       }
+      carreras: {
+        Row: {
+          id: number
+          nombre_carrera: string
+          tipo_plan_carrera: string
+          nombre_titulo: string
+          nombre_grado: string
+          nivel_global: string
+          area_actual: string
+          vigencia: string
+          descripcion_escuela: string
+          descripcion_facultad: string
+        }
+        Insert: {
+          id?: number
+          nombre_carrera: string
+          tipo_plan_carrera: string
+          nombre_titulo: string
+          nombre_grado: string
+          nivel_global: string
+          area_actual: string
+          vigencia: string
+          descripcion_escuela: string
+          descripcion_facultad: string
+        }
+        Update: {
+          id?: number
+          nombre_carrera?: string
+          tipo_plan_carrera?: string
+          nombre_titulo?: string
+          nombre_grado?: string
+          nivel_global?: string
+          area_actual?: string
+          vigencia?: string
+          descripcion_escuela?: string
+          descripcion_facultad?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

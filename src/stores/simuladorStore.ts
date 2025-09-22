@@ -18,6 +18,7 @@ import type {
   NacionalidadInfo,
   ColegioInfo
 } from '../types/beneficios'
+import { useDeciles } from '../composables/useDeciles'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useSimulation } from '../composables/useSimulation'
 import { useDecilCalculation } from '../composables/useDecilCalculation'
@@ -25,7 +26,7 @@ import { useDecilCalculation } from '../composables/useDecilCalculation'
 export const useSimuladorStore = defineStore('simulador', () => {
   // Estado del wizard
   const currentStep = ref(0)
-  const totalSteps = ref(7) // Aumentado a 7 pasos
+  const totalSteps = ref(6) // Flujo dinámico: 5 para no egresados, 6 para egresados
   const isCompleted = ref(false)
   const isSimulating = ref(false)
   const simulationProgress = ref<SimulationProgress>({
@@ -54,6 +55,8 @@ export const useSimuladorStore = defineStore('simulador', () => {
     ingresoMensual: null,
     integrantes: '',
     tieneCAE: false,
+    tieneBecasEstado: false,
+    decil: null,
     rendioPAES: false,
     paes: {
       matematica: null,
@@ -95,6 +98,15 @@ export const useSimuladorStore = defineStore('simulador', () => {
   const nacionalidades = ref<NacionalidadInfo[]>([])
   const colegios = ref<ColegioInfo[]>([])
 
+  // Composable de deciles
+  const {
+    deciles: decilesFromSupabase,
+    loading: decilesLoading,
+    error: decilesError,
+    cargarDeciles: cargarDecilesFromSupabase,
+    formatearRango
+  } = useDeciles()
+
   // Computed
   const canGoNext = computed(() => {
     const canGo = stepValidation.value[currentStep.value] || false
@@ -111,20 +123,35 @@ export const useSimuladorStore = defineStore('simulador', () => {
   })
 
   const isLastStep = computed(() => {
-    return currentStep.value === totalSteps.value - 1
+    const isEgresado = formData.value.nivelEducativo === 'Egresado'
+    const maxSteps = isEgresado ? 6 : 5
+    return currentStep.value === maxSteps - 1
   })
 
   const progressPercentage = computed(() => {
-    return Math.round((currentStep.value / totalSteps.value) * 100)
+    const isEgresado = formData.value.nivelEducativo === 'Egresado'
+    const maxSteps = isEgresado ? 6 : 5
+    return Math.round((currentStep.value / maxSteps) * 100)
   })
 
   const canSimulate = computed(() => {
-    return formData.value.nombre &&
-           formData.value.apellido &&
-           formData.value.email &&
-           formData.value.nivelEducativo &&
-           formData.value.ingresoMensual &&
-           formData.value.integrantes
+    const required = {
+      nombre: formData.value.nombre,
+      apellido: formData.value.apellido,
+      email: formData.value.email,
+      nivelEducativo: formData.value.nivelEducativo,
+      ingresoMensual: formData.value.ingresoMensual,
+      integrantes: formData.value.integrantes
+    }
+
+    console.log('Validación de simulación:', required)
+
+    return required.nombre &&
+           required.apellido &&
+           required.email &&
+           required.nivelEducativo &&
+           required.ingresoMensual &&
+           required.integrantes
   })
 
   const decilCalculado = computed(() => {
@@ -160,7 +187,10 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Acciones del wizard
   const nextStep = () => {
-    if (canGoNext.value && currentStep.value < totalSteps.value - 1) {
+    const isEgresado = formData.value.nivelEducativo === 'Egresado'
+    const maxSteps = isEgresado ? 6 : 5
+
+    if (canGoNext.value && currentStep.value < maxSteps - 1) {
       currentStep.value++
     }
   }
@@ -172,7 +202,10 @@ export const useSimuladorStore = defineStore('simulador', () => {
   }
 
   const goToStep = (step: number) => {
-    if (step >= 0 && step < totalSteps.value) {
+    const isEgresado = formData.value.nivelEducativo === 'Egresado'
+    const maxSteps = isEgresado ? 6 : 5
+
+    if (step >= 0 && step < maxSteps) {
       currentStep.value = step
     }
   }
@@ -224,6 +257,8 @@ export const useSimuladorStore = defineStore('simulador', () => {
       ingresoMensual: null,
       integrantes: '',
       tieneCAE: false,
+      tieneBecasEstado: false,
+      decil: null,
       rendioPAES: false,
       paes: {
         matematica: null,
@@ -251,6 +286,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   const validateCurrentStep = () => {
     const step = currentStep.value
+    const isEgresado = formData.value.nivelEducativo === 'Egresado'
     let isValid = false
 
     switch (step) {
@@ -274,28 +310,44 @@ export const useSimuladorStore = defineStore('simulador', () => {
           formData.value.colegio
         )
         break
-      case 3: // Datos de Egreso/PAES
-        if (formData.value.nivelEducativo === 'Egresado') {
+      case 3: // Datos de Egreso/Carrera de Interés
+        if (isEgresado) {
+          // Para egresados: requiere NEM, ranking y año de egreso
           isValid = !!(
             formData.value.nem &&
             formData.value.ranking &&
             formData.value.añoEgreso
           )
         } else {
+          // Para no egresados: solo requiere carrera de interés
           isValid = !!formData.value.carrera
         }
         break
       case 4: // Socioeconómico
-        isValid = !!(
-          formData.value.ingresoMensual &&
-          formData.value.integrantes
-        )
+        // Si no selecciona ninguna opción de financiamiento, es válido
+        if (!formData.value.tieneCAE && !formData.value.tieneBecasEstado) {
+          isValid = true
+        } else {
+          // Si selecciona alguna opción, debe seleccionar decil
+          isValid = !!formData.value.decil
+        }
         break
-      case 5: // PAES (opcional)
-        isValid = true
+      case 5: // PAES (solo para egresados) o Resultados (para no egresados)
+        if (isEgresado) {
+          // Para egresados: PAES es opcional
+          isValid = true
+        } else {
+          // Para no egresados: este es el paso de resultados
+          isValid = !!results.value
+        }
         break
-      case 6: // Resultados
-        isValid = !!results.value
+      case 6: // Resultados (solo para egresados)
+        if (isEgresado) {
+          isValid = !!results.value
+        } else {
+          // No debería llegar aquí para no egresados
+          isValid = false
+        }
         break
     }
 
@@ -323,8 +375,10 @@ export const useSimuladorStore = defineStore('simulador', () => {
       isCompleted.value = true
 
       // Ir al paso de resultados
-      currentStep.value = totalSteps.value - 1
-      validateStep(5, true)
+      const isEgresado = formData.value.nivelEducativo === 'Egresado'
+      const resultsStep = isEgresado ? 6 : 5
+      currentStep.value = resultsStep
+      validateStep(resultsStep, true)
 
       return resultados
     } catch (err) {
@@ -345,6 +399,11 @@ export const useSimuladorStore = defineStore('simulador', () => {
   // Carga de datos de referencia
   const loadDeciles = async (decilesData: DecilInfo[]) => {
     deciles.value = decilesData
+  }
+
+  const loadDecilesFromSupabase = async () => {
+    await cargarDecilesFromSupabase()
+    deciles.value = decilesFromSupabase.value
   }
 
   const loadBeneficios = async (beneficiosData: BeneficioUniaccInfo[]) => {
@@ -520,9 +579,16 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
     // Carga de datos
     loadDeciles,
+    loadDecilesFromSupabase,
     loadBeneficios,
     loadNacionalidades,
     loadColegios,
+
+    // Deciles desde Supabase
+    decilesFromSupabase,
+    decilesLoading,
+    decilesError,
+    formatearRango,
 
     // Búsqueda
     searchNacionalidades,

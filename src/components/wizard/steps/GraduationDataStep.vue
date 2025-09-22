@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Input } from '@/components/ui/input'
 import ValidationMessage from '@/components/ui/validation-message.vue'
-import { Info } from 'lucide-vue-next'
+import { Info, GraduationCap } from 'lucide-vue-next'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { useCarreras, type Carrera } from '@/composables/useCarreras'
 import type { FormData } from '@/types/simulador'
 
 // Props
@@ -21,6 +22,24 @@ const emit = defineEmits<{
 
 // Estado local
 const formData = ref<FormData>({ ...props.formData })
+
+// Composable de carreras
+const {
+  carrerasVigentes,
+  facultades,
+  areas,
+  loading: carrerasLoading,
+  error: carrerasError,
+  inicializar: inicializarCarreras,
+  buscarCarreras
+} = useCarreras()
+
+// Estado para el dropdown de carreras
+const carreraSeleccionada = ref<Carrera | null>(null)
+const searchTerm = ref('')
+const showDropdown = ref(false)
+const dropdownRef = ref<HTMLElement | null>(null)
+const dropdownStyle = ref<Record<string, string>>({})
 
 // Validación
 const {
@@ -46,6 +65,12 @@ const stepSubtitle = computed(() => {
   return isEgresado.value
     ? 'Como egresado, necesitamos algunos datos adicionales para calcular tus beneficios'
     : 'Cuéntanos qué carrera te interesa para tu futuro académico'
+})
+
+// Computed para carreras filtradas
+const carrerasFiltradas = computed(() => {
+  if (!searchTerm.value || !searchTerm.value.trim()) return carrerasVigentes.value
+  return buscarCarreras(searchTerm.value)
 })
 
 const añosEgreso = computed(() => {
@@ -102,6 +127,71 @@ const handleRendioPAESChange = () => {
   emit('validate', 3, isStepValid.value)
 }
 
+// Métodos para manejar carreras
+const selectCarrera = (carrera: Carrera) => {
+  carreraSeleccionada.value = carrera
+  formData.value.carrera = carrera.nombre_carrera
+  showDropdown.value = false
+  searchTerm.value = ''
+
+  // Validar paso
+  emit('validate', 3, isStepValid.value)
+}
+
+const toggleDropdown = () => {
+  showDropdown.value = !showDropdown.value
+  if (showDropdown.value) {
+    searchTerm.value = ''
+    calculateDropdownPosition()
+  }
+}
+
+const calculateDropdownPosition = () => {
+  if (!dropdownRef.value) return
+
+  const rect = dropdownRef.value.getBoundingClientRect()
+  const viewportHeight = window.innerHeight
+  const dropdownHeight = 384 // max-h-96 = 24rem = 384px
+
+  // Calcular posición vertical
+  const spaceBelow = viewportHeight - rect.bottom
+  const spaceAbove = rect.top
+
+  let top = rect.bottom + 4 // 4px de margen
+  let maxHeight = dropdownHeight
+
+  // Si no hay suficiente espacio abajo, posicionar arriba
+  if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+    top = rect.top - dropdownHeight - 4
+    maxHeight = Math.min(dropdownHeight, spaceAbove - 4)
+  } else {
+    maxHeight = Math.min(dropdownHeight, spaceBelow - 4)
+  }
+
+  dropdownStyle.value = {
+    position: 'fixed',
+    top: `${top}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    maxHeight: `${maxHeight}px`,
+    zIndex: '9999'
+  }
+}
+
+const handleSearch = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  searchTerm.value = target.value
+}
+
+// Click outside para cerrar dropdown
+const handleClickOutside = (event: Event) => {
+  const target = event.target as HTMLElement
+  // No cerrar si el clic es dentro del dropdown o del botón
+  if (!target.closest('.carrera-dropdown') && !target.closest('[data-dropdown-content]')) {
+    showDropdown.value = false
+  }
+}
+
 const handleSubmit = () => {
   // Validar campos según el nivel educativo
   if (isEgresado.value) {
@@ -151,9 +241,24 @@ watch(() => props.formData, (newData) => {
 }, { deep: true })
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
+  // Inicializar carreras
+  await inicializarCarreras()
+
   // Validar paso inicial
   emit('validate', 3, isStepValid.value)
+
+  // Agregar event listeners
+  document.addEventListener('click', handleClickOutside)
+  window.addEventListener('resize', calculateDropdownPosition)
+  window.addEventListener('scroll', calculateDropdownPosition)
+})
+
+onUnmounted(() => {
+  // Remover event listeners
+  document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('resize', calculateDropdownPosition)
+  window.removeEventListener('scroll', calculateDropdownPosition)
 })
 </script>
 
@@ -371,7 +476,7 @@ onMounted(() => {
           <!-- Si no es egresado, mostrar carrera de interés -->
           <div v-else class="bg-green-50 border border-green-200 rounded-lg p-6">
             <div class="flex items-start space-x-3 mb-4">
-              <Info class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <GraduationCap class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
               <div>
                 <h3 class="text-lg font-semibold text-green-900">Carrera de Interés</h3>
                 <p class="text-sm text-green-700 mt-1">
@@ -384,15 +489,88 @@ onMounted(() => {
               <label for="carrera" class="form-label">
                 ¿Qué carrera te interesa? *
               </label>
-              <Input
-                id="carrera"
-                v-model="formData.carrera"
-                type="text"
-                placeholder="Ej: Ingeniería Comercial, Medicina, Psicología..."
-                class="w-full"
-              />
+
+              <!-- Dropdown de carreras -->
+              <div class="relative carrera-dropdown">
+                <button
+                  ref="dropdownRef"
+                  type="button"
+                  @click="toggleDropdown"
+                  class="w-full px-4 py-3 text-left border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-uniacc-blue focus:border-uniacc-blue transition-all duration-200"
+                  :class="{
+                    'bg-gray-50 text-gray-400': !carreraSeleccionada,
+                    'bg-white text-gray-900': carreraSeleccionada
+                  }"
+                >
+                  <div class="flex items-center justify-between">
+                    <span>
+                      {{ carreraSeleccionada ? carreraSeleccionada.nombre_carrera : 'Selecciona una carrera' }}
+                    </span>
+                    <svg class="w-5 h-5 text-gray-400" :class="{ 'rotate-180': showDropdown }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </div>
+                </button>
+
+                <!-- Dropdown menu -->
+                <Teleport to="body">
+                  <div v-if="showDropdown" class="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-96 overflow-y-auto" :style="dropdownStyle" data-dropdown-content>
+                  <!-- Search input -->
+                  <div class="p-3 border-b border-gray-100">
+                    <div class="relative">
+                      <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                      <input
+                        v-model="searchTerm"
+                        type="text"
+                        placeholder="Buscar carrera..."
+                        class="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-uniacc-blue focus:border-uniacc-blue"
+                        @input="handleSearch"
+                        @click.stop
+                        @mousedown.stop
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Loading state -->
+                  <div v-if="carrerasLoading" class="p-4 text-center">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-uniacc-blue mx-auto"></div>
+                    <p class="mt-2 text-sm text-gray-600">Cargando carreras...</p>
+                  </div>
+
+                  <!-- Error state -->
+                  <div v-else-if="carrerasError" class="p-4 text-center">
+                    <p class="text-sm text-red-600">{{ carrerasError }}</p>
+                  </div>
+
+                  <!-- Carreras list -->
+                  <div v-else-if="carrerasFiltradas.length === 0" class="p-4 text-center">
+                    <p class="text-sm text-gray-500">
+                      {{ searchTerm ? 'No se encontraron carreras' : 'No hay carreras disponibles' }}
+                    </p>
+                  </div>
+
+                  <div v-else class="py-1">
+                    <button
+                      v-for="carrera in carrerasFiltradas"
+                      :key="carrera.id"
+                      @click="selectCarrera(carrera)"
+                      @mousedown.stop
+                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors duration-150"
+                    >
+                      <div class="font-medium">{{ carrera.nombre_carrera }}</div>
+                      <div class="text-xs text-gray-500 mt-1">
+                        {{ carrera.descripcion_facultad }}
+                      </div>
+                    </button>
+                  </div>
+                  </div>
+                </Teleport>
+              </div>
+
               <p class="text-sm text-gray-500 mt-1">
-                Puedes escribir el nombre de la carrera que más te llame la atención
+                Selecciona una carrera de la lista o busca por nombre
               </p>
               <ValidationMessage
                 v-if="hasFieldError('carrera')"

@@ -23,6 +23,8 @@ export interface FormData {
   ingresoMensual: number | null
   integrantes: string
   tieneCAE: boolean
+  tieneBecasEstado: boolean
+  decil: number | null
 
   // PAES
   rendioPAES: boolean

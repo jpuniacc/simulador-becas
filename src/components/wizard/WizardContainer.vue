@@ -48,49 +48,102 @@ const currentStep = computed(() => {
   console.log('Current step:', simuladorStore.currentStep)
   return simuladorStore.currentStep
 })
-const totalSteps = computed(() => simuladorStore.totalSteps)
+const totalSteps = computed(() => {
+  // Si es egresado: 6 pasos (incluye PAES)
+  // Si no es egresado: 5 pasos (sin PAES)
+  const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
+  return isEgresado ? 6 : 5
+})
 const canGoBack = computed(() => simuladorStore.canGoBack)
 const canGoNext = computed(() => simuladorStore.canGoNext)
 const isLastStep = computed(() => simuladorStore.isLastStep)
 const showProgress = computed(() => currentStep.value > 0)
 
 const stepTitle = computed(() => {
-  const titles = [
-    'Bienvenida',
-    '', // PersonalDataStep no necesita título en el header
-    'Estado Académico',
-    '', // GraduationDataStep maneja su propio título dinámicamente
-    'Situación Socioeconómica',
-    'PAES (Opcional)',
-    'Resultados'
-  ]
-  return titles[currentStep.value] || ''
+  const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
+
+  if (isEgresado) {
+    // Flujo para egresados: 6 pasos
+    const titles = [
+      'Bienvenida',
+      '', // PersonalDataStep no necesita título en el header
+      'Estado Académico',
+      '', // GraduationDataStep maneja su propio título dinámicamente
+      'Situación Socioeconómica',
+      'PAES (Opcional)',
+      'Resultados'
+    ]
+    return titles[currentStep.value] || ''
+  } else {
+    // Flujo para no egresados: 5 pasos (sin PAES)
+    const titles = [
+      'Bienvenida',
+      '', // PersonalDataStep no necesita título en el header
+      'Estado Académico',
+      '', // GraduationDataStep maneja su propio título dinámicamente
+      'Situación Socioeconómica',
+      'Resultados'
+    ]
+    return titles[currentStep.value] || ''
+  }
 })
 
 const stepDescription = computed(() => {
-  const descriptions = [
-    'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
-    '', // PersonalDataStep no necesita descripción en el header
-    'Cuéntanos sobre tu estado académico actual',
-    '', // GraduationDataStep maneja su propia descripción dinámicamente
-    'Selecciona tu situación socioeconómica',
-    'Agrega tus puntajes PAES si los tienes',
-    'Revisa los beneficios que puedes obtener'
-  ]
-  return descriptions[currentStep.value] || ''
+  const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
+
+  if (isEgresado) {
+    // Flujo para egresados: 6 pasos
+    const descriptions = [
+      'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
+      '', // PersonalDataStep no necesita descripción en el header
+      'Cuéntanos sobre tu estado académico actual',
+      '', // GraduationDataStep maneja su propia descripción dinámicamente
+      'Selecciona tu situación socioeconómica',
+      'Agrega tus puntajes PAES si los tienes',
+      'Revisa los beneficios que puedes obtener'
+    ]
+    return descriptions[currentStep.value] || ''
+  } else {
+    // Flujo para no egresados: 5 pasos (sin PAES)
+    const descriptions = [
+      'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
+      '', // PersonalDataStep no necesita descripción en el header
+      'Cuéntanos sobre tu estado académico actual',
+      '', // GraduationDataStep maneja su propia descripción dinámicamente
+      'Selecciona tu situación socioeconómica',
+      'Revisa los beneficios que puedes obtener'
+    ]
+    return descriptions[currentStep.value] || ''
+  }
 })
 
 const currentStepComponent = computed(() => {
-  const components = [
-    WelcomeStep,
-    PersonalDataStep,
-    SchoolDataStep,
-    GraduationDataStep,
-    SocioeconomicStep,
-    PAESStep,
-    ResultsStep
-  ]
-  return components[currentStep.value] || WelcomeStep
+  const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
+
+  if (isEgresado) {
+    // Flujo para egresados: 6 pasos
+    const components = [
+      WelcomeStep,
+      PersonalDataStep,
+      SchoolDataStep,
+      GraduationDataStep,
+      SocioeconomicStep,
+      PAESStep,
+      ResultsStep
+    ]
+    return components[currentStep.value] || WelcomeStep
+  } else {
+    // Flujo para no egresados: 5 pasos (sin PAES)
+    const components = [
+      WelcomeStep,
+      PersonalDataStep,
+      SchoolDataStep,
+      GraduationDataStep,
+      SocioeconomicStep,
+      ResultsStep // Saltar PAESStep
+    ]
+    return components[currentStep.value] || WelcomeStep
+  }
 })
 
 const stepProps = computed(() => {

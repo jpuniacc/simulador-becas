@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { Input } from '@/components/ui/input'
 import ValidationMessage from '@/components/ui/validation-message.vue'
 import { TrendingUp, Info, CheckCircle, Shield } from 'lucide-vue-next'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useDecilCalculation } from '@/composables/useDecilCalculation'
+import { useSimuladorStore } from '@/stores/simuladorStore'
 import type { FormData, DecilInfo } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
 
@@ -25,6 +27,14 @@ const emit = defineEmits<{
 const formData = ref<FormData>({ ...props.formData })
 const selectedDecil = ref<number | null>(null)
 
+// Store
+const simuladorStore = useSimuladorStore()
+
+// Computed para mostrar selección de decil
+const showDecilSelection = computed(() => {
+  return formData.value.tieneCAE || formData.value.tieneBecasEstado
+})
+
 // Validación
 const {
   validateField,
@@ -39,15 +49,34 @@ const {
 // Computed
 const selectedDecilInfo = computed(() => {
   if (!selectedDecil.value) return null
-  return props.deciles.find(d => d.decil === selectedDecil.value) || null
+
+  console.log('Buscando decil con valor:', selectedDecil.value)
+  console.log('Deciles disponibles:', simuladorStore.decilesFromSupabase.map(d => ({ id: d.id, decil: d.decil, rango_min: d.rango_ingreso_min, rango_max: d.rango_ingreso_max })))
+
+  const found = simuladorStore.decilesFromSupabase.find(d => d.decil === selectedDecil.value) || null
+  console.log('Decil encontrado:', found)
+
+  return found
 })
 
 const isStepValid = computed(() => {
-  return !!selectedDecil.value
+  // Validar campos obligatorios
+  const hasRequiredFields = formData.value.ingresoMensual && formData.value.integrantes
+
+  // Si no selecciona ninguna opción de financiamiento, es válido con campos obligatorios
+  if (!formData.value.tieneCAE && !formData.value.tieneBecasEstado) {
+    return hasRequiredFields
+  }
+  // Si selecciona alguna opción, debe seleccionar decil Y tener campos obligatorios
+  return !!selectedDecil.value && hasRequiredFields
 })
 
 // Métodos
+
 const handleDecilChange = () => {
+  console.log('Decil seleccionado:', selectedDecil.value)
+  console.log('Tipo de selectedDecil.value:', typeof selectedDecil.value)
+
   // Actualizar datos del formulario
   formData.value.decil = selectedDecil.value
 
@@ -55,23 +84,32 @@ const handleDecilChange = () => {
   validateField('decil')
 
   // Emitir validación
-  emit('validate', 3, isStepValid.value)
+  emit('validate', 4, isStepValid.value)
 }
 
-const handleCAEChange = () => {
+const handleFinancingChange = () => {
+  // Si deselecciona ambas opciones, limpiar decil
+  if (!formData.value.tieneCAE && !formData.value.tieneBecasEstado) {
+    selectedDecil.value = null
+    formData.value.decil = null
+  }
+
   // Emitir datos actualizados
   emit('update:form-data', formData.value)
+  emit('validate', 4, isStepValid.value)
 }
 
 const handleSubmit = () => {
-  // Validar campo
+  // Validar campos
   validateField('decil')
+  validateField('ingresoMensual')
+  validateField('integrantes')
 
   // Emitir datos actualizados
   emit('update:form-data', formData.value)
 
   // Emitir validación
-  emit('validate', 3, isStepValid.value)
+  emit('validate', 4, isStepValid.value)
 }
 
 // Watchers con debounce para evitar bucles
@@ -86,7 +124,7 @@ watch(formData, (newData) => {
   // Debounce para emitir actualizaciones
   updateTimeout = setTimeout(() => {
     emit('update:form-data', newData)
-    emit('validate', 3, isStepValid.value)
+    emit('validate', 4, isStepValid.value)
   }, 100) // Debounce de 100ms
 }, { deep: true })
 
@@ -103,12 +141,17 @@ watch(() => props.formData, (newData) => {
 }, { deep: true })
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
+  // Cargar deciles desde Supabase si no están cargados
+  if (simuladorStore.decilesFromSupabase.length === 0) {
+    await simuladorStore.loadDecilesFromSupabase()
+  }
+
   // Inicializar decil seleccionado
   selectedDecil.value = formData.value.decil || null
 
   // Validar paso inicial
-  emit('validate', 3, isStepValid.value)
+  emit('validate', 4, isStepValid.value)
 })
 </script>
 
@@ -117,19 +160,72 @@ onMounted(() => {
     <div class="step-content">
       <!-- Información del paso -->
       <div class="step-info">
-        <h3 class="step-title">Situación Socioeconómica</h3>
         <p class="step-description">
-          Selecciona tu decil socioeconómico para calcular los beneficios aplicables
+          Selecciona si utilizarás CAE o becas del estado para calcular los beneficios aplicables
         </p>
       </div>
 
       <!-- Formulario -->
       <form @submit.prevent="handleSubmit" class="form">
-        <div class="form-grid">
-          <!-- Decil Socioeconómico -->
+        <!-- Opciones de financiamiento -->
+        <div class="financing-options">
+          <h4 class="section-title">¿Qué tipo de financiamiento utilizarás?</h4>
+          <div class="options-grid">
+            <!-- CAE -->
+            <div class="option-card" :class="{ 'selected': formData.tieneCAE }">
+              <label class="option-label">
+                <input
+                  v-model="formData.tieneCAE"
+                  type="checkbox"
+                  @change="handleFinancingChange"
+                  class="option-checkbox"
+                />
+                <div class="option-content">
+                  <div class="option-icon">
+                    <TrendingUp class="w-6 h-6" />
+                  </div>
+                  <div class="option-text">
+                    <h5>CAE (Crédito con Aval del Estado)</h5>
+                    <p>Crédito para financiar tu carrera universitaria</p>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Becas del Estado -->
+            <div class="option-card" :class="{ 'selected': formData.tieneBecasEstado }">
+              <label class="option-label">
+                <input
+                  v-model="formData.tieneBecasEstado"
+                  type="checkbox"
+                  @change="handleFinancingChange"
+                  class="option-checkbox"
+                />
+                <div class="option-content">
+                  <div class="option-icon">
+                    <CheckCircle class="w-6 h-6" />
+                  </div>
+                  <div class="option-text">
+                    <h5>Becas del Estado</h5>
+                    <p>Becas estatales como Beca Vocación de Profesor, etc.</p>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decil Socioeconómico (solo si selecciona alguna opción) -->
+        <div v-if="showDecilSelection" class="decil-section">
+          <div class="section-divider"></div>
+          <h4 class="section-title">¿Cuál es el ingreso mensual?</h4>
+          <p class="section-description">
+            Para el cálculo debes considerar el total de ingresos de tu hogar y dividirlo por la cantidad de personas que viven en él.
+          </p>
+
           <div class="form-field">
             <label for="decil" class="form-label">
-              Decil Socioeconómico *
+              Rango de Ingresos *
             </label>
             <select
               id="decil"
@@ -139,43 +235,30 @@ onMounted(() => {
               @change="handleDecilChange"
               @blur="validateField('decil')"
             >
-              <option value="">Selecciona tu decil</option>
+              <option value="">Selecciona rango</option>
               <option
-                v-for="decil in deciles"
+                v-for="decil in simuladorStore.decilesFromSupabase"
                 :key="decil.id"
                 :value="decil.decil"
               >
-                {{ decil.decil }}° decil - {{ decil.descripcionCorta }}
+                {{ simuladorStore.formatearRango(decil) }}
               </option>
             </select>
+            <!-- Loading state -->
+            <div v-if="simuladorStore.decilesLoading" class="mt-2 text-sm text-gray-500">
+              Cargando rangos de ingresos...
+            </div>
+
+            <!-- Error state -->
+            <div v-else-if="simuladorStore.decilesError" class="mt-2 text-sm text-red-500">
+              {{ simuladorStore.decilesError }}
+            </div>
+
             <ValidationMessage
               v-if="hasFieldError('decil')"
               :message="getFieldErrorMessage('decil')"
               type="error"
             />
-          </div>
-
-          <!-- CAE -->
-          <div class="form-field">
-            <label class="form-label">
-              ¿Piensas en utilizar CAE?
-            </label>
-            <div class="switch-container">
-              <label class="switch">
-                <input
-                  v-model="formData.tieneCAE"
-                  type="checkbox"
-                  @change="handleCAEChange"
-                />
-                <span class="slider"></span>
-              </label>
-              <span class="switch-label">
-                {{ formData.tieneCAE ? 'Sí, pienso usar CAE' : 'No, no pienso usar CAE' }}
-              </span>
-            </div>
-            <p class="field-help">
-              El CAE puede complementar otros beneficios y becas
-            </p>
           </div>
         </div>
 
@@ -201,15 +284,66 @@ onMounted(() => {
               <div class="detail-item">
                 <span class="detail-label">Rango de ingresos:</span>
                 <span class="detail-value">
-                  {{ formatCurrency(selectedDecilInfo.rangoIngresoMin) }} -
-                  {{ formatCurrency(selectedDecilInfo.rangoIngresoMax) }}
+                  {{ simuladorStore.formatearRango(selectedDecilInfo) }}
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
 
-              <div class="detail-item">
-                <span class="detail-label">Porcentaje de población:</span>
-                <span class="detail-value">{{ selectedDecilInfo.porcentajePoblacion }}%</span>
-              </div>
+        <!-- Información adicional para simulación -->
+        <div class="additional-info-section">
+          <h4 class="section-title">Información adicional</h4>
+          <p class="section-description">
+            Esta información nos ayuda a calcular los beneficios más precisos para ti.
+          </p>
+
+          <div class="form-grid">
+            <!-- Ingreso Mensual -->
+            <div class="form-field">
+              <label for="ingresoMensual" class="form-label">
+                Ingreso mensual del hogar *
+              </label>
+              <Input
+                id="ingresoMensual"
+                v-model="formData.ingresoMensual"
+                type="number"
+                min="0"
+                placeholder="Ej: 500000"
+                class="w-full"
+              />
+              <p class="text-sm text-gray-500 mt-1">
+                Ingreso total mensual de tu hogar en pesos chilenos
+              </p>
+              <ValidationMessage
+                v-if="hasFieldError('ingresoMensual')"
+                :message="getFieldErrorMessage('ingresoMensual')"
+                type="error"
+              />
+            </div>
+
+            <!-- Número de Integrantes -->
+            <div class="form-field">
+              <label for="integrantes" class="form-label">
+                Número de integrantes del hogar *
+              </label>
+              <Input
+                id="integrantes"
+                v-model="formData.integrantes"
+                type="number"
+                min="1"
+                max="20"
+                placeholder="Ej: 4"
+                class="w-full"
+              />
+              <p class="text-sm text-gray-500 mt-1">
+                Incluye a todas las personas que viven en tu hogar
+              </p>
+              <ValidationMessage
+                v-if="hasFieldError('integrantes')"
+                :message="getFieldErrorMessage('integrantes')"
+                type="error"
+              />
             </div>
           </div>
         </div>
@@ -272,15 +406,71 @@ onMounted(() => {
 }
 
 .step-info {
-  @apply text-center mb-8;
-}
-
-.step-title {
-  @apply text-2xl font-bold text-gray-900 mb-2;
+  @apply text-center mb-6;
 }
 
 .step-description {
-  @apply text-gray-600;
+  @apply text-gray-600 text-lg;
+}
+
+.financing-options {
+  @apply mb-8;
+}
+
+.section-title {
+  @apply text-xl font-semibold text-gray-900 mb-4;
+}
+
+.section-description {
+  @apply text-gray-600 mb-4;
+}
+
+.section-divider {
+  @apply border-t border-gray-200 my-6;
+}
+
+.options-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.option-card {
+  @apply border-2 border-gray-200 rounded-lg p-4 cursor-pointer transition-all duration-200 hover:border-blue-300 hover:shadow-md;
+}
+
+.option-card.selected {
+  @apply border-blue-500 bg-blue-50;
+}
+
+.option-label {
+  @apply cursor-pointer;
+}
+
+.option-checkbox {
+  @apply sr-only;
+}
+
+.option-content {
+  @apply flex items-start space-x-3;
+}
+
+.option-icon {
+  @apply w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600;
+}
+
+.option-card.selected .option-icon {
+  @apply bg-blue-500 text-white;
+}
+
+.option-text h5 {
+  @apply font-semibold text-gray-900 mb-1;
+}
+
+.option-text p {
+  @apply text-sm text-gray-600;
+}
+
+.decil-section {
+  @apply mt-8;
 }
 
 .form {
@@ -345,6 +535,22 @@ input:checked + .slider:before {
 
 .decil-info-section {
   @apply mt-8;
+}
+
+.additional-info-section {
+  @apply mt-8 p-6 bg-gradient-to-r from-slate-50 to-gray-100 border border-slate-200 rounded-lg;
+}
+
+.section-title {
+  @apply text-lg font-semibold text-slate-900 mb-2;
+}
+
+.section-description {
+  @apply text-sm text-slate-600 mb-6;
+}
+
+.form-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
 }
 
 .decil-card {

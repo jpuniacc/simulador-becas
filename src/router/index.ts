@@ -32,6 +32,24 @@ const router = createRouter({
       }
     },
     {
+      path: '/test-carreras',
+      name: 'test-carreras',
+      component: () => import('../components/TestCarreras.vue'),
+      meta: {
+        title: 'Prueba de Carreras - UNIACC',
+        description: 'Página de prueba para verificar el funcionamiento del dropdown de carreras'
+      }
+    },
+    {
+      path: '/test-deciles',
+      name: 'test-deciles',
+      component: () => import('../components/TestDeciles.vue'),
+      meta: {
+        title: 'Prueba de Deciles - UNIACC',
+        description: 'Página de prueba para verificar el funcionamiento del dropdown de deciles'
+      }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('../views/NotFoundView.vue'),
