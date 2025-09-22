@@ -6,7 +6,8 @@ import WizardHeader from './WizardHeader.vue'
 import WizardNavigation from './WizardNavigation.vue'
 import WelcomeStep from './steps/WelcomeStep.vue'
 import PersonalDataStep from './steps/PersonalDataStep.vue'
-import AcademicDataStep from './steps/AcademicDataStep.vue'
+import SchoolDataStep from './steps/SchoolDataStep.vue'
+import GraduationDataStep from './steps/GraduationDataStep.vue'
 import SocioeconomicStep from './steps/SocioeconomicStep.vue'
 import PAESStep from './steps/PAESStep.vue'
 import ResultsStep from './steps/ResultsStep.vue'
@@ -57,7 +58,8 @@ const stepTitle = computed(() => {
   const titles = [
     'Bienvenida',
     '', // PersonalDataStep no necesita título en el header
-    'Datos Académicos',
+    'Estado Académico',
+    'Datos de Egreso',
     'Situación Socioeconómica',
     'PAES (Opcional)',
     'Resultados'
@@ -69,7 +71,8 @@ const stepDescription = computed(() => {
   const descriptions = [
     'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
     '', // PersonalDataStep no necesita descripción en el header
-    'Cuéntanos sobre tu situación académica',
+    'Cuéntanos sobre tu estado académico actual',
+    'Como egresado, necesitamos algunos datos adicionales',
     'Selecciona tu situación socioeconómica',
     'Agrega tus puntajes PAES si los tienes',
     'Revisa los beneficios que puedes obtener'
@@ -81,7 +84,8 @@ const currentStepComponent = computed(() => {
   const components = [
     WelcomeStep,
     PersonalDataStep,
-    AcademicDataStep,
+    SchoolDataStep,
+    GraduationDataStep,
     SocioeconomicStep,
     PAESStep,
     ResultsStep

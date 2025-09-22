@@ -356,25 +356,35 @@ export function useFormValidation(
     }
   }
 
-  // Watchers para validación automática
+  // Watchers para validación automática con debounce
+  let validationTimeout: NodeJS.Timeout | null = null
+
   watch(
     formData,
     (newData, oldData) => {
       if (!oldData) return
 
-      // Validar campos que han cambiado
-      Object.keys(newData).forEach(fieldName => {
-        const newValue = (newData as any)[fieldName]
-        const oldValue = (oldData as any)[fieldName]
+      // Limpiar timeout anterior
+      if (validationTimeout) {
+        clearTimeout(validationTimeout)
+      }
 
-        if (newValue !== oldValue) {
-          dirtyField(fieldName)
+      // Debounce para validación
+      validationTimeout = setTimeout(() => {
+        // Validar campos que han cambiado
+        Object.keys(newData).forEach(fieldName => {
+          const newValue = (newData as any)[fieldName]
+          const oldValue = (oldData as any)[fieldName]
 
-          if (validationMode === 'onChange') {
-            validateField(fieldName)
+          if (newValue !== oldValue) {
+            dirtyField(fieldName)
+
+            if (validationMode === 'onChange') {
+              validateField(fieldName)
+            }
           }
-        }
-      })
+        })
+      }, 300) // Debounce de 300ms
     },
     { deep: true }
   )

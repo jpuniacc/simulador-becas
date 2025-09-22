@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Input } from '@/components/ui/input'
 import ValidationMessage from '@/components/ui/validation-message.vue'
-import { Info } from 'lucide-vue-next'
+import RegionDropdown from '@/components/ui/dropdown/RegionDropdown.vue'
+import ComunaDropdown from '@/components/ui/dropdown/ComunaDropdown.vue'
+import ColegioDropdown from '@/components/ui/dropdown/ColegioDropdown.vue'
+import { Info, School } from 'lucide-vue-next'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { useColegios, type Region, type Comuna, type Colegio } from '@/composables/useColegios'
 import type { FormData, ColegioInfo } from '@/types/simulador'
 
 // Props
@@ -22,9 +26,23 @@ const emit = defineEmits<{
 
 // Estado local
 const formData = ref<FormData>({ ...props.formData })
-const colegioSearch = ref('')
-const showColegioDropdown = ref(false)
-const filteredColegios = ref<ColegioInfo[]>([])
+
+// Composable de colegios
+const {
+  regiones,
+  comunasFiltradas,
+  colegiosFiltrados,
+  regionSeleccionada,
+  comunaSeleccionada,
+  colegioSeleccionado,
+  loading: colegiosLoading,
+  error: colegiosError,
+  seleccionarRegion,
+  seleccionarComuna,
+  seleccionarColegio,
+  buscarColegios,
+  inicializar: inicializarColegios
+} = useColegios()
 
 // Validación
 const {
@@ -49,22 +67,54 @@ const añosEgreso = computed(() => {
   return years
 })
 
+// Métodos para manejar selección de colegios
+const handleRegionChange = async (region: Region | null) => {
+  if (region) {
+    await seleccionarRegion(region)
+    // Limpiar selecciones dependientes
+    formData.value.colegio = ''
+  }
+}
+
+const handleComunaChange = async (comuna: Comuna | null) => {
+  if (comuna) {
+    await seleccionarComuna(comuna)
+    // Limpiar selección de colegio
+    formData.value.colegio = ''
+  }
+}
+
+const handleColegioChange = (colegio: Colegio | null) => {
+  if (colegio) {
+    seleccionarColegio(colegio)
+    formData.value.colegio = colegio.nombre
+  }
+}
+
+const handleColegioSearch = async (term: string) => {
+  if (comunaSeleccionada.value && term.length >= 2) {
+    await buscarColegios(comunaSeleccionada.value.comuna_id, term)
+  }
+}
+
 const isStepValid = computed(() => {
   const baseValid = !!(
     formData.value.nivelEducativo &&
-    formData.value.colegio &&
     formData.value.carrera
   )
 
+  // Solo requiere colegio si está seleccionado
+  const colegioValid = !colegioSeleccionado.value || !!formData.value.colegio
+
   if (isEgresado.value) {
-    return baseValid && !!(
+    return baseValid && colegioValid && !!(
       formData.value.nem &&
       formData.value.ranking &&
       formData.value.añoEgreso
     )
   }
 
-  return baseValid
+  return baseValid && colegioValid
 })
 
 // Métodos
@@ -80,29 +130,6 @@ const handleNivelEducativoChange = () => {
   emit('validate', 2, isStepValid.value)
 }
 
-const handleColegioSearch = () => {
-  if (colegioSearch.value.length < 2) {
-    filteredColegios.value = []
-    return
-  }
-
-  const search = colegioSearch.value.toLowerCase()
-  filteredColegios.value = props.colegios.filter(colegio =>
-    colegio.nombre.toLowerCase().includes(search) ||
-    colegio.comuna.toLowerCase().includes(search) ||
-    colegio.region.toLowerCase().includes(search)
-  ).slice(0, 10) // Limitar a 10 resultados
-}
-
-const selectColegio = (colegio: ColegioInfo) => {
-  formData.value.colegio = colegio.nombre
-  colegioSearch.value = colegio.nombre
-  showColegioDropdown.value = false
-  filteredColegios.value = []
-
-  // Validar campo
-  validateField('colegio')
-}
 
 const handleSubmit = () => {
   // Validar campos base
@@ -122,36 +149,45 @@ const handleSubmit = () => {
   emit('validate', 2, isStepValid.value)
 }
 
-// Watchers
+// Watchers con debounce para evitar bucles
+let updateTimeout: NodeJS.Timeout | null = null
+
 watch(formData, (newData) => {
-  emit('update:form-data', newData)
-  emit('validate', 2, isStepValid.value)
+  // Limpiar timeout anterior
+  if (updateTimeout) {
+    clearTimeout(updateTimeout)
+  }
+
+  // Debounce para emitir actualizaciones
+  updateTimeout = setTimeout(() => {
+    emit('update:form-data', newData)
+    emit('validate', 2, isStepValid.value)
+  }, 100) // Debounce de 100ms
 }, { deep: true })
 
 watch(() => props.formData, (newData) => {
-  formData.value = { ...newData }
-  colegioSearch.value = newData.colegio || ''
+  // Solo actualizar si hay diferencias reales
+  const hasChanges = Object.keys(newData).some(key =>
+    (formData.value as Record<string, unknown>)[key] !== (newData as Record<string, unknown>)[key]
+  )
+
+  if (hasChanges) {
+    formData.value = { ...newData }
+  }
 }, { deep: true })
 
-// Cerrar dropdown al hacer click fuera
-const handleClickOutside = (event: Event) => {
-  const target = event.target as HTMLElement
-  if (!target.closest('.search-container')) {
-    showColegioDropdown.value = false
-  }
-}
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
+  // Inicializar datos de colegios
+  await inicializarColegios()
+
   // Validar paso inicial
   emit('validate', 2, isStepValid.value)
-
-  // Configurar click outside
-  document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+  // Cleanup si es necesario
 })
 </script>
 
@@ -196,42 +232,58 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- Colegio -->
+          <!-- Selección de Colegio (Estilo UGM) -->
           <div class="form-field">
-            <label for="colegio" class="form-label">
-              Colegio *
+            <label class="form-label">
+              ¿Ingresa la información de tu colegio?
             </label>
-            <div class="search-container">
-              <Input
-                id="colegio"
-                v-model="colegioSearch"
-                type="text"
-                placeholder="Busca tu colegio..."
-                class="search-input"
-                @input="handleColegioSearch"
-                @focus="showColegioDropdown = true"
-              />
 
-              <!-- Dropdown de colegios -->
-              <div
-                v-if="showColegioDropdown && filteredColegios.length > 0"
-                class="dropdown"
-              >
-                <div
-                  v-for="colegio in filteredColegios"
-                  :key="colegio.id"
-                  class="dropdown-item"
-                  @click="selectColegio(colegio)"
-                >
-                  <div class="colegio-info">
-                    <h4 class="colegio-nombre">{{ colegio.nombre }}</h4>
-                    <p class="colegio-details">
-                      {{ colegio.comuna }}, {{ colegio.region }} • {{ colegio.dependencia }}
-                    </p>
-                  </div>
-                </div>
+            <!-- Región -->
+            <div v-if="!regionSeleccionada" class="mb-4">
+              <RegionDropdown
+                v-model="regionSeleccionada"
+                :regions="regiones"
+                :disabled="colegiosLoading"
+                :error="colegiosError"
+                placeholder="Selecciona tu región"
+                @change="handleRegionChange"
+              />
+            </div>
+
+            <!-- Comuna -->
+            <div v-if="regionSeleccionada && !comunaSeleccionada" class="mb-4">
+              <ComunaDropdown
+                v-model="comunaSeleccionada"
+                :comunas="comunasFiltradas"
+                :disabled="colegiosLoading"
+                placeholder="Selecciona tu comuna"
+                @change="handleComunaChange"
+              />
+            </div>
+
+            <!-- Colegio -->
+            <div v-if="comunaSeleccionada && !colegioSeleccionado">
+              <ColegioDropdown
+                v-model="colegioSeleccionado"
+                :colegios="colegiosFiltrados"
+                :disabled="colegiosLoading"
+                placeholder="Selecciona tu colegio"
+                @change="handleColegioChange"
+                @search="handleColegioSearch"
+              />
+            </div>
+
+            <!-- Resumen de selección -->
+            <div v-if="colegioSeleccionado" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div class="flex items-center space-x-2 text-green-800">
+                <School class="w-5 h-5" />
+                <span class="font-medium">{{ colegioSeleccionado.nombre }}</span>
+              </div>
+              <div class="text-sm text-green-600 mt-1">
+                {{ comunaSeleccionada?.comuna_nombre }}, {{ regionSeleccionada?.region_nombre }}
               </div>
             </div>
+
             <ValidationMessage
               v-if="hasFieldError('colegio')"
               :message="getFieldErrorMessage('colegio')"

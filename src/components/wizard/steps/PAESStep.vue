@@ -103,14 +103,31 @@ const handleSubmit = () => {
   emit('validate', 4, isStepValid.value)
 }
 
-// Watchers
+// Watchers con debounce para evitar bucles
+let updateTimeout: NodeJS.Timeout | null = null
+
 watch(formData, (newData) => {
-  emit('update:form-data', newData)
-  emit('validate', 4, isStepValid.value)
+  // Limpiar timeout anterior
+  if (updateTimeout) {
+    clearTimeout(updateTimeout)
+  }
+
+  // Debounce para emitir actualizaciones
+  updateTimeout = setTimeout(() => {
+    emit('update:form-data', newData)
+    emit('validate', 4, isStepValid.value)
+  }, 100) // Debounce de 100ms
 }, { deep: true })
 
 watch(() => props.formData, (newData) => {
-  formData.value = { ...newData }
+  // Solo actualizar si hay diferencias reales
+  const hasChanges = Object.keys(newData).some(key =>
+    (formData.value as any)[key] !== (newData as any)[key]
+  )
+
+  if (hasChanges) {
+    formData.value = { ...newData }
+  }
 }, { deep: true })
 
 // Lifecycle

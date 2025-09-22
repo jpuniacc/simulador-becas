@@ -74,6 +74,12 @@ create index idx_prospectos_pasaporte
 create index idx_prospectos_nacionalidad
     on prospectos (nacionalidad_id);
 
+create trigger update_prospectos_updated_at
+    before update
+    on prospectos
+    for each row
+execute procedure update_updated_at_column();
+
 grant delete, insert, references, select, trigger, truncate, update on prospectos to anon;
 
 grant delete, insert, references, select, trigger, truncate, update on prospectos to authenticated;
@@ -179,6 +185,12 @@ create index idx_deciles_activo
 create index idx_deciles_orden
     on deciles (orden_visual);
 
+create trigger update_deciles_updated_at
+    before update
+    on deciles
+    for each row
+execute procedure update_updated_at_column();
+
 grant delete, insert, references, select, trigger, truncate, update on deciles to anon;
 
 grant delete, insert, references, select, trigger, truncate, update on deciles to authenticated;
@@ -219,6 +231,12 @@ create index idx_datos_socioeconomicos_decil
 
 create index idx_datos_socioeconomicos_cae
     on datos_socioeconomicos (usa_cae);
+
+create trigger update_datos_socioeconomicos_updated_at
+    before update
+    on datos_socioeconomicos
+    for each row
+execute procedure update_updated_at_column();
 
 grant delete, insert, references, select, trigger, truncate, update on datos_socioeconomicos to anon;
 
@@ -296,6 +314,12 @@ create index idx_puntajes_paes_estado
 create index idx_puntajes_paes_total
     on puntajes_paes (puntaje_total);
 
+create trigger update_puntajes_paes_updated_at
+    before update
+    on puntajes_paes
+    for each row
+execute procedure update_updated_at_column();
+
 grant delete, insert, references, select, trigger, truncate, update on puntajes_paes to anon;
 
 grant delete, insert, references, select, trigger, truncate, update on puntajes_paes to authenticated;
@@ -366,6 +390,12 @@ create index idx_datos_academicos_carrera
 create index idx_datos_academicos_promedio
     on datos_academicos (promedio);
 
+create trigger update_datos_academicos_updated_at
+    before update
+    on datos_academicos
+    for each row
+execute procedure update_updated_at_column();
+
 grant delete, insert, references, select, trigger, truncate, update on datos_academicos to anon;
 
 grant delete, insert, references, select, trigger, truncate, update on datos_academicos to authenticated;
@@ -400,6 +430,12 @@ create index idx_becas_nombre
 
 create index idx_becas_activa
     on becas (activa);
+
+create trigger update_becas_updated_at
+    before update
+    on becas
+    for each row
+execute procedure update_updated_at_column();
 
 grant delete, insert, references, select, trigger, truncate, update on becas to anon;
 
@@ -436,6 +472,12 @@ create index idx_beneficios_tipo
 create index idx_beneficios_activo
     on beneficios (activo);
 
+create trigger update_beneficios_updated_at
+    before update
+    on beneficios
+    for each row
+execute procedure update_updated_at_column();
+
 grant delete, insert, references, select, trigger, truncate, update on beneficios to anon;
 
 grant delete, insert, references, select, trigger, truncate, update on beneficios to authenticated;
@@ -450,7 +492,7 @@ create table beneficios_uniacc
         unique,
     descripcion         text                                               not null,
     porcentaje_maximo   numeric(8, 5),
-    monto_maximo        numeric(12, 2),
+    monto_maximo        numeric(20, 6),
     tipo_beneficio      text
         constraint beneficios_uniacc_tipo_beneficio_check
             check (tipo_beneficio = ANY (ARRAY ['BECA'::text, 'FINANCIAMIENTO'::text, 'FINANCIERO'::text])),
@@ -494,6 +536,12 @@ create index idx_beneficios_uniacc_vigente
 create index idx_beneficios_uniacc_prioridad
     on beneficios_uniacc (prioridad);
 
+create trigger update_beneficios_uniacc_updated_at
+    before update
+    on beneficios_uniacc
+    for each row
+execute procedure update_updated_at_column();
+
 grant delete, insert, references, select, trigger, truncate, update on beneficios_uniacc to anon;
 
 grant delete, insert, references, select, trigger, truncate, update on beneficios_uniacc to authenticated;
@@ -526,195 +574,15 @@ create index idx_simulaciones_prospecto
 create index idx_simulaciones_fecha
     on simulaciones (fecha_simulacion);
 
-grant delete, insert, references, select, trigger, truncate, update on simulaciones to anon;
-
-grant delete, insert, references, select, trigger, truncate, update on simulaciones to authenticated;
-
-grant delete, insert, references, select, trigger, truncate, update on simulaciones to service_role;
-
-create function update_updated_at_column() returns trigger
-    language plpgsql
-as
-$$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$;
-
-alter function update_updated_at_column() owner to postgres;
-
-create trigger update_prospectos_updated_at
-    before update
-    on prospectos
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_deciles_updated_at
-    before update
-    on deciles
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_datos_socioeconomicos_updated_at
-    before update
-    on datos_socioeconomicos
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_puntajes_paes_updated_at
-    before update
-    on puntajes_paes
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_datos_academicos_updated_at
-    before update
-    on datos_academicos
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_becas_updated_at
-    before update
-    on becas
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_beneficios_updated_at
-    before update
-    on beneficios
-    for each row
-execute procedure update_updated_at_column();
-
-create trigger update_beneficios_uniacc_updated_at
-    before update
-    on beneficios_uniacc
-    for each row
-execute procedure update_updated_at_column();
-
 create trigger update_simulaciones_updated_at
     before update
     on simulaciones
     for each row
 execute procedure update_updated_at_column();
 
-create function puede_simular(prospecto_uuid uuid) returns boolean
-    language plpgsql
-as
-$$
-DECLARE
-    nivel_actual TEXT;
-    tiene_datos_socioeconomicos BOOLEAN;
-    tiene_datos_academicos BOOLEAN;
-BEGIN
-    -- Obtener nivel educativo actual
-    SELECT da.nivel_educativo_actual INTO nivel_actual
-    FROM datos_academicos da
-    WHERE da.prospecto_id = prospecto_uuid;
+grant delete, insert, references, select, trigger, truncate, update on simulaciones to anon;
 
-    -- Verificar si tiene datos socioeconómicos
-    SELECT EXISTS(
-        SELECT 1 FROM datos_socioeconomicos ds
-        WHERE ds.prospecto_id = prospecto_uuid
-    ) INTO tiene_datos_socioeconomicos;
+grant delete, insert, references, select, trigger, truncate, update on simulaciones to authenticated;
 
-    -- Verificar si tiene datos académicos
-    SELECT EXISTS(
-        SELECT 1 FROM datos_academicos da
-        WHERE da.prospecto_id = prospecto_uuid
-    ) INTO tiene_datos_academicos;
-
-    -- Un estudiante puede simular si:
-    -- 1. Es egresado (tiene NEM, ranking, etc.) - PAES NO es obligatorio
-    -- 2. O es estudiante de enseñanza media con datos socioeconómicos
-    RETURN (
-        (nivel_actual = 'Egresado' AND tiene_datos_academicos) OR
-        (nivel_actual IN ('1ro Medio', '2do Medio', '3ro Medio', '4to Medio') AND tiene_datos_socioeconomicos AND tiene_datos_academicos)
-    );
-END;
-$$;
-
-alter function puede_simular(uuid) owner to postgres;
-
-create function obtener_beneficios_por_nivel(prospecto_uuid uuid)
-    returns TABLE(codigo_beneficio integer, descripcion text, porcentaje_maximo numeric, monto_maximo numeric, tipo_beneficio text, elegible boolean, razon_elegibilidad text)
-    language plpgsql
-as
-$$
-DECLARE
-    nivel_actual TEXT;
-    decil_estudiante INTEGER;
-BEGIN
-    -- Obtener nivel educativo y decil
-    SELECT da.nivel_educativo_actual, ds.decil_ingreso
-    INTO nivel_actual, decil_estudiante
-    FROM datos_academicos da
-    LEFT JOIN datos_socioeconomicos ds ON da.prospecto_id = ds.prospecto_id
-    WHERE da.prospecto_id = prospecto_uuid;
-
-    -- Retornar beneficios según el nivel educativo
-    RETURN QUERY
-    SELECT
-        bu.codigo_beneficio,
-        bu.descripcion,
-        bu.porcentaje_maximo,
-        bu.monto_maximo,
-        bu.tipo_beneficio,
-        CASE
-            -- Beneficios para estudiantes de enseñanza media
-            WHEN nivel_actual IN ('1ro Medio', '2do Medio', '3ro Medio', '4to Medio') THEN
-                CASE
-                    WHEN bu.descripcion ILIKE '%TALENTO%' THEN true
-                    WHEN bu.descripcion ILIKE '%MIGRANTE%' THEN true
-                    WHEN bu.tipo_beneficio = 'FINANCIERO' THEN true
-                    WHEN bu.descripcion ILIKE '%CONVENIO%' THEN true
-                    ELSE false
-                END
-            -- Beneficios para egresados (PAES NO es obligatorio en UNIACC)
-            WHEN nivel_actual = 'Egresado' THEN
-                CASE
-                    WHEN bu.descripcion ILIKE '%DACC%' THEN true
-                    WHEN bu.descripcion ILIKE '%NEM%' THEN true
-                    WHEN bu.descripcion ILIKE '%PSU%' THEN true
-                    WHEN bu.descripcion ILIKE '%CAE%' THEN true
-                    WHEN bu.descripcion ILIKE '%TALENTO%' THEN true
-                    WHEN bu.descripcion ILIKE '%MIGRANTE%' THEN true
-                    WHEN bu.descripcion ILIKE '%CONVENIO%' THEN true
-                    WHEN bu.tipo_beneficio = 'FINANCIERO' THEN true
-                    WHEN bu.tipo_beneficio = 'FINANCIAMIENTO' THEN true
-                    ELSE false
-                END
-            ELSE false
-        END as elegible,
-        CASE
-            WHEN nivel_actual IN ('1ro Medio', '2do Medio', '3ro Medio', '4to Medio') THEN
-                CASE
-                    WHEN bu.descripcion ILIKE '%TALENTO%' THEN 'Beca talento para estudiantes de enseñanza media'
-                    WHEN bu.descripcion ILIKE '%MIGRANTE%' THEN 'Beca migrante disponible'
-                    WHEN bu.tipo_beneficio = 'FINANCIERO' THEN 'Descuento por forma de pago'
-                    WHEN bu.descripcion ILIKE '%CONVENIO%' THEN 'Convenio institucional'
-                    ELSE 'No aplica para estudiantes de enseñanza media'
-                END
-            WHEN nivel_actual = 'Egresado' THEN
-                CASE
-                    WHEN bu.descripcion ILIKE '%DACC%' THEN 'Beca por rendimiento DACC'
-                    WHEN bu.descripcion ILIKE '%NEM%' THEN 'Beca por NEM'
-                    WHEN bu.descripcion ILIKE '%PSU%' THEN 'Beca por PSU (opcional)'
-                    WHEN bu.descripcion ILIKE '%CAE%' THEN 'Crédito con Aval del Estado'
-                    WHEN bu.descripcion ILIKE '%TALENTO%' THEN 'Beca talento para egresados'
-                    WHEN bu.descripcion ILIKE '%MIGRANTE%' THEN 'Beca migrante para egresados'
-                    WHEN bu.descripcion ILIKE '%CONVENIO%' THEN 'Convenio institucional'
-                    WHEN bu.tipo_beneficio = 'FINANCIERO' THEN 'Descuento por forma de pago'
-                    WHEN bu.tipo_beneficio = 'FINANCIAMIENTO' THEN 'Financiamiento disponible'
-                    ELSE 'No cumple requisitos'
-                END
-            ELSE 'Nivel educativo no válido'
-        END as razon_elegibilidad
-    FROM beneficios_uniacc bu
-    WHERE bu.vigente = true
-    ORDER BY bu.prioridad, bu.codigo_beneficio;
-END;
-$$;
-
-alter function obtener_beneficios_por_nivel(uuid) owner to postgres;
+grant delete, insert, references, select, trigger, truncate, update on simulaciones to service_role;
 

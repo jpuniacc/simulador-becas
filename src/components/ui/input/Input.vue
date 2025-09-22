@@ -1,6 +1,6 @@
-<script setup lang="ts">
+<script setup lang="ts" name="BaseInput">
 import type { HTMLAttributes } from "vue"
-import { useVModel } from "@vueuse/core"
+import { computed } from "vue"
 import { cn } from "@/lib/utils"
 
 const props = defineProps<{
@@ -13,9 +13,11 @@ const emits = defineEmits<{
   (e: "update:modelValue", payload: string | number): void
 }>()
 
-const modelValue = useVModel(props, "modelValue", emits, {
-  passive: true,
-  defaultValue: props.defaultValue,
+const modelValue = computed({
+  get: () => props.modelValue ?? props.defaultValue ?? '',
+  set: (value: string | number) => {
+    emits('update:modelValue', value)
+  }
 })
 </script>
 

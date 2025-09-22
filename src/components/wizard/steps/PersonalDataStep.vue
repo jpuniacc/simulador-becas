@@ -43,11 +43,22 @@ const {
 
 // Computed
 const isStepValid = computed(() => {
-  return !!(
+  const valid = !!(
     formData.value.identificacion &&
     formData.value.telefono
   )
+  console.log('PersonalDataStep validation:', {
+    identificacion: formData.value.identificacion,
+    telefono: formData.value.telefono,
+    isValid: valid
+  })
+  return valid
 })
+
+// Establecer tipo de identificación basado en el modo
+const setTipoIdentificacion = () => {
+  formData.value.tipoIdentificacion = showPassport.value ? 'pasaporte' : 'rut'
+}
 
 // Métodos
 const handleIdentificacionInput = () => {
@@ -55,7 +66,11 @@ const handleIdentificacionInput = () => {
   if (!showPassport.value) {
     const clean = cleanRUT(formData.value.identificacion)
     if (clean.length >= 8) {
-      formData.value.identificacion = formatRUT(formData.value.identificacion)
+      const formatted = formatRUT(formData.value.identificacion)
+      // Solo actualizar si el valor formateado es diferente
+      if (formatted !== formData.value.identificacion) {
+        formData.value.identificacion = formatted
+      }
     }
   }
 }
@@ -69,23 +84,48 @@ const handleSubmit = () => {
   emit('update:form-data', formData.value)
 
   // Emitir validación
-  emit('validate', 2, isStepValid.value)
+  emit('validate', 1, isStepValid.value)
 }
 
-// Watchers
+// Watchers con debounce para evitar bucles
+let updateTimeout: NodeJS.Timeout | null = null
+
 watch(formData, (newData) => {
-  emit('update:form-data', newData)
-  emit('validate', 2, isStepValid.value)
+  // Limpiar timeout anterior
+  if (updateTimeout) {
+    clearTimeout(updateTimeout)
+  }
+
+  // Debounce para emitir actualizaciones
+  updateTimeout = setTimeout(() => {
+    emit('update:form-data', newData)
+    emit('validate', 1, isStepValid.value)
+  }, 100) // Debounce de 100ms
 }, { deep: true })
 
 watch(() => props.formData, (newData) => {
-  formData.value = { ...newData }
+  // Solo actualizar si hay diferencias reales
+  const hasChanges = Object.keys(newData).some(key =>
+    (formData.value as Record<string, unknown>)[key] !== (newData as Record<string, unknown>)[key]
+  )
+
+  if (hasChanges) {
+    formData.value = { ...newData }
+  }
 }, { deep: true })
+
+// Watcher para actualizar tipo de identificación
+watch(showPassport, () => {
+  setTipoIdentificacion()
+})
 
 // Lifecycle
 onMounted(() => {
+  // Establecer tipo de identificación inicial
+  setTipoIdentificacion()
+
   // Validar paso inicial
-  emit('validate', 2, isStepValid.value)
+  emit('validate', 1, isStepValid.value)
 })
 </script>
 

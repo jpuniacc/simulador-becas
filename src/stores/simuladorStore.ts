@@ -25,7 +25,7 @@ import { useDecilCalculation } from '../composables/useDecilCalculation'
 export const useSimuladorStore = defineStore('simulador', () => {
   // Estado del wizard
   const currentStep = ref(0)
-  const totalSteps = ref(6)
+  const totalSteps = ref(7) // Aumentado a 7 pasos
   const isCompleted = ref(false)
   const isSimulating = ref(false)
   const simulationProgress = ref<SimulationProgress>({
@@ -45,7 +45,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
     identificacion: '',
     nacionalidad: '',
     fechaNacimiento: '',
-    nivelEducativo: 'Egresado',
+    nivelEducativo: '',
     colegio: '',
     carrera: '',
     nem: null,
@@ -97,7 +97,13 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Computed
   const canGoNext = computed(() => {
-    return stepValidation.value[currentStep.value] || false
+    const canGo = stepValidation.value[currentStep.value] || false
+    console.log('canGoNext computed:', {
+      currentStep: currentStep.value,
+      stepValidation: stepValidation.value[currentStep.value],
+      canGo
+    })
+    return canGo
   })
 
   const canGoBack = computed(() => {
@@ -238,7 +244,9 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Validación de pasos
   const validateStep = (step: number, isValid: boolean) => {
+    console.log(`Validating step ${step}:`, isValid)
     stepValidation.value[step] = isValid
+    console.log('Current stepValidation:', stepValidation.value)
   }
 
   const validateCurrentStep = () => {
@@ -251,33 +259,42 @@ export const useSimuladorStore = defineStore('simulador', () => {
         break
       case 1: // Datos Personales
         isValid = !!(
-          formData.value.nombre &&
-          formData.value.apellido &&
-          formData.value.email &&
-          formData.value.telefono &&
-          formData.value.tipoIdentificacion &&
           formData.value.identificacion &&
-          formData.value.nacionalidad &&
-          formData.value.fechaNacimiento
+          formData.value.telefono
         )
+        console.log('Validating step 1 (Datos Personales):', {
+          identificacion: formData.value.identificacion,
+          telefono: formData.value.telefono,
+          isValid
+        })
         break
-      case 2: // Datos Académicos
+      case 2: // Datos de Escuela
         isValid = !!(
           formData.value.nivelEducativo &&
-          formData.value.colegio &&
-          formData.value.carrera
+          formData.value.colegio
         )
         break
-      case 3: // Socioeconómico
+      case 3: // Datos de Egreso/PAES
+        if (formData.value.nivelEducativo === 'Egresado') {
+          isValid = !!(
+            formData.value.nem &&
+            formData.value.ranking &&
+            formData.value.añoEgreso
+          )
+        } else {
+          isValid = !!formData.value.carrera
+        }
+        break
+      case 4: // Socioeconómico
         isValid = !!(
           formData.value.ingresoMensual &&
           formData.value.integrantes
         )
         break
-      case 4: // PAES (opcional)
+      case 5: // PAES (opcional)
         isValid = true
         break
-      case 5: // Resultados
+      case 6: // Resultados
         isValid = !!results.value
         break
     }
@@ -418,10 +435,19 @@ export const useSimuladorStore = defineStore('simulador', () => {
     }
   }
 
-  // Watchers
+  // Watchers con debounce para evitar bucles
+  let saveTimeout: NodeJS.Timeout | null = null
+
   watch(formData, () => {
     validateCurrentStep()
-    saveToLocalStorage()
+
+    // Debounce para saveToLocalStorage
+    if (saveTimeout) {
+      clearTimeout(saveTimeout)
+    }
+    saveTimeout = setTimeout(() => {
+      saveToLocalStorage()
+    }, 1000) // Guardar después de 1 segundo de inactividad
   }, { deep: true })
 
   watch(currentStep, () => {
@@ -519,3 +545,4 @@ export const useSimuladorStore = defineStore('simulador', () => {
     decilCalculation
   }
 })
+
