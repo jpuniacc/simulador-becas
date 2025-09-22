@@ -37,6 +37,17 @@ const {
 const isEgresado = computed(() => formData.value.nivelEducativo === 'Egresado')
 const rendioPAES = computed(() => formData.value.rendioPAES === true)
 
+// Títulos dinámicos
+const stepTitle = computed(() => {
+  return isEgresado.value ? 'Datos de Egreso' : 'Carrera de Interés'
+})
+
+const stepSubtitle = computed(() => {
+  return isEgresado.value
+    ? 'Como egresado, necesitamos algunos datos adicionales para calcular tus beneficios'
+    : 'Cuéntanos qué carrera te interesa para tu futuro académico'
+})
+
 const añosEgreso = computed(() => {
   const currentYear = new Date().getFullYear()
   const years = []
@@ -150,9 +161,9 @@ onMounted(() => {
   <div class="graduation-data-step">
     <div class="step-content">
       <div class="step-header">
-        <h2 class="step-title">Datos de Egreso</h2>
+        <h2 class="step-title">{{ stepTitle }}</h2>
         <p class="step-subtitle">
-          Como egresado, necesitamos algunos datos adicionales para calcular tus beneficios
+          {{ stepSubtitle }}
         </p>
       </div>
 
@@ -357,23 +368,38 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Si no es egresado, solo mostrar carrera -->
-          <div v-else class="form-field">
-            <label for="carrera" class="form-label">
-              Carrera de Interés *
-            </label>
-            <Input
-              id="carrera"
-              v-model="formData.carrera"
-              type="text"
-              placeholder="Ej: Ingeniería Comercial"
-              class="w-full"
-            />
-            <ValidationMessage
-              v-if="hasFieldError('carrera')"
-              :message="getFieldErrorMessage('carrera')"
-              type="error"
-            />
+          <!-- Si no es egresado, mostrar carrera de interés -->
+          <div v-else class="bg-green-50 border border-green-200 rounded-lg p-6">
+            <div class="flex items-start space-x-3 mb-4">
+              <Info class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 class="text-lg font-semibold text-green-900">Carrera de Interés</h3>
+                <p class="text-sm text-green-700 mt-1">
+                  Como estás en {{ formData.nivelEducativo }}, cuéntanos qué carrera te interesa para tu futuro académico
+                </p>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="carrera" class="form-label">
+                ¿Qué carrera te interesa? *
+              </label>
+              <Input
+                id="carrera"
+                v-model="formData.carrera"
+                type="text"
+                placeholder="Ej: Ingeniería Comercial, Medicina, Psicología..."
+                class="w-full"
+              />
+              <p class="text-sm text-gray-500 mt-1">
+                Puedes escribir el nombre de la carrera que más te llame la atención
+              </p>
+              <ValidationMessage
+                v-if="hasFieldError('carrera')"
+                :message="getFieldErrorMessage('carrera')"
+                type="error"
+              />
+            </div>
           </div>
         </form>
       </div>

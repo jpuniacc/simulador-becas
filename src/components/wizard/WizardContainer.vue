@@ -59,7 +59,7 @@ const stepTitle = computed(() => {
     'Bienvenida',
     '', // PersonalDataStep no necesita título en el header
     'Estado Académico',
-    'Datos de Egreso',
+    '', // GraduationDataStep maneja su propio título dinámicamente
     'Situación Socioeconómica',
     'PAES (Opcional)',
     'Resultados'
@@ -72,7 +72,7 @@ const stepDescription = computed(() => {
     'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
     '', // PersonalDataStep no necesita descripción en el header
     'Cuéntanos sobre tu estado académico actual',
-    'Como egresado, necesitamos algunos datos adicionales',
+    '', // GraduationDataStep maneja su propia descripción dinámicamente
     'Selecciona tu situación socioeconómica',
     'Agrega tus puntajes PAES si los tienes',
     'Revisa los beneficios que puedes obtener'

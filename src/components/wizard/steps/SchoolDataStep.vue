@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Input } from '@/components/ui/input'
 import ValidationMessage from '@/components/ui/validation-message.vue'
-import WorldClassDropdown from '@/components/ui/dropdown/WorldClassDropdown.vue'
+import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
 import { School } from 'lucide-vue-next'
 import { useFormValidation } from '@/composables/useFormValidation'
 import { useColegios, type Region, type Comuna, type Colegio } from '@/composables/useColegios'
@@ -26,6 +26,9 @@ const formData = ref<FormData>({
   ...props.formData,
   nivelEducativo: '' // Asegurar que no tenga valor por defecto
 })
+
+// Estado del modal
+const isSchoolModalOpen = ref(false)
 
 // Composable de colegios
 const {
@@ -95,6 +98,23 @@ const handleColegioSearch = async (term: string) => {
   if (comunaSeleccionada.value && term.length >= 2) {
     await buscarColegios(comunaSeleccionada.value.comuna_id, term)
   }
+}
+
+// Métodos del modal
+const openSchoolModal = () => {
+  isSchoolModalOpen.value = true
+}
+
+const closeSchoolModal = () => {
+  isSchoolModalOpen.value = false
+}
+
+const handleSchoolSelectionComplete = (region: Region, comuna: Comuna, colegio: Colegio) => {
+  regionSeleccionada.value = region
+  comunaSeleccionada.value = comuna
+  colegioSeleccionado.value = colegio
+  formData.value.colegio = colegio.nombre
+  isSchoolModalOpen.value = false
 }
 
 const isStepValid = computed(() => {
@@ -220,66 +240,34 @@ onUnmounted(() => {
               ¿Ingresa la información de tu colegio?
             </label>
 
-            <!-- Región -->
-            <div v-if="!regionSeleccionada" class="mb-4">
-              <WorldClassDropdown
-                v-model="regionSeleccionada"
-                :options="regiones"
-                :disabled="colegiosLoading"
-                :error="colegiosError"
-                placeholder="Selecciona tu región"
-                search-placeholder="Buscar región..."
-                display-key="region_nombre"
-                value-key="region_id"
-                icon="MapPin"
-                @change="handleRegionChange"
-              />
-            </div>
-
-            <!-- Comuna -->
-            <div v-if="regionSeleccionada && !comunaSeleccionada" class="mb-4">
-              <WorldClassDropdown
-                v-model="comunaSeleccionada"
-                :options="comunasFiltradas"
-                :disabled="colegiosLoading"
-                placeholder="Selecciona tu comuna"
-                search-placeholder="Buscar comuna..."
-                display-key="comuna_nombre"
-                value-key="comuna_id"
-                icon="MapPin"
-                @change="handleComunaChange"
-              />
-            </div>
-
-            <!-- Colegio -->
-            <div v-if="comunaSeleccionada && !colegioSeleccionado">
-              <WorldClassDropdown
-                v-model="colegioSeleccionado"
-                :options="colegiosFiltrados"
-                :disabled="colegiosLoading"
-                placeholder="Selecciona tu colegio"
-                search-placeholder="Buscar colegio..."
-                display-key="nombre"
-                value-key="id"
-                icon="School"
-                max-height="400px"
-                @change="handleColegioChange"
-                @search="handleColegioSearch"
-              />
-            </div>
-
-            <!-- Resumen de selección -->
-            <div v-if="colegioSeleccionado" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div class="flex items-center space-x-2 text-green-800">
-                <School class="w-5 h-5 flex-shrink-0" />
-                <div class="min-w-0 flex-1">
-                  <div class="font-medium truncate">{{ colegioSeleccionado.nombre }}</div>
-                  <div class="text-sm text-green-600 truncate">
+            <!-- Botón para abrir modal -->
+            <button
+              type="button"
+              @click="openSchoolModal"
+              :class="[
+                'w-full p-4 border-2 border-dashed rounded-lg transition-all duration-200',
+                'hover:border-uniacc-blue hover:bg-uniacc-blue/5',
+                'focus:outline-none focus:ring-2 focus:ring-uniacc-blue focus:border-uniacc-blue',
+                colegioSeleccionado
+                  ? 'border-green-300 bg-green-50'
+                  : 'border-gray-300 bg-gray-50'
+              ]"
+            >
+              <div class="flex items-center justify-center space-x-3">
+                <School class="w-6 h-6 text-gray-400" />
+                <div class="text-center">
+                  <div v-if="colegioSeleccionado" class="text-green-800 font-medium">
+                    {{ colegioSeleccionado.nombre }}
+                  </div>
+                  <div v-else class="text-gray-600">
+                    Toca para seleccionar tu colegio
+                  </div>
+                  <div v-if="colegioSeleccionado" class="text-sm text-green-600 mt-1">
                     {{ comunaSeleccionada?.comuna_nombre }}, {{ regionSeleccionada?.region_nombre }}
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
 
             <ValidationMessage
               v-if="hasFieldError('colegio')"
@@ -290,6 +278,16 @@ onUnmounted(() => {
         </form>
       </div>
     </div>
+
+    <!-- Modal de selección de colegio -->
+    <SchoolSelectionModal
+      :is-open="isSchoolModalOpen"
+      :selected-region="regionSeleccionada"
+      :selected-comuna="comunaSeleccionada"
+      :selected-colegio="colegioSeleccionado"
+      @update:is-open="isSchoolModalOpen = $event"
+      @complete="handleSchoolSelectionComplete"
+    />
   </div>
 </template>
 
