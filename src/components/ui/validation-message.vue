@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   message?: string
   type?: 'error' | 'warning' | 'info' | 'success'

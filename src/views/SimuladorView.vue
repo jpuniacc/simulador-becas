@@ -27,6 +27,10 @@ const goBack = () => {
   router.back()
 }
 
+const reloadPage = () => {
+  window.location.reload()
+}
+
 const handleSimulationComplete = (results: any) => {
   console.log('Simulación completada:', results)
   // Aquí podrías agregar lógica adicional como analytics, etc.
@@ -143,7 +147,7 @@ onUnmounted(() => {
               <Home class="w-4 h-4 mr-2" />
               Volver al Inicio
             </Button>
-            <Button @click="window.location.reload()" variant="outline" class="error-button">
+            <Button @click="reloadPage" variant="outline" class="error-button">
               <RotateCcw class="w-4 h-4 mr-2" />
               Recargar Página
             </Button>

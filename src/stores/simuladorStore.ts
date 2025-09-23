@@ -22,8 +22,14 @@ import { useDeciles } from '../composables/useDeciles'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useSimulation } from '../composables/useSimulation'
 import { useDecilCalculation } from '../composables/useDecilCalculation'
+import { useCarrerasStore } from './carrerasStore'
+import { useBecasStore, type CalculoBecas } from './becasStore'
 
 export const useSimuladorStore = defineStore('simulador', () => {
+  // Integrar stores de carreras y becas
+  const carrerasStore = useCarrerasStore()
+  const becasStore = useBecasStore()
+
   // Estado del wizard
   const currentStep = ref(0)
   const totalSteps = ref(6) // Flujo dinámico: 5 para no egresados, 6 para egresados
@@ -42,27 +48,35 @@ export const useSimuladorStore = defineStore('simulador', () => {
     apellido: '',
     email: '',
     telefono: '',
+    tieneRUT: undefined,
     tipoIdentificacion: '',
     identificacion: '',
     nacionalidad: '',
     fechaNacimiento: '',
-    nivelEducativo: '',
+    genero: '',
+    nivelEducativo: '', // Obligatorio seleccionar
     colegio: '',
     carrera: '',
+    tipoPrograma: 'Regular',
     nem: null,
     ranking: null,
     añoEgreso: '',
     ingresoMensual: null,
     integrantes: '',
-    tieneCAE: false,
-    tieneBecasEstado: false,
+    planeaUsarCAE: false,
+    usaBecasEstado: false,
     decil: null,
+    regionResidencia: '', // Región del prospecto (puede ser cualquier región)
+    comunaResidencia: '', // Se obtiene del colegio seleccionado
+    regionId: null, // Se obtiene del colegio seleccionado
     rendioPAES: false,
     paes: {
       matematica: null,
       lenguaje: null,
       ciencias: null,
-      historia: null
+      historia: null,
+      matematica2: null,
+      terceraAsignatura: null
     }
   })
 
@@ -71,14 +85,19 @@ export const useSimuladorStore = defineStore('simulador', () => {
   const error = ref<string | null>(null)
   const lastSimulation = ref<Date | null>(null)
 
+  // Cálculo de becas
+  const calculoBecas = ref<CalculoBecas | null>(null)
+  const costosCarrera = ref<any>(null)
+
   // Validación por paso
   const stepValidation = ref<StepValidation>({
     0: true,  // Bienvenida
     1: false, // Datos Personales
-    2: false, // Datos Académicos
-    3: false, // Socioeconómico
-    4: true,  // PAES (opcional)
-    5: false  // Resultados
+    2: false, // Datos de Escuela
+    3: false, // Selección de Carrera
+    4: false, // Datos de Egreso (solo egresados)
+    5: false, // Socioeconómico
+    6: false  // Resultados
   })
 
   // Configuración de simulación
@@ -93,7 +112,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
   })
 
   // Datos de referencia
-  const deciles = ref<DecilInfo[]>([])
+  const deciles = ref<any[]>([])
   const beneficios = ref<BeneficioUniaccInfo[]>([])
   const nacionalidades = ref<NacionalidadInfo[]>([])
   const colegios = ref<ColegioInfo[]>([])
@@ -124,7 +143,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   const isLastStep = computed(() => {
     const isEgresado = formData.value.nivelEducativo === 'Egresado'
-    const maxSteps = isEgresado ? 6 : 5
+    const maxSteps = isEgresado ? 6 : 5 // Egresados: 6 pasos, No egresados: 5 pasos
     return currentStep.value === maxSteps - 1
   })
 
@@ -140,18 +159,33 @@ export const useSimuladorStore = defineStore('simulador', () => {
       apellido: formData.value.apellido,
       email: formData.value.email,
       nivelEducativo: formData.value.nivelEducativo,
-      ingresoMensual: formData.value.ingresoMensual,
-      integrantes: formData.value.integrantes
+      genero: formData.value.genero,
+      colegio: formData.value.colegio,
+      carrera: formData.value.carrera
     }
 
     console.log('Validación de simulación:', required)
+    console.log('formData completo:', formData.value)
 
-    return required.nombre &&
+    const isValid = !!(required.nombre &&
            required.apellido &&
            required.email &&
            required.nivelEducativo &&
-           required.ingresoMensual &&
-           required.integrantes
+           required.genero &&
+           required.colegio &&
+           required.carrera)
+
+    console.log('canSimulate resultado:', isValid)
+    console.log('Valores individuales:', {
+      nombre: !!required.nombre,
+      apellido: !!required.apellido,
+      email: !!required.email,
+      nivelEducativo: !!required.nivelEducativo,
+      genero: !!required.genero,
+      colegio: !!required.colegio,
+      carrera: !!required.carrera
+    })
+    return isValid
   })
 
   const decilCalculado = computed(() => {
@@ -174,8 +208,8 @@ export const useSimuladorStore = defineStore('simulador', () => {
     validateOnMount: false
   })
 
-  // Inicializar simulación
-  const simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
+  // Inicializar simulación (se recreará en cada simulación con datos actuales)
+  let simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
 
   // Inicializar cálculo de decil
   const decilCalculation = useDecilCalculation({
@@ -203,7 +237,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   const goToStep = (step: number) => {
     const isEgresado = formData.value.nivelEducativo === 'Egresado'
-    const maxSteps = isEgresado ? 6 : 5
+    const maxSteps = isEgresado ? 6 : 5 // Egresados: 6 pasos, No egresados: 5 pasos
 
     if (step >= 0 && step < maxSteps) {
       currentStep.value = step
@@ -229,7 +263,25 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Acciones de datos del formulario
   const updateFormData = (data: Partial<FormData>) => {
+    console.log('updateFormData recibió:', data)
+    console.log('formData antes de actualizar:', formData.value)
+
     formData.value = { ...formData.value, ...data }
+
+    console.log('formData después de actualizar:', formData.value)
+
+    // Si se actualiza el colegio, actualizar comuna y región de residencia
+    if (data.colegio) {
+      const colegioSeleccionado = colegios.value.find(c => c.nombre === data.colegio)
+      if (colegioSeleccionado) {
+        console.log('Colegio seleccionado:', colegioSeleccionado)
+        console.log('region_id del colegio:', (colegioSeleccionado as any).region_id)
+        formData.value.comunaResidencia = colegioSeleccionado.comunaNombre
+        formData.value.regionResidencia = colegioSeleccionado.regionNombre // Usar la región real del colegio
+        formData.value.regionId = (colegioSeleccionado as any).region_id // Usar el ID de la región
+        console.log('regionId actualizado en formData:', formData.value.regionId)
+      }
+    }
 
     // Actualizar validación
     formValidation.updateFields(data)
@@ -244,28 +296,36 @@ export const useSimuladorStore = defineStore('simulador', () => {
       apellido: '',
       email: '',
       telefono: '',
+      tieneRUT: undefined,
       tipoIdentificacion: '',
       identificacion: '',
       nacionalidad: '',
       fechaNacimiento: '',
-      nivelEducativo: 'Egresado',
+      genero: '',
+      nivelEducativo: '', // Obligatorio seleccionar
       colegio: '',
       carrera: '',
+      tipoPrograma: 'Regular',
       nem: null,
       ranking: null,
       añoEgreso: '',
       ingresoMensual: null,
       integrantes: '',
-      tieneCAE: false,
-      tieneBecasEstado: false,
+      planeaUsarCAE: false,
+      usaBecasEstado: false,
       decil: null,
+      regionResidencia: '', // Región del prospecto (puede ser cualquier región)
+      comunaResidencia: '',
+      regionId: null, // Se obtiene del colegio seleccionado
       rendioPAES: false,
-      paes: {
-        matematica: null,
-        lenguaje: null,
-        ciencias: null,
-        historia: null
-      }
+    paes: {
+      matematica: null,
+      lenguaje: null,
+      ciencias: null,
+      historia: null,
+      matematica2: null,
+      terceraAsignatura: null
+    }
     }
 
     formValidation.resetForm()
@@ -296,58 +356,72 @@ export const useSimuladorStore = defineStore('simulador', () => {
       case 1: // Datos Personales
         isValid = !!(
           formData.value.identificacion &&
-          formData.value.telefono
+          formData.value.telefono &&
+          formData.value.genero
         )
         console.log('Validating step 1 (Datos Personales):', {
           identificacion: formData.value.identificacion,
           telefono: formData.value.telefono,
+          genero: formData.value.genero,
           isValid
         })
         break
       case 2: // Datos de Escuela
         isValid = !!(
-          formData.value.nivelEducativo &&
+          formData.value.nivelEducativo && // Ahora obligatorio
           formData.value.colegio
         )
+        console.log('Validating step 2 (Datos de Escuela):', {
+          nivelEducativo: formData.value.nivelEducativo,
+          colegio: formData.value.colegio,
+          isValid
+        })
         break
-      case 3: // Datos de Egreso/Carrera de Interés
+      case 3: // Selección de Carrera (para todos)
+        isValid = !!formData.value.carrera
+        console.log('Validating step 3 (Selección de Carrera):', {
+          carrera: formData.value.carrera,
+          isValid
+        })
+        break
+      case 4: // Datos de Egreso (solo para egresados)
         if (isEgresado) {
-          // Para egresados: requiere NEM, ranking y año de egreso
-          isValid = !!(
-            formData.value.nem &&
-            formData.value.ranking &&
-            formData.value.añoEgreso
-          )
-        } else {
-          // Para no egresados: solo requiere carrera de interés
+          // Para egresados: solo requiere carrera (NEM, ranking, año y PAES son opcionales)
           isValid = !!formData.value.carrera
+          console.log('Validating step 4 (Datos de Egreso):', {
+            carrera: formData.value.carrera,
+            nem: formData.value.nem,
+            ranking: formData.value.ranking,
+            añoEgreso: formData.value.añoEgreso,
+            rendioPAES: formData.value.rendioPAES,
+            isValid
+          })
+        } else {
+          // Para no egresados: este paso no existe, saltar al siguiente
+          isValid = true
         }
         break
-      case 4: // Socioeconómico
+      case 5: // Socioeconómico (para todos)
         // Si no selecciona ninguna opción de financiamiento, es válido
-        if (!formData.value.tieneCAE && !formData.value.tieneBecasEstado) {
+        if (!formData.value.planeaUsarCAE && !formData.value.usaBecasEstado) {
           isValid = true
         } else {
           // Si selecciona alguna opción, debe seleccionar decil
           isValid = !!formData.value.decil
         }
+        console.log('Validating step 5 (Socioeconómico):', {
+          planeaUsarCAE: formData.value.planeaUsarCAE,
+          usaBecasEstado: formData.value.usaBecasEstado,
+          decil: formData.value.decil,
+          isValid
+        })
         break
-      case 5: // PAES (solo para egresados) o Resultados (para no egresados)
-        if (isEgresado) {
-          // Para egresados: PAES es opcional
-          isValid = true
-        } else {
-          // Para no egresados: este es el paso de resultados
-          isValid = !!results.value
-        }
-        break
-      case 6: // Resultados (solo para egresados)
-        if (isEgresado) {
-          isValid = !!results.value
-        } else {
-          // No debería llegar aquí para no egresados
-          isValid = false
-        }
+      case 6: // Resultados (para todos)
+        isValid = !!results.value
+        console.log('Validating step 6 (Resultados):', {
+          results: !!results.value,
+          isValid
+        })
         break
     }
 
@@ -356,16 +430,39 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Simulación
   const simulate = async (): Promise<SimulationResults> => {
+    console.log('=== INICIO DE SIMULATE ===')
+    console.log('canSimulate.value:', canSimulate.value)
+    console.log('formData en simulate:', formData.value)
+
     if (!canSimulate.value) {
+      console.log('ERROR: canSimulate es false, no se puede simular')
       throw new Error('No se puede simular: faltan datos requeridos')
     }
+
+    console.log('canSimulate es true, continuando con simulación...')
 
     isSimulating.value = true
     error.value = null
 
     try {
-      // Actualizar configuración de simulación
-      simulation.updateConfig(simulationConfig.value)
+      // Cargar datos necesarios si no están cargados
+      if (carrerasStore.carreras.length === 0) {
+        await carrerasStore.cargarCarreras()
+      }
+      if (becasStore.becas.length === 0) {
+        await becasStore.cargarBecas()
+      }
+
+      // Obtener costos de la carrera seleccionada
+      if (formData.value.carrera) {
+        costosCarrera.value = becasStore.obtenerCostosCarrera(formData.value.carrera)
+      }
+
+      // Calcular becas elegibles
+      calculoBecas.value = becasStore.calcularBecas(formData.value)
+
+      // Recrear simulación con datos actuales
+      simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
 
       // Ejecutar simulación
       const resultados = await simulation.simulate()
@@ -376,7 +473,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
       // Ir al paso de resultados
       const isEgresado = formData.value.nivelEducativo === 'Egresado'
-      const resultsStep = isEgresado ? 6 : 5
+      const resultsStep = isEgresado ? 6 : 5 // Egresados: paso 6, No egresados: paso 5
       currentStep.value = resultsStep
       validateStep(resultsStep, true)
 
@@ -394,6 +491,8 @@ export const useSimuladorStore = defineStore('simulador', () => {
     error.value = null
     lastSimulation.value = null
     isCompleted.value = false
+    calculoBecas.value = null
+    costosCarrera.value = null
   }
 
   // Carga de datos de referencia
@@ -431,8 +530,8 @@ export const useSimuladorStore = defineStore('simulador', () => {
     if (!query) return colegios.value
     return colegios.value.filter(c =>
       c.nombre.toLowerCase().includes(query.toLowerCase()) ||
-      c.comuna.toLowerCase().includes(query.toLowerCase()) ||
-      c.region.toLowerCase().includes(query.toLowerCase())
+      c.comunaNombre.toLowerCase().includes(query.toLowerCase()) ||
+      c.regionNombre.toLowerCase().includes(query.toLowerCase())
     )
   }
 
@@ -515,7 +614,9 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   watch(results, () => {
     if (results.value) {
-      validateStep(5, true)
+      const isEgresado = formData.value.nivelEducativo === 'Egresado'
+      const resultsStep = isEgresado ? 6 : 5 // Egresados: paso 6, No egresados: paso 5
+      validateStep(resultsStep, true)
     }
   })
 
@@ -545,6 +646,10 @@ export const useSimuladorStore = defineStore('simulador', () => {
     lastSimulation,
     stepValidation,
     simulationConfig,
+
+    // Cálculo de becas
+    calculoBecas,
+    costosCarrera,
 
     // Datos de referencia
     deciles,
@@ -608,7 +713,11 @@ export const useSimuladorStore = defineStore('simulador', () => {
     // Composables
     formValidation,
     simulation,
-    decilCalculation
+    decilCalculation,
+
+    // Stores integrados
+    carrerasStore,
+    becasStore
   }
 })
 

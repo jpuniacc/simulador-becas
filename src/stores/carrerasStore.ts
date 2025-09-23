@@ -1,12 +1,13 @@
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
 type CarreraRow = Database['public']['Tables']['carreras']['Row']
-
 export type Carrera = CarreraRow
 
-export function useCarreras() {
+export const useCarrerasStore = defineStore('carreras', () => {
+  // Estado
   const carreras = ref<Carrera[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -43,83 +44,6 @@ export function useCarreras() {
     return Array.from(areasUnicas).sort()
   })
 
-  // Función para inicializar carreras
-  const inicializar = async () => {
-    try {
-      loading.value = true
-      error.value = null
-      console.log('Inicializando carreras desde Supabase...')
-
-      const { data, error: supabaseError } = await supabase
-        .from('carreras')
-        .select('*')
-        .order('nombre_carrera')
-
-      if (supabaseError) {
-        throw supabaseError
-      }
-
-      carreras.value = data || []
-      console.log('Carreras cargadas:', carreras.value.length)
-      console.log('Primera carrera:', carreras.value[0])
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Error al cargar carreras'
-      console.error('Error cargando carreras:', err)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  // Función para buscar carreras por término
-  const buscarCarreras = (termino: string) => {
-    if (!termino || !termino.trim()) return carrerasVigentes.value
-
-    const terminoLower = termino.toLowerCase()
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.nombre_carrera.toLowerCase().includes(terminoLower) ||
-      carrera.descripcion_facultad.toLowerCase().includes(terminoLower) ||
-      carrera.area_actual.toLowerCase().includes(terminoLower)
-    )
-  }
-
-  // Función para filtrar carreras por facultad
-  const filtrarPorFacultad = (facultad: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.descripcion_facultad === facultad
-    )
-  }
-
-  // Función para filtrar carreras por área
-  const filtrarPorArea = (area: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.area_actual === area
-    )
-  }
-
-  // Función para obtener carreras por nivel
-  const filtrarPorNivel = (nivel: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.nivel_global === nivel
-    )
-  }
-
-  // Función para obtener arancel de una carrera específica
-  const obtenerArancelCarrera = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-    return carrera?.arancel_carrera || 0
-  }
-
-  // Función para obtener matrícula de una carrera específica
-  const obtenerMatriculaCarrera = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-    return carrera?.matricula_carrera || 0
-  }
-
-  // Función para obtener información completa de una carrera
-  const obtenerCarreraPorNombre = (nombreCarrera: string) => {
-    return carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-  }
-
   // Computed para carreras con aranceles definidos
   const carrerasConArancel = computed(() => {
     return carrerasVigentes.value.filter(carrera =>
@@ -142,6 +66,86 @@ export function useCarreras() {
     }
   })
 
+  // Acciones
+  const cargarCarreras = async () => {
+    try {
+      loading.value = true
+      error.value = null
+
+      const { data, error: supabaseError } = await supabase
+        .from('carreras')
+        .select('*')
+        .order('nombre_carrera')
+
+      if (supabaseError) {
+        throw supabaseError
+      }
+
+      carreras.value = data || []
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Error al cargar carreras'
+      console.error('Error cargando carreras:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const buscarCarreras = (termino: string) => {
+    if (!termino || !termino.trim()) return carrerasVigentes.value
+
+    const terminoLower = termino.toLowerCase()
+    return carrerasVigentes.value.filter(carrera =>
+      carrera.nombre_carrera.toLowerCase().includes(terminoLower) ||
+      carrera.descripcion_facultad.toLowerCase().includes(terminoLower) ||
+      carrera.area_actual.toLowerCase().includes(terminoLower)
+    )
+  }
+
+  const filtrarPorFacultad = (facultad: string) => {
+    return carrerasVigentes.value.filter(carrera =>
+      carrera.descripcion_facultad === facultad
+    )
+  }
+
+  const filtrarPorArea = (area: string) => {
+    return carrerasVigentes.value.filter(carrera =>
+      carrera.area_actual === area
+    )
+  }
+
+  const filtrarPorNivel = (nivel: string) => {
+    return carrerasVigentes.value.filter(carrera =>
+      carrera.nivel_global === nivel
+    )
+  }
+
+  const obtenerArancelCarrera = (nombreCarrera: string) => {
+    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
+    return carrera?.arancel_carrera || 0
+  }
+
+  const obtenerMatriculaCarrera = (nombreCarrera: string) => {
+    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
+    return carrera?.matricula_carrera || 0
+  }
+
+  const obtenerCarreraPorNombre = (nombreCarrera: string) => {
+    return carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
+  }
+
+  const obtenerCostosCarrera = (nombreCarrera: string) => {
+    const carrera = obtenerCarreraPorNombre(nombreCarrera)
+    if (!carrera) return null
+
+    return {
+      arancel: carrera.arancel_carrera || 0,
+      matricula: carrera.matricula_carrera || 0,
+      duracion: carrera.duracion_en_semestres || 0,
+      anio: carrera.anio || new Date().getFullYear(),
+      totalAnual: (carrera.arancel_carrera || 0) + (carrera.matricula_carrera || 0)
+    }
+  }
+
   return {
     // Estado
     carreras,
@@ -154,14 +158,15 @@ export function useCarreras() {
     loading,
     error,
 
-    // Métodos
-    inicializar,
+    // Acciones
+    cargarCarreras,
     buscarCarreras,
     filtrarPorFacultad,
     filtrarPorArea,
     filtrarPorNivel,
     obtenerArancelCarrera,
     obtenerMatriculaCarrera,
-    obtenerCarreraPorNombre
+    obtenerCarreraPorNombre,
+    obtenerCostosCarrera
   }
-}
+})

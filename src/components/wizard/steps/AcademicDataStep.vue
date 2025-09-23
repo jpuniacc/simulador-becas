@@ -58,6 +58,21 @@ const {
 // Computed
 const isEgresado = computed(() => formData.value.nivelEducativo === 'Egresado')
 
+// Computed para manejar valores null en inputs numéricos
+const nemValue = computed({
+  get: () => formData.value.nem ?? '',
+  set: (value: string | number) => {
+    formData.value.nem = value === '' ? null : Number(value)
+  }
+})
+
+const rankingValue = computed({
+  get: () => formData.value.ranking ?? '',
+  set: (value: string | number) => {
+    formData.value.ranking = value === '' ? null : Number(value)
+  }
+})
+
 const añosEgreso = computed(() => {
   const currentYear = new Date().getFullYear()
   const years = []
@@ -168,7 +183,7 @@ watch(formData, (newData) => {
 watch(() => props.formData, (newData) => {
   // Solo actualizar si hay diferencias reales
   const hasChanges = Object.keys(newData).some(key =>
-    (formData.value as Record<string, unknown>)[key] !== (newData as Record<string, unknown>)[key]
+    (formData.value as unknown as Record<string, unknown>)[key] !== (newData as unknown as Record<string, unknown>)[key]
   )
 
   if (hasChanges) {
@@ -244,7 +259,7 @@ onUnmounted(() => {
                 v-model="regionSeleccionada"
                 :regions="regiones"
                 :disabled="colegiosLoading"
-                :error="colegiosError"
+                :error="colegiosError || undefined"
                 placeholder="Selecciona tu región"
                 @change="handleRegionChange"
               />
@@ -340,7 +355,7 @@ onUnmounted(() => {
               </label>
               <Input
                 id="nem"
-                v-model="formData.nem"
+                v-model="nemValue"
                 type="number"
                 step="0.01"
                 min="1.0"
@@ -364,7 +379,7 @@ onUnmounted(() => {
               </label>
               <Input
                 id="ranking"
-                v-model="formData.ranking"
+                v-model="rankingValue"
                 type="number"
                 step="1"
                 min="0"

@@ -45,11 +45,13 @@ const {
 const isStepValid = computed(() => {
   const valid = !!(
     formData.value.identificacion &&
-    formData.value.telefono
+    formData.value.telefono &&
+    formData.value.genero
   )
   console.log('PersonalDataStep validation:', {
     identificacion: formData.value.identificacion,
     telefono: formData.value.telefono,
+    genero: formData.value.genero,
     isValid: valid
   })
   return valid
@@ -106,7 +108,7 @@ watch(formData, (newData) => {
 watch(() => props.formData, (newData) => {
   // Solo actualizar si hay diferencias reales
   const hasChanges = Object.keys(newData).some(key =>
-    (formData.value as Record<string, unknown>)[key] !== (newData as Record<string, unknown>)[key]
+    (formData.value as unknown as Record<string, unknown>)[key] !== (newData as unknown as Record<string, unknown>)[key]
   )
 
   if (hasChanges) {
@@ -210,6 +212,31 @@ onMounted(() => {
             :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasFieldError('telefono') }"
             @blur="validateField('telefono')"
           />
+        </FormField>
+
+        <!-- Género -->
+        <FormField
+          label="¿Cuál es tu género? *"
+          :icon="User"
+          :required="true"
+          :error="getFieldErrorMessage('genero')"
+          :has-error="hasFieldError('genero')"
+        >
+          <select
+            v-model="formData.genero"
+            class="w-full px-4 py-4 border border-gray-200 rounded-lg focus:ring-1 focus:ring-uniacc-blue focus:border-uniacc-blue transition-all duration-200 group-hover:border-gray-300"
+            :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasFieldError('genero') }"
+            @blur="validateField('genero')"
+          >
+            <option value="">Selecciona tu género</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Femenino">Femenino</option>
+            <option value="Otro">Otro</option>
+            <option value="Prefiero no decir">Prefiero no decir</option>
+          </select>
+          <template #help>
+            Esta información nos ayuda a identificar becas específicas disponibles
+          </template>
         </FormField>
       </div>
     </form>

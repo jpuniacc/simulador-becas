@@ -20,7 +20,7 @@ export interface FormField {
   minLength?: number
   min?: number
   max?: number
-  step?: number
+  stepSize?: number
   pattern?: string
   autocomplete?: string
   multiple?: boolean

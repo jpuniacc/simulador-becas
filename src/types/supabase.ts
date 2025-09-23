@@ -50,6 +50,7 @@ export interface Database {
           pasaporte: string | null
           fecha_nacimiento: string | null
           nacionalidad_id: string | null
+          genero: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | null
           created_at: string
           updated_at: string
         }
@@ -63,6 +64,7 @@ export interface Database {
           pasaporte?: string | null
           fecha_nacimiento?: string | null
           nacionalidad_id?: string | null
+          genero?: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | null
           created_at?: string
           updated_at?: string
         }
@@ -76,6 +78,7 @@ export interface Database {
           pasaporte?: string | null
           fecha_nacimiento?: string | null
           nacionalidad_id?: string | null
+          genero?: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | null
           created_at?: string
           updated_at?: string
         }
@@ -199,30 +202,39 @@ export interface Database {
         Row: {
           id: string
           prospecto_id: string
-          usa_cae: boolean
+          planea_usar_cae: boolean
+          usa_becas_estado: boolean
           decil_ingreso: number | null
           ingreso_mensual: number | null
           numero_integrantes_familia: number | null
+          region_residencia: string | null
+          comuna_residencia: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           prospecto_id: string
-          usa_cae?: boolean
+          planea_usar_cae?: boolean
+          usa_becas_estado?: boolean
           decil_ingreso?: number | null
           ingreso_mensual?: number | null
           numero_integrantes_familia?: number | null
+          region_residencia?: string | null
+          comuna_residencia?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           prospecto_id?: string
-          usa_cae?: boolean
+          planea_usar_cae?: boolean
+          usa_becas_estado?: boolean
           decil_ingreso?: number | null
           ingreso_mensual?: number | null
           numero_integrantes_familia?: number | null
+          region_residencia?: string | null
+          comuna_residencia?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -298,6 +310,7 @@ export interface Database {
           tipo_colegio: string | null
           carrera_deseada: string
           nivel_educativo_actual: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado'
+          tipo_programa: 'Regular' | 'Advance' | 'Especial'
           promedio: number | null
           nem: number | null
           ranking: number | null
@@ -315,6 +328,7 @@ export interface Database {
           tipo_colegio?: string | null
           carrera_deseada: string
           nivel_educativo_actual?: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado'
+          tipo_programa?: 'Regular' | 'Advance' | 'Especial'
           promedio?: number | null
           nem?: number | null
           ranking?: number | null
@@ -332,6 +346,7 @@ export interface Database {
           tipo_colegio?: string | null
           carrera_deseada?: string
           nivel_educativo_actual?: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado'
+          tipo_programa?: 'Regular' | 'Advance' | 'Especial'
           promedio?: number | null
           nem?: number | null
           ranking?: number | null
@@ -463,6 +478,29 @@ export interface Database {
           updated_at?: string
         }
       }
+      validacion_alumno_nuevo: {
+        Row: {
+          id: string
+          prospecto_id: string
+          es_alumno_nuevo: boolean
+          fecha_validacion: string
+          observaciones: string | null
+        }
+        Insert: {
+          id?: string
+          prospecto_id: string
+          es_alumno_nuevo?: boolean
+          fecha_validacion?: string
+          observaciones?: string | null
+        }
+        Update: {
+          id?: string
+          prospecto_id?: string
+          es_alumno_nuevo?: boolean
+          fecha_validacion?: string
+          observaciones?: string | null
+        }
+      }
       simulaciones: {
         Row: {
           id: string
@@ -507,6 +545,10 @@ export interface Database {
           vigencia: string
           descripcion_escuela: string
           descripcion_facultad: string
+          arancel_carrera: number | null
+          matricula_carrera: number | null
+          anio: number | null
+          duracion_en_semestres: number | null
         }
         Insert: {
           id?: number
@@ -519,6 +561,10 @@ export interface Database {
           vigencia: string
           descripcion_escuela: string
           descripcion_facultad: string
+          arancel_carrera?: number | null
+          matricula_carrera?: number | null
+          anio?: number | null
+          duracion_en_semestres?: number | null
         }
         Update: {
           id?: number
@@ -531,6 +577,120 @@ export interface Database {
           vigencia?: string
           descripcion_escuela?: string
           descripcion_facultad?: string
+          arancel_carrera?: number | null
+          matricula_carrera?: number | null
+          anio?: number | null
+          duracion_en_semestres?: number | null
+        }
+      }
+      becas_uniacc: {
+        Row: {
+          id: string
+          codigo_beca: string
+          nombre: string
+          descripcion: string | null
+          descuento_porcentaje: number | null
+          descuento_monto_fijo: number | null
+          tipo_descuento: 'porcentaje' | 'monto_fijo' | 'mixto'
+          requiere_nem: boolean
+          nem_minimo: number | null
+          requiere_paes: boolean
+          paes_minimo: number | null
+          requiere_region_especifica: boolean
+          region_excluida: string | null
+          requiere_genero: 'Masculino' | 'Femenino' | null
+          carreras_aplicables: string[] | null
+          programas_excluidos: string[] | null
+          max_anos_egreso: number | null
+          max_anos_paes: number | null
+          vigencia_desde: string
+          vigencia_hasta: string | null
+          modalidades_aplicables: string[]
+          nivel_aplicable: 'Pregrado' | 'Postgrado' | 'Educacion_Continua'
+          duracion_tipo: 'Anual' | 'Semestral' | 'Variable'
+          duracion_meses: number | null
+          proceso_evaluacion: 'Automatico' | 'Evaluacion' | 'Postulacion'
+          cupos_disponibles: number | null
+          cupos_utilizados: number
+          requiere_documentacion: string[]
+          es_combinable: boolean
+          becas_incompatibles: string[] | null
+          activa: boolean
+          prioridad: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          codigo_beca: string
+          nombre: string
+          descripcion?: string | null
+          descuento_porcentaje?: number | null
+          descuento_monto_fijo?: number | null
+          tipo_descuento?: 'porcentaje' | 'monto_fijo' | 'mixto'
+          requiere_nem?: boolean
+          nem_minimo?: number | null
+          requiere_paes?: boolean
+          paes_minimo?: number | null
+          requiere_region_especifica?: boolean
+          region_excluida?: string | null
+          requiere_genero?: 'Masculino' | 'Femenino' | null
+          carreras_aplicables?: string[] | null
+          programas_excluidos?: string[] | null
+          max_anos_egreso?: number | null
+          max_anos_paes?: number | null
+          vigencia_desde: string
+          vigencia_hasta?: string | null
+          modalidades_aplicables: string[]
+          nivel_aplicable?: 'Pregrado' | 'Postgrado' | 'Educacion_Continua'
+          duracion_tipo?: 'Anual' | 'Semestral' | 'Variable'
+          duracion_meses?: number | null
+          proceso_evaluacion?: 'Automatico' | 'Evaluacion' | 'Postulacion'
+          cupos_disponibles?: number | null
+          cupos_utilizados?: number
+          requiere_documentacion?: string[]
+          es_combinable?: boolean
+          becas_incompatibles?: string[] | null
+          activa?: boolean
+          prioridad?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          codigo_beca?: string
+          nombre?: string
+          descripcion?: string | null
+          descuento_porcentaje?: number | null
+          descuento_monto_fijo?: number | null
+          tipo_descuento?: 'porcentaje' | 'monto_fijo' | 'mixto'
+          requiere_nem?: boolean
+          nem_minimo?: number | null
+          requiere_paes?: boolean
+          paes_minimo?: number | null
+          requiere_region_especifica?: boolean
+          region_excluida?: string | null
+          requiere_genero?: 'Masculino' | 'Femenino' | null
+          carreras_aplicables?: string[] | null
+          programas_excluidos?: string[] | null
+          max_anos_egreso?: number | null
+          max_anos_paes?: number | null
+          vigencia_desde?: string
+          vigencia_hasta?: string | null
+          modalidades_aplicables?: string[]
+          nivel_aplicable?: 'Pregrado' | 'Postgrado' | 'Educacion_Continua'
+          duracion_tipo?: 'Anual' | 'Semestral' | 'Variable'
+          duracion_meses?: number | null
+          proceso_evaluacion?: 'Automatico' | 'Evaluacion' | 'Postulacion'
+          cupos_disponibles?: number | null
+          cupos_utilizados?: number
+          requiere_documentacion?: string[]
+          es_combinable?: boolean
+          becas_incompatibles?: string[] | null
+          activa?: boolean
+          prioridad?: number
+          created_at?: string
+          updated_at?: string
         }
       }
     }

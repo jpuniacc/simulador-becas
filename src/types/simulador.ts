@@ -10,11 +10,13 @@ export interface FormData {
   identificacion: string
   nacionalidad: string
   fechaNacimiento: string
+  genero: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | ''
 
   // Datos Académicos
-  nivelEducativo: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado'
+  nivelEducativo: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado' | ''
   colegio: string
   carrera: string
+  tipoPrograma: 'Regular' | 'Advance' | 'Especial' | ''
   nem: number | null
   ranking: number | null
   añoEgreso: string
@@ -22,9 +24,12 @@ export interface FormData {
   // Datos Socioeconómicos
   ingresoMensual: number | null
   integrantes: string
-  tieneCAE: boolean
-  tieneBecasEstado: boolean
+  planeaUsarCAE: boolean
+  usaBecasEstado: boolean
   decil: number | null
+  regionResidencia: string
+  comunaResidencia: string
+  regionId: number | null
 
   // PAES
   rendioPAES: boolean
@@ -33,6 +38,8 @@ export interface FormData {
     lenguaje: number | null
     ciencias: number | null
     historia: number | null
+    matematica2: number | null
+    terceraAsignatura: 'matematica2' | 'ciencias' | 'historia' | null
   }
 }
 
@@ -173,9 +180,9 @@ export interface FormFieldConfig {
 
 export interface ValidationRule {
   type: 'required' | 'email' | 'min' | 'max' | 'pattern' | 'custom' | 'rut' | 'phone'
-  value?: any
+  value?: unknown
   message: string
-  validator?: (value: any, data?: FormData) => boolean
+  validator?: (value: unknown, data?: FormData) => boolean
 }
 
 export interface SimulationConfig {

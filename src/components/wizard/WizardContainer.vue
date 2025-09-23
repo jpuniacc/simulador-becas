@@ -39,6 +39,7 @@ const simuladorStore = useSimuladorStore()
 
 // Estado local
 const isSimulating = ref(false)
+const isCompleted = ref(false)
 const simulationProgress = ref(0)
 const loadingText = ref('')
 const transitionName = ref(props.transition)
@@ -49,10 +50,10 @@ const currentStep = computed(() => {
   return simuladorStore.currentStep
 })
 const totalSteps = computed(() => {
-  // Si es egresado: 6 pasos (incluye PAES)
-  // Si no es egresado: 5 pasos (sin PAES)
+  // Si es egresado: 7 pasos (0-6) (incluye PAES en paso 4)
+  // Si no es egresado: 6 pasos (0-5) (sin PAES)
   const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
-  return isEgresado ? 6 : 5
+  return isEgresado ? 7 : 6
 })
 const canGoBack = computed(() => simuladorStore.canGoBack)
 const canGoNext = computed(() => simuladorStore.canGoNext)
@@ -63,26 +64,26 @@ const stepTitle = computed(() => {
   const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
 
   if (isEgresado) {
-    // Flujo para egresados: 6 pasos
+    // Flujo para egresados: 7 pasos (0-6)
     const titles = [
-      'Bienvenida',
-      '', // PersonalDataStep no necesita título en el header
-      'Estado Académico',
-      '', // GraduationDataStep maneja su propio título dinámicamente
-      'Situación Socioeconómica',
-      'PAES (Opcional)',
-      'Resultados'
+      'Bienvenida',                    // 0
+      '',                              // 1: PersonalDataStep no necesita título
+      'Estado Académico',              // 2: SchoolDataStep
+      '',                              // 3: GraduationDataStep maneja su título
+      'Datos de Egreso',               // 4: PAESStep (NEM, Ranking, PAES)
+      'Situación Socioeconómica',      // 5: SocioeconomicStep
+      'Resultados'                     // 6: ResultsStep
     ]
     return titles[currentStep.value] || ''
   } else {
-    // Flujo para no egresados: 5 pasos (sin PAES)
+    // Flujo para no egresados: 6 pasos (0-5)
     const titles = [
-      'Bienvenida',
-      '', // PersonalDataStep no necesita título en el header
-      'Estado Académico',
-      '', // GraduationDataStep maneja su propio título dinámicamente
-      'Situación Socioeconómica',
-      'Resultados'
+      'Bienvenida',                    // 0
+      '',                              // 1: PersonalDataStep no necesita título
+      'Estado Académico',              // 2: SchoolDataStep
+      '',                              // 3: GraduationDataStep maneja su título
+      'Situación Socioeconómica',      // 4: SocioeconomicStep
+      'Resultados'                     // 5: ResultsStep
     ]
     return titles[currentStep.value] || ''
   }
@@ -92,26 +93,26 @@ const stepDescription = computed(() => {
   const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
 
   if (isEgresado) {
-    // Flujo para egresados: 6 pasos
+    // Flujo para egresados: 7 pasos (0-6)
     const descriptions = [
-      'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
-      '', // PersonalDataStep no necesita descripción en el header
-      'Cuéntanos sobre tu estado académico actual',
-      '', // GraduationDataStep maneja su propia descripción dinámicamente
-      'Selecciona tu situación socioeconómica',
-      'Agrega tus puntajes PAES si los tienes',
-      'Revisa los beneficios que puedes obtener'
+      'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación', // 0
+      '',                                                                                   // 1: PersonalDataStep no necesita descripción
+      'Cuéntanos sobre tu estado académico actual',                                        // 2: SchoolDataStep
+      '',                                                                                   // 3: GraduationDataStep maneja su descripción
+      'Ingresa tu NEM, ranking, año de egreso y puntajes PAES si los tienes',             // 4: PAESStep
+      'Selecciona tu situación socioeconómica',                                           // 5: SocioeconomicStep
+      'Revisa los beneficios que puedes obtener'                                          // 6: ResultsStep
     ]
     return descriptions[currentStep.value] || ''
   } else {
-    // Flujo para no egresados: 5 pasos (sin PAES)
+    // Flujo para no egresados: 6 pasos (0-5)
     const descriptions = [
-      'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación',
-      '', // PersonalDataStep no necesita descripción en el header
-      'Cuéntanos sobre tu estado académico actual',
-      '', // GraduationDataStep maneja su propia descripción dinámicamente
-      'Selecciona tu situación socioeconómica',
-      'Revisa los beneficios que puedes obtener'
+      'Ingresa tus datos de contacto para poder enviarte los resultados de tu simulación', // 0
+      '',                                                                                   // 1: PersonalDataStep no necesita descripción
+      'Cuéntanos sobre tu estado académico actual',                                        // 2: SchoolDataStep
+      '',                                                                                   // 3: GraduationDataStep maneja su descripción
+      'Selecciona tu situación socioeconómica',                                           // 4: SocioeconomicStep
+      'Revisa los beneficios que puedes obtener'                                          // 5: ResultsStep
     ]
     return descriptions[currentStep.value] || ''
   }
@@ -121,26 +122,26 @@ const currentStepComponent = computed(() => {
   const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
 
   if (isEgresado) {
-    // Flujo para egresados: 6 pasos
+    // Flujo para egresados: 7 pasos (0-6)
     const components = [
-      WelcomeStep,
-      PersonalDataStep,
-      SchoolDataStep,
-      GraduationDataStep,
-      SocioeconomicStep,
-      PAESStep,
-      ResultsStep
+      WelcomeStep,        // 0: Bienvenida
+      PersonalDataStep,   // 1: Datos Personales
+      SchoolDataStep,     // 2: Datos de Escuela
+      GraduationDataStep, // 3: Selección de Carrera
+      PAESStep,           // 4: Datos de Egreso (NEM, Ranking, PAES)
+      SocioeconomicStep,  // 5: Situación Socioeconómica
+      ResultsStep         // 6: Resultados
     ]
     return components[currentStep.value] || WelcomeStep
   } else {
-    // Flujo para no egresados: 5 pasos (sin PAES)
+    // Flujo para no egresados: 6 pasos (0-5)
     const components = [
-      WelcomeStep,
-      PersonalDataStep,
-      SchoolDataStep,
-      GraduationDataStep,
-      SocioeconomicStep,
-      ResultsStep // Saltar PAESStep
+      WelcomeStep,        // 0: Bienvenida
+      PersonalDataStep,   // 1: Datos Personales
+      SchoolDataStep,     // 2: Datos de Escuela
+      GraduationDataStep, // 3: Selección de Carrera
+      SocioeconomicStep,  // 4: Situación Socioeconómica
+      ResultsStep         // 5: Resultados
     ]
     return components[currentStep.value] || WelcomeStep
   }
@@ -160,6 +161,7 @@ const stepProps = computed(() => {
 
 // Métodos
 const handleFormDataUpdate = (data: any) => {
+  console.log('WizardContainer recibió actualización de formData:', data)
   simuladorStore.updateFormData(data)
 }
 
@@ -187,6 +189,7 @@ const handleSimulation = async () => {
 
     setTimeout(() => {
       isSimulating.value = false
+      isCompleted.value = true
       emit('complete', results)
     }, 500)
 
@@ -233,9 +236,9 @@ const stopAutoSave = () => {
 watch(currentStep, (newStep) => {
   // Cambiar transición según la dirección
   if (newStep > currentStep.value) {
-    transitionName.value = 'slide-right'
+    transitionName.value = 'slide'
   } else {
-    transitionName.value = 'slide-left'
+    transitionName.value = 'slide'
   }
 })
 
@@ -309,7 +312,7 @@ const handleOverlayClick = () => {
           </CardContent>
 
           <!-- Navegación del wizard -->
-          <CardFooter class="p-0">
+          <CardFooter v-if="!isCompleted" class="p-0">
             <div class="wizard-navigation w-full">
               <WizardNavigation
                 :can-go-back="canGoBack"

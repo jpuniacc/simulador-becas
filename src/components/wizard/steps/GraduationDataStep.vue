@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Input } from '@/components/ui/input'
 import ValidationMessage from '@/components/ui/validation-message.vue'
 import { Info, GraduationCap } from 'lucide-vue-next'
@@ -54,17 +54,113 @@ const {
 
 // Computed
 const isEgresado = computed(() => formData.value.nivelEducativo === 'Egresado')
-const rendioPAES = computed(() => formData.value.rendioPAES === true)
+
+// Computed para manejar values null en inputs numéricos
+const nemValue = computed({
+  get: () => formData.value.nem ?? '',
+  set: (value: string | number) => {
+    formData.value.nem = value === '' ? null : Number(value)
+  }
+})
+
+const rankingValue = computed({
+  get: () => formData.value.ranking ?? '',
+  set: (value: string | number) => {
+    formData.value.ranking = value === '' ? null : Number(value)
+  }
+})
+
+// Obtener el área de la carrera seleccionada
+const areaCarrera = computed(() => {
+  if (!formData.value.carrera) return null
+
+  const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === formData.value.carrera)
+  return carrera?.area_actual || null
+})
+
+// Determinar las asignaturas PAES recomendadas según el área
+const asignaturasRecomendadas = computed(() => {
+  const area = areaCarrera.value
+
+  switch (area) {
+    case 'TECNOLOGÍA':
+      return {
+        opciones: [
+          { value: 'matematica2', label: 'Matemática 2', descripcion: 'Para carreras de ingeniería e informática' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras tecnológicas y científicas' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Tecnología)'
+      }
+
+    case 'CIENCIAS SOCIALES':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para psicología, sociología, trabajo social' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras con enfoque científico-social' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Ciencias Sociales)'
+      }
+
+    case 'ADMINISTRACIÓN Y COMERCIO':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para ingeniería comercial y administración' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras de negocios con enfoque analítico' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Administración y Comercio)'
+      }
+
+    case 'DERECHO':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras jurídicas' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Derecho)'
+      }
+
+    case 'ARTE Y ARQUITECTURA':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para arte, diseño y arquitectura' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para arquitectura e ingeniería en diseño' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Arte y Arquitectura)'
+      }
+
+    case 'HUMANIDADES':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para literatura, filosofía, educación' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Humanidades)'
+      }
+
+    default:
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Asignatura general' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Asignatura general' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje'
+      }
+  }
+})
 
 // Títulos dinámicos
 const stepTitle = computed(() => {
+  if (!formData.value.carrera) {
+    return 'Selecciona tu Carrera'
+  }
   return isEgresado.value ? 'Datos de Egreso' : 'Carrera de Interés'
 })
 
 const stepSubtitle = computed(() => {
+  if (!formData.value.carrera) {
+    return 'Para personalizar tus beneficios, necesitamos saber qué carrera te interesa'
+  }
   return isEgresado.value
-    ? 'Como egresado, necesitamos algunos datos adicionales para calcular tus beneficios'
-    : 'Cuéntanos qué carrera te interesa para tu futuro académico'
+    ? `Para ${formData.value.carrera}, necesitamos algunos datos adicionales para calcular tus beneficios`
+    : `Para ${formData.value.carrera}, cuéntanos más sobre tu perfil académico`
 })
 
 // Computed para carreras filtradas
@@ -88,51 +184,22 @@ const isStepValid = computed(() => {
     return !!formData.value.carrera
   }
 
-  // Si es egresado, necesita NEM, Ranking y año de egreso
-  const baseValid = !!(
-    formData.value.nem &&
-    formData.value.ranking &&
-    formData.value.añoEgreso
-  )
-
-  // Si rindió PAES, también necesita al menos un puntaje
-  if (rendioPAES.value) {
-    return baseValid && !!(
-      formData.value.puntajeComprensionLectora ||
-      formData.value.puntajeMatematica1 ||
-      formData.value.puntajeMatematica2 ||
-      formData.value.puntajeHistoriaGeografia ||
-      formData.value.puntajeCiencias
-    )
-  }
-
-  return baseValid
+  // Si es egresado, solo necesita carrera (NEM, ranking y año son opcionales)
+  return !!formData.value.carrera
 })
 
 // Métodos
-const handleRendioPAESChange = () => {
-  // Limpiar puntajes PAES si no rindió
-  if (!rendioPAES.value) {
-    formData.value.puntajeComprensionLectora = null
-    formData.value.puntajeMatematica1 = null
-    formData.value.puntajeMatematica2 = null
-    formData.value.puntajeHistoriaGeografia = null
-    formData.value.puntajeCiencias = null
-    formData.value.puntajeFisica = null
-    formData.value.puntajeQuimica = null
-    formData.value.puntajeBiologia = null
-  }
-
-  // Validar paso
-  emit('validate', 3, isStepValid.value)
-}
-
-// Métodos para manejar carreras
 const selectCarrera = (carrera: Carrera) => {
   carreraSeleccionada.value = carrera
   formData.value.carrera = carrera.nombre_carrera
+  searchTerm.value = carrera.nombre_carrera
   showDropdown.value = false
-  searchTerm.value = ''
+
+  // Limpiar datos de PAES cuando cambie la carrera
+  formData.value.paes.terceraAsignatura = null
+  formData.value.paes.matematica2 = null
+  formData.value.paes.historia = null
+  formData.value.paes.ciencias = null
 
   // Validar paso
   emit('validate', 3, isStepValid.value)
@@ -198,10 +265,6 @@ const handleSubmit = () => {
     const egresadoFields = ['nem', 'ranking', 'añoEgreso']
     egresadoFields.forEach(field => validateField(field))
 
-    if (rendioPAES.value) {
-      const paesFields = ['puntajeComprensionLectora', 'puntajeMatematica1', 'puntajeMatematica2']
-      paesFields.forEach(field => validateField(field))
-    }
   } else {
     validateField('carrera')
   }
@@ -224,26 +287,49 @@ watch(formData, (newData) => {
 
   // Debounce para emitir actualizaciones
   updateTimeout = setTimeout(() => {
-    emit('update:form-data', newData)
-    emit('validate', 3, isStepValid.value)
-  }, 100) // Debounce de 100ms
+    // Solo emitir si realmente hay cambios
+    const hasChanges = Object.keys(newData).some(key =>
+      (formData.value as unknown as Record<string, unknown>)[key] !== (props.formData as unknown as Record<string, unknown>)[key]
+    )
+
+    if (hasChanges) {
+      emit('update:form-data', newData)
+      emit('validate', 3, isStepValid.value)
+    }
+  }, 150) // Aumentar debounce a 150ms
 }, { deep: true })
 
 watch(() => props.formData, (newData) => {
-  // Solo actualizar si hay diferencias reales
+  // Solo actualizar si hay diferencias reales y evitar loops
   const hasChanges = Object.keys(newData).some(key =>
-    (formData.value as Record<string, unknown>)[key] !== (newData as Record<string, unknown>)[key]
+    (formData.value as unknown as Record<string, unknown>)[key] !== (newData as unknown as Record<string, unknown>)[key]
   )
 
   if (hasChanges) {
-    formData.value = { ...newData }
+    // Usar nextTick para evitar updates síncronos
+    nextTick(() => {
+      formData.value = { ...newData }
+    })
   }
 }, { deep: true })
 
+// Limpiar tercera asignatura cuando cambie la carrera
+watch(() => formData.value.carrera, () => {
+  formData.value.paes.terceraAsignatura = null
+  formData.value.paes.matematica2 = null
+  formData.value.paes.historia = null
+  formData.value.paes.ciencias = null
+})
+
 // Lifecycle
 onMounted(async () => {
+  console.log('GraduationDataStep mounted, inicializando carreras...')
+
   // Inicializar carreras
   await inicializarCarreras()
+
+  console.log('Carreras después de inicializar:', carrerasVigentes.value.length)
+  console.log('Carreras vigentes:', carrerasVigentes.value)
 
   // Validar paso inicial
   emit('validate', 3, isStepValid.value)
@@ -274,18 +360,101 @@ onUnmounted(() => {
 
       <div class="step-body">
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <!-- Solo mostrar si es egresado -->
-          <div v-if="isEgresado.value" class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <!-- Selección de Carrera (Siempre primero) -->
+          <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+            <div class="flex items-start space-x-3 mb-4">
+              <GraduationCap class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 class="text-lg font-semibold text-green-900">Carrera de Interés</h3>
+                <p class="text-sm text-green-700 mt-1">
+                  Selecciona la carrera que te interesa para personalizar tus beneficios
+                </p>
+              </div>
+            </div>
+
+            <!-- Dropdown de carreras -->
+            <div class="form-field">
+              <label for="carrera" class="form-label">
+                Carrera *
+              </label>
+              <div class="relative" ref="dropdownRef">
+                <Input
+                  id="carrera"
+                  v-model="searchTerm"
+                  type="text"
+                  placeholder="Busca tu carrera..."
+                  class="w-full pr-10"
+                  @focus="showDropdown = true"
+                  @input="handleSearch"
+                />
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+
+                <!-- Dropdown de carreras -->
+                <div
+                  v-if="showDropdown"
+                  class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                  :style="dropdownStyle"
+                >
+                  <div
+                    v-for="carrera in carrerasFiltradas"
+                    :key="carrera.id"
+                    class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    @click="selectCarrera(carrera)"
+                  >
+                    <div class="font-medium text-gray-900">{{ carrera.nombre_carrera }}</div>
+                    <div class="text-sm text-gray-500">{{ carrera.descripcion_facultad }}</div>
+                    <div class="text-xs text-blue-600 mt-1">{{ carrera.area_actual }}</div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">
+                Busca por nombre de carrera, facultad o área
+              </p>
+            </div>
+
+            <!-- Indicador del área de la carrera seleccionada -->
+            <div v-if="areaCarrera" class="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span class="text-sm font-medium text-green-900">
+                  Área: {{ areaCarrera }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje para no egresados -->
+          <div v-if="!isEgresado && formData.carrera" class="bg-green-100 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center space-x-2">
+              <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span class="text-sm font-medium text-green-800">
+                ¡Perfecto! Has seleccionado {{ formData.carrera }}
+              </span>
+            </div>
+            <p class="text-sm text-green-700 mt-2">
+              Continúa al siguiente paso para completar tu perfil socioeconómico.
+            </p>
+          </div>
+
+          <!-- Datos de Egreso (Solo si es egresado y tiene carrera) -->
+          <div v-if="isEgresado && formData.carrera" class="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-blue-900 mb-4">Datos de Egreso</h3>
+            <p class="text-sm text-blue-700 mb-4">
+              Para {{ formData.carrera }}, completa la información que tengas disponible. Solo la carrera es obligatoria.
+            </p>
 
             <!-- NEM -->
             <div class="form-field">
               <label for="nem" class="form-label">
-                NEM (Notas de Enseñanza Media) *
+                NEM (Notas de Enseñanza Media)
               </label>
               <Input
                 id="nem"
-                v-model="formData.nem"
+                v-model="nemValue"
                 type="number"
                 step="0.1"
                 min="1.0"
@@ -294,7 +463,7 @@ onUnmounted(() => {
                 class="w-full"
               />
               <p class="text-sm text-gray-500 mt-1">
-                Promedio de notas de 1º a 4º Medio (1.0 - 7.0)
+                Promedio de notas de 1º a 4º Medio (1.0 - 7.0) - Opcional
               </p>
               <ValidationMessage
                 v-if="hasFieldError('nem')"
@@ -306,11 +475,11 @@ onUnmounted(() => {
             <!-- Ranking -->
             <div class="form-field">
               <label for="ranking" class="form-label">
-                Ranking de Notas *
+                Ranking de Notas
               </label>
               <Input
                 id="ranking"
-                v-model="formData.ranking"
+                v-model="rankingValue"
                 type="number"
                 min="0"
                 max="1000"
@@ -318,7 +487,7 @@ onUnmounted(() => {
                 class="w-full"
               />
               <p class="text-sm text-gray-500 mt-1">
-                Posición relativa en tu generación (0-1000)
+                Posición relativa en tu generación (0-1000) - Opcional
               </p>
               <ValidationMessage
                 v-if="hasFieldError('ranking')"
@@ -330,7 +499,7 @@ onUnmounted(() => {
             <!-- Año de Egreso -->
             <div class="form-field">
               <label for="añoEgreso" class="form-label">
-                Año de Egreso *
+                Año de Egreso
               </label>
               <select
                 id="añoEgreso"
@@ -346,6 +515,9 @@ onUnmounted(() => {
                   {{ año }}
                 </option>
               </select>
+              <p class="text-sm text-gray-500 mt-1">
+                Año en que egresaste de la enseñanza media - Opcional
+              </p>
               <ValidationMessage
                 v-if="hasFieldError('añoEgreso')"
                 :message="getFieldErrorMessage('añoEgreso')"
@@ -353,231 +525,23 @@ onUnmounted(() => {
               />
             </div>
 
-            <!-- ¿Rindió PAES? -->
-            <div class="form-field">
-              <label class="form-label">
-                ¿Rendiste la PAES?
-              </label>
-              <div class="flex space-x-6">
-                <label class="flex items-center space-x-2">
-                  <input
-                    v-model="formData.rendioPAES"
-                    type="radio"
-                    :value="true"
-                    class="w-4 h-4 text-uniacc-blue border-gray-300 focus:ring-uniacc-blue"
-                    @change="handleRendioPAESChange"
-                  />
-                  <span class="text-sm font-medium text-gray-900">Sí</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                  <input
-                    v-model="formData.rendioPAES"
-                    type="radio"
-                    :value="false"
-                    class="w-4 h-4 text-uniacc-blue border-gray-300 focus:ring-uniacc-blue"
-                    @change="handleRendioPAESChange"
-                  />
-                  <span class="text-sm font-medium text-gray-900">No</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Puntajes PAES (solo si rindió) -->
-            <div v-if="rendioPAES" class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <h4 class="text-md font-semibold text-gray-900 mb-4">Puntajes PAES</h4>
-              <p class="text-sm text-gray-600 mb-4">
-                Ingresa al menos uno de tus puntajes PAES (opcional pero recomendado)
-              </p>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Comprensión Lectora -->
-                <div class="form-field">
-                  <label for="puntajeComprensionLectora" class="form-label">
-                    Comprensión Lectora
-                  </label>
-                  <Input
-                    id="puntajeComprensionLectora"
-                    v-model="formData.puntajeComprensionLectora"
-                    type="number"
-                    min="150"
-                    max="850"
-                    placeholder="Ej: 650"
-                    class="w-full"
-                  />
-                </div>
-
-                <!-- Matemática 1 -->
-                <div class="form-field">
-                  <label for="puntajeMatematica1" class="form-label">
-                    Matemática 1
-                  </label>
-                  <Input
-                    id="puntajeMatematica1"
-                    v-model="formData.puntajeMatematica1"
-                    type="number"
-                    min="150"
-                    max="850"
-                    placeholder="Ej: 720"
-                    class="w-full"
-                  />
-                </div>
-
-                <!-- Matemática 2 -->
-                <div class="form-field">
-                  <label for="puntajeMatematica2" class="form-label">
-                    Matemática 2
-                  </label>
-                  <Input
-                    id="puntajeMatematica2"
-                    v-model="formData.puntajeMatematica2"
-                    type="number"
-                    min="150"
-                    max="850"
-                    placeholder="Ej: 680"
-                    class="w-full"
-                  />
-                </div>
-
-                <!-- Historia y Geografía -->
-                <div class="form-field">
-                  <label for="puntajeHistoriaGeografia" class="form-label">
-                    Historia y Geografía
-                  </label>
-                  <Input
-                    id="puntajeHistoriaGeografia"
-                    v-model="formData.puntajeHistoriaGeografia"
-                    type="number"
-                    min="150"
-                    max="850"
-                    placeholder="Ej: 600"
-                    class="w-full"
-                  />
-                </div>
-
-                <!-- Ciencias -->
-                <div class="form-field">
-                  <label for="puntajeCiencias" class="form-label">
-                    Ciencias
-                  </label>
-                  <Input
-                    id="puntajeCiencias"
-                    v-model="formData.puntajeCiencias"
-                    type="number"
-                    min="150"
-                    max="850"
-                    placeholder="Ej: 620"
-                    class="w-full"
-                  />
+            <!-- Mensaje para egresados -->
+            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex items-start space-x-3">
+                <Info class="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p class="text-sm font-medium text-blue-900">
+                    Como eres egresado, en el siguiente paso te pediremos:
+                  </p>
+                  <ul class="text-sm text-blue-800 mt-2 space-y-1">
+                    <li>• NEM y Ranking (opcional)</li>
+                    <li>• Año de egreso</li>
+                    <li>• Puntajes PAES (si los tienes)</li>
+                  </ul>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Si no es egresado, mostrar carrera de interés -->
-          <div v-else class="bg-green-50 border border-green-200 rounded-lg p-6">
-            <div class="flex items-start space-x-3 mb-4">
-              <GraduationCap class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h3 class="text-lg font-semibold text-green-900">Carrera de Interés</h3>
-                <p class="text-sm text-green-700 mt-1">
-                  Como estás en {{ formData.nivelEducativo }}, cuéntanos qué carrera te interesa para tu futuro académico
-                </p>
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label for="carrera" class="form-label">
-                ¿Qué carrera te interesa? *
-              </label>
-
-              <!-- Dropdown de carreras -->
-              <div class="relative carrera-dropdown">
-                <button
-                  ref="dropdownRef"
-                  type="button"
-                  @click="toggleDropdown"
-                  class="w-full px-4 py-3 text-left border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-uniacc-blue focus:border-uniacc-blue transition-all duration-200"
-                  :class="{
-                    'bg-gray-50 text-gray-400': !carreraSeleccionada,
-                    'bg-white text-gray-900': carreraSeleccionada
-                  }"
-                >
-                  <div class="flex items-center justify-between">
-                    <span>
-                      {{ carreraSeleccionada ? carreraSeleccionada.nombre_carrera : 'Selecciona una carrera' }}
-                    </span>
-                    <svg class="w-5 h-5 text-gray-400" :class="{ 'rotate-180': showDropdown }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                  </div>
-                </button>
-
-                <!-- Dropdown menu -->
-                <Teleport to="body">
-                  <div v-if="showDropdown" class="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-96 overflow-y-auto" :style="dropdownStyle" data-dropdown-content>
-                  <!-- Search input -->
-                  <div class="p-3 border-b border-gray-100">
-                    <div class="relative">
-                      <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                      </svg>
-                      <input
-                        v-model="searchTerm"
-                        type="text"
-                        placeholder="Buscar carrera..."
-                        class="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-uniacc-blue focus:border-uniacc-blue"
-                        @input="handleSearch"
-                        @click.stop
-                        @mousedown.stop
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Loading state -->
-                  <div v-if="carrerasLoading" class="p-4 text-center">
-                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-uniacc-blue mx-auto"></div>
-                    <p class="mt-2 text-sm text-gray-600">Cargando carreras...</p>
-                  </div>
-
-                  <!-- Error state -->
-                  <div v-else-if="carrerasError" class="p-4 text-center">
-                    <p class="text-sm text-red-600">{{ carrerasError }}</p>
-                  </div>
-
-                  <!-- Carreras list -->
-                  <div v-else-if="carrerasFiltradas.length === 0" class="p-4 text-center">
-                    <p class="text-sm text-gray-500">
-                      {{ searchTerm ? 'No se encontraron carreras' : 'No hay carreras disponibles' }}
-                    </p>
-                  </div>
-
-                  <div v-else class="py-1">
-                    <button
-                      v-for="carrera in carrerasFiltradas"
-                      :key="carrera.id"
-                      @click="selectCarrera(carrera)"
-                      @mousedown.stop
-                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors duration-150"
-                    >
-                      <div class="font-medium">{{ carrera.nombre_carrera }}</div>
-                      <div class="text-xs text-gray-500 mt-1">
-                        {{ carrera.descripcion_facultad }}
-                      </div>
-                    </button>
-                  </div>
-                  </div>
-                </Teleport>
-              </div>
-
-              <p class="text-sm text-gray-500 mt-1">
-                Selecciona una carrera de la lista o busca por nombre
-              </p>
-              <ValidationMessage
-                v-if="hasFieldError('carrera')"
-                :message="getFieldErrorMessage('carrera')"
-                type="error"
-              />
-            </div>
           </div>
         </form>
       </div>

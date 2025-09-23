@@ -110,10 +110,12 @@ const closeSchoolModal = () => {
 }
 
 const handleSchoolSelectionComplete = (region: Region, comuna: Comuna, colegio: Colegio) => {
+  console.log('Colegio seleccionado:', colegio)
   regionSeleccionada.value = region
   comunaSeleccionada.value = comuna
   colegioSeleccionado.value = colegio
   formData.value.colegio = colegio.nombre
+  console.log('FormData actualizado:', formData.value)
   isSchoolModalOpen.value = false
 }
 
@@ -122,6 +124,12 @@ const isStepValid = computed(() => {
     formData.value.nivelEducativo &&
     formData.value.colegio
   )
+
+  console.log('SchoolDataStep validation:', {
+    nivelEducativo: formData.value.nivelEducativo,
+    colegio: formData.value.colegio,
+    isValid: baseValid
+  })
 
   return baseValid
 })
@@ -170,7 +178,7 @@ watch(formData, (newData) => {
 watch(() => props.formData, (newData) => {
   // Solo actualizar si hay diferencias reales
   const hasChanges = Object.keys(newData).some(key =>
-    (formData.value as Record<string, unknown>)[key] !== (newData as Record<string, unknown>)[key]
+    (formData.value as unknown as Record<string, unknown>)[key] !== (newData as unknown as Record<string, unknown>)[key]
   )
 
   if (hasChanges) {

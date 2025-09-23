@@ -32,7 +32,7 @@ const simuladorStore = useSimuladorStore()
 
 // Computed para mostrar selección de decil
 const showDecilSelection = computed(() => {
-  return formData.value.tieneCAE || formData.value.tieneBecasEstado
+  return formData.value.planeaUsarCAE || formData.value.usaBecasEstado
 })
 
 // Validación
@@ -60,15 +60,12 @@ const selectedDecilInfo = computed(() => {
 })
 
 const isStepValid = computed(() => {
-  // Validar campos obligatorios
-  const hasRequiredFields = formData.value.ingresoMensual && formData.value.integrantes
-
-  // Si no selecciona ninguna opción de financiamiento, es válido con campos obligatorios
-  if (!formData.value.tieneCAE && !formData.value.tieneBecasEstado) {
-    return hasRequiredFields
+  // Si no selecciona ninguna opción de financiamiento, es válido
+  if (!formData.value.planeaUsarCAE && !formData.value.usaBecasEstado) {
+    return true
   }
-  // Si selecciona alguna opción, debe seleccionar decil Y tener campos obligatorios
-  return !!selectedDecil.value && hasRequiredFields
+  // Si selecciona alguna opción, debe seleccionar decil
+  return !!selectedDecil.value
 })
 
 // Métodos
@@ -89,7 +86,7 @@ const handleDecilChange = () => {
 
 const handleFinancingChange = () => {
   // Si deselecciona ambas opciones, limpiar decil
-  if (!formData.value.tieneCAE && !formData.value.tieneBecasEstado) {
+  if (!formData.value.planeaUsarCAE && !formData.value.usaBecasEstado) {
     selectedDecil.value = null
     formData.value.decil = null
   }
@@ -169,13 +166,13 @@ onMounted(async () => {
       <form @submit.prevent="handleSubmit" class="form">
         <!-- Opciones de financiamiento -->
         <div class="financing-options">
-          <h4 class="section-title">¿Qué tipo de financiamiento utilizarás?</h4>
+          <h4 class="section-title">¿Qué tipo de financiamiento planeas utilizar?</h4>
           <div class="options-grid">
             <!-- CAE -->
-            <div class="option-card" :class="{ 'selected': formData.tieneCAE }">
+            <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE }">
               <label class="option-label">
                 <input
-                  v-model="formData.tieneCAE"
+                  v-model="formData.planeaUsarCAE"
                   type="checkbox"
                   @change="handleFinancingChange"
                   class="option-checkbox"
@@ -193,10 +190,10 @@ onMounted(async () => {
             </div>
 
             <!-- Becas del Estado -->
-            <div class="option-card" :class="{ 'selected': formData.tieneBecasEstado }">
+            <div class="option-card" :class="{ 'selected': formData.usaBecasEstado }">
               <label class="option-label">
                 <input
-                  v-model="formData.tieneBecasEstado"
+                  v-model="formData.usaBecasEstado"
                   type="checkbox"
                   @change="handleFinancingChange"
                   class="option-checkbox"
@@ -271,7 +268,7 @@ onMounted(async () => {
               </div>
               <div class="decil-title">
                 <h4>{{ selectedDecilInfo.decil }}° Decil</h4>
-                <p>{{ selectedDecilInfo.descripcionCorta }}</p>
+                <p>{{ selectedDecilInfo.descripcion_corta }}</p>
               </div>
             </div>
 
@@ -291,62 +288,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Información adicional para simulación -->
-        <div class="additional-info-section">
-          <h4 class="section-title">Información adicional</h4>
-          <p class="section-description">
-            Esta información nos ayuda a calcular los beneficios más precisos para ti.
-          </p>
-
-          <div class="form-grid">
-            <!-- Ingreso Mensual -->
-            <div class="form-field">
-              <label for="ingresoMensual" class="form-label">
-                Ingreso mensual del hogar *
-              </label>
-              <Input
-                id="ingresoMensual"
-                v-model="formData.ingresoMensual"
-                type="number"
-                min="0"
-                placeholder="Ej: 500000"
-                class="w-full"
-              />
-              <p class="text-sm text-gray-500 mt-1">
-                Ingreso total mensual de tu hogar en pesos chilenos
-              </p>
-              <ValidationMessage
-                v-if="hasFieldError('ingresoMensual')"
-                :message="getFieldErrorMessage('ingresoMensual')"
-                type="error"
-              />
-            </div>
-
-            <!-- Número de Integrantes -->
-            <div class="form-field">
-              <label for="integrantes" class="form-label">
-                Número de integrantes del hogar *
-              </label>
-              <Input
-                id="integrantes"
-                v-model="formData.integrantes"
-                type="number"
-                min="1"
-                max="20"
-                placeholder="Ej: 4"
-                class="w-full"
-              />
-              <p class="text-sm text-gray-500 mt-1">
-                Incluye a todas las personas que viven en tu hogar
-              </p>
-              <ValidationMessage
-                v-if="hasFieldError('integrantes')"
-                :message="getFieldErrorMessage('integrantes')"
-                type="error"
-              />
-            </div>
-          </div>
-        </div>
 
         <!-- Información sobre beneficios -->
         <div class="benefits-info">

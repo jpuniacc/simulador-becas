@@ -88,15 +88,14 @@ export function useSimulation(
            formData.apellido &&
            formData.email &&
            formData.nivelEducativo &&
-           formData.ingresoMensual &&
-           formData.integrantes
+           formData.genero &&
+           formData.colegio &&
+           formData.carrera
   })
 
   const decilCalculado = computed(() => {
-    if (!calculoDecil || !formData.ingresoMensual || !formData.integrantes) {
-      return 10
-    }
-    return calculateDecilWithData(formData.ingresoMensual, parseInt(formData.integrantes), deciles)
+    // Para el MVP, usar decil por defecto ya que no tenemos ingresoMensual e integrantes
+    return formData.decil || 10
   })
 
   const paesTotal = computed(() => {

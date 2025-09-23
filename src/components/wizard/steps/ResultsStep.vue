@@ -11,10 +11,15 @@ import {
   XCircle,
   RotateCcw,
   Share,
-  Download
+  Download,
+  GraduationCap,
+  BookOpen,
+  Calendar,
+  MapPin
 } from 'lucide-vue-next'
 import type { SimulationResults } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
+import { useSimuladorStore } from '@/stores/simuladorStore'
 
 // Props
 interface Props {
@@ -22,7 +27,7 @@ interface Props {
   error?: string | null
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 // Emits
 const emit = defineEmits<{
@@ -31,8 +36,145 @@ const emit = defineEmits<{
   'export-pdf': []
 }>()
 
+// Store
+const simuladorStore = useSimuladorStore()
+
 // Computed
-const hasResults = computed(() => !!props.results)
+const calculoBecas = computed(() => simuladorStore.calculoBecas)
+const formData = computed(() => simuladorStore.formData)
+
+// Computed para información de la carrera
+const carreraInfo = computed(() => {
+  if (!formData.value.carrera) return null
+  return simuladorStore.carrerasStore.obtenerCarreraPorNombre(formData.value.carrera)
+})
+
+// Computed para becas aplicadas
+const becasAplicadas = computed(() => {
+  return calculoBecas.value?.becas_aplicadas || []
+})
+
+// Computed para becas no elegibles
+const becasNoElegibles = computed(() => {
+  if (!simuladorStore.becasStore.becas) return []
+  const aplicadas = becasAplicadas.value.map(b => b.beca.codigo_beca)
+  return simuladorStore.becasStore.becas
+    .filter(beca => !aplicadas.includes(beca.codigo_beca))
+    .map(beca => ({
+      beca,
+      elegible: false,
+      razon: 'No cumple con los requisitos',
+      descuento_aplicado: 0,
+      monto_descuento: 0
+    }))
+})
+
+// Computed para becas disponibles para estudiantes de enseñanza media
+const becasDisponiblesMedia = computed(() => {
+  if (!esEstudianteSinResultados.value) return []
+
+  // Filtrar becas que podrían aplicar para estudiantes de enseñanza media
+  return simuladorStore.becasStore.becas
+    .filter(beca => {
+      // Beca Apoyo Regional - aplica automáticamente si está fuera de RM
+      if (beca.nombre.toLowerCase().includes('apoyo regional') || beca.nombre.toLowerCase().includes('regional')) {
+        return formData.value.regionId !== 13
+      }
+
+      // Beca STEM - aplica para mujeres en Ingeniería Informática Multimedia
+      if (beca.nombre.toLowerCase().includes('stem')) {
+        return formData.value.genero === 'Femenino' &&
+               formData.value.carrera.toLowerCase().includes('ingeniería') &&
+               formData.value.carrera.toLowerCase().includes('informática') &&
+               formData.value.carrera.toLowerCase().includes('multimedia')
+      }
+
+      // Beca Egresados UNIACC - no aplica para estudiantes de enseñanza media
+      if (beca.nombre.toLowerCase().includes('egresados uniacc')) {
+        return false
+      }
+
+      // Otras becas que no requieren NEM/PAES
+      return !beca.nombre.toLowerCase().includes('mérito') &&
+             !beca.nombre.toLowerCase().includes('paes') &&
+             !beca.nombre.toLowerCase().includes('nem')
+    })
+    .map(beca => {
+      let razon = ''
+      let elegible = false
+
+      // Beca Apoyo Regional
+      if (beca.nombre.toLowerCase().includes('apoyo regional') || beca.nombre.toLowerCase().includes('regional')) {
+        if (formData.value.regionId !== 13) {
+          elegible = true
+          razon = 'Elegible por residir fuera de Región Metropolitana'
+        } else {
+          razon = 'Solo aplica para estudiantes de regiones (fuera de RM)'
+        }
+      }
+
+      // Beca STEM
+      else if (beca.nombre.toLowerCase().includes('stem')) {
+        if (formData.value.genero === 'Femenino' &&
+            formData.value.carrera.toLowerCase().includes('ingeniería') &&
+            formData.value.carrera.toLowerCase().includes('informática') &&
+            formData.value.carrera.toLowerCase().includes('multimedia')) {
+          elegible = true
+          razon = 'Elegible por ser mujer en Ingeniería Informática Multimedia'
+        } else {
+          razon = 'Solo aplica para mujeres en Ingeniería Informática Multimedia'
+        }
+      }
+
+      // Otras becas
+      else {
+        elegible = true
+        razon = 'Disponible para tu perfil actual'
+      }
+
+      return {
+        beca,
+        elegible,
+        razon,
+        descuento_aplicado: elegible ? beca.descuento_porcentaje : 0,
+        monto_descuento: 0
+      }
+    })
+})
+
+// Computed para porcentaje de ahorro
+const porcentajeAhorro = computed(() => {
+  if (!calculoBecas.value) return 0
+  const { arancel_base, ahorro_total } = calculoBecas.value
+  return arancel_base > 0 ? Math.round((ahorro_total / arancel_base) * 100) : 0
+})
+
+// Computed para detectar si es estudiante sin NEM/PAES
+const esEstudianteSinResultados = computed(() => {
+  return formData.value.nivelEducativo !== 'Egresado' ||
+         (!formData.value.nem && !formData.value.rendioPAES)
+})
+
+// Computed para mensaje personalizado
+const mensajePersonalizado = computed(() => {
+  if (esEstudianteSinResultados.value) {
+    const esEstudianteMedia = formData.value.nivelEducativo !== 'Egresado'
+
+    return {
+      titulo: '¡HAS FINALIZADO!',
+      saludo: `¡Felicidades, ${formData.value.nombre}!`,
+      email: formData.value.email,
+      mensaje: esEstudianteMedia
+        ? '¡Felicidades! Con los datos que ingresaste, podrías optar a las siguientes becas y beneficios. ¡Mantén tu motivación y sigue estudiando!'
+        : 'Según los datos que nos brindaste, cuentas con los requisitos para postular. Pregunta tu beca o beneficio al 600 401 00 60',
+      puntaje: null,
+      explicacion: esEstudianteMedia
+        ? 'Basándonos en tu perfil actual, te mostramos las becas a las que podrías acceder. Cuando tengas tus resultados NEM y PAES, podrás realizar una simulación más completa con todas las becas disponibles.'
+        : 'Como aún no tienes NEM ni PAES, no podemos calcular con precisión todas las becas disponibles. Te invitamos a realizar una nueva simulación cuando tengas estos resultados para obtener un cálculo más completo.'
+    }
+  }
+  return null
+})
 
 // Métodos
 const handleNewSimulation = () => {
@@ -53,13 +195,57 @@ const handleExportPDF = () => {
     <div class="step-content">
       <!-- Header de resultados -->
       <div class="results-header">
-        <div class="success-icon">
-          <CheckCircle class="w-16 h-16 text-green-600" />
+        <div v-if="mensajePersonalizado" class="personalized-header">
+          <div class="banner">
+            <span class="banner-text">{{ mensajePersonalizado.titulo }}</span>
+          </div>
+          <h2 class="personalized-title">{{ mensajePersonalizado.saludo }}</h2>
+          <p class="personalized-email">{{ mensajePersonalizado.email }}</p>
+          <p class="personalized-message">{{ mensajePersonalizado.mensaje }}</p>
+          <div class="explanation-card">
+            <Info class="w-5 h-5 text-blue-600" />
+            <p class="explanation-text">{{ mensajePersonalizado.explicacion }}</p>
+          </div>
         </div>
-        <h2 class="results-title">¡Simulación Completada!</h2>
-        <p class="results-description">
-          Aquí tienes los beneficios y descuentos que puedes obtener en UNIACC
-        </p>
+        <div v-else class="standard-header">
+          <div class="success-icon">
+            <CheckCircle class="w-16 h-16 text-green-600" />
+          </div>
+          <h2 class="results-title">¡Simulación Completada!</h2>
+          <p class="results-description">
+            Aquí tienes los beneficios y descuentos que puedes obtener en UNIACC
+          </p>
+        </div>
+      </div>
+
+      <!-- Información de la carrera -->
+      <div v-if="carreraInfo" class="career-info">
+        <h3 class="section-title">
+          <GraduationCap class="w-6 h-6" />
+          Información de la Carrera
+        </h3>
+        <div class="career-card">
+          <div class="career-header">
+            <div class="career-title">
+              <h4 class="career-name">{{ carreraInfo.nombre_carrera }}</h4>
+              <p class="career-degree">{{ carreraInfo.nombre_titulo }}</p>
+            </div>
+            <div class="career-faculty">
+              <BookOpen class="w-5 h-5 text-blue-600" />
+              <span>{{ carreraInfo.descripcion_facultad }}</span>
+            </div>
+          </div>
+          <div class="career-details">
+            <div class="career-detail">
+              <Calendar class="w-4 h-4" />
+              <span>{{ carreraInfo.duracion_en_semestres }} semestres</span>
+            </div>
+            <div class="career-detail">
+              <MapPin class="w-4 h-4" />
+              <span>{{ carreraInfo.area_actual }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Resumen financiero -->
@@ -72,7 +258,7 @@ const handleExportPDF = () => {
               <h4 class="card-title">Arancel Original</h4>
             </div>
             <div class="card-value">
-              {{ formatCurrency(results?.arancelBase || 0) }}
+              {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
             </div>
           </div>
 
@@ -82,7 +268,7 @@ const handleExportPDF = () => {
               <h4 class="card-title">Descuento Total</h4>
             </div>
             <div class="card-value">
-              -{{ formatCurrency(results?.descuentoTotal || 0) }}
+              -{{ formatCurrency(calculoBecas?.descuento_total || 0) }}
             </div>
           </div>
 
@@ -92,7 +278,7 @@ const handleExportPDF = () => {
               <h4 class="card-title">Arancel Final</h4>
             </div>
             <div class="card-value">
-              {{ formatCurrency(results?.arancelFinal || 0) }}
+              {{ formatCurrency(calculoBecas?.arancel_final || 0) }}
             </div>
           </div>
         </div>
@@ -104,25 +290,25 @@ const handleExportPDF = () => {
               <TrendingUp class="w-8 h-8 text-green-600" />
             </div>
             <div class="savings-text">
-              <h4 class="savings-title">¡Ahorras {{ formatCurrency((results?.arancelBase || 0) - (results?.arancelFinal || 0)) }}!</h4>
+              <h4 class="savings-title">¡Ahorras {{ formatCurrency(calculoBecas?.ahorro_total || 0) }}!</h4>
               <p class="savings-subtitle">
-                {{ Math.round(((results?.arancelBase || 0) - (results?.arancelFinal || 0)) / (results?.arancelBase || 1) * 100) }}% de descuento total
+                {{ porcentajeAhorro }}% de descuento total
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Beneficios aplicables -->
-      <div v-if="results?.beneficiosAplicables?.length" class="benefits-section">
+      <!-- Becas aplicadas -->
+      <div v-if="becasAplicadas.length" class="benefits-section">
         <h3 class="section-title">
           <Award class="w-6 h-6" />
-          Beneficios Aplicables
+          Becas Aplicadas
         </h3>
         <div class="benefits-grid">
           <div
-            v-for="beneficio in results.beneficiosAplicables"
-            :key="beneficio.id"
+            v-for="beca in becasAplicadas"
+            :key="beca.beca.id"
             class="benefit-card"
           >
             <div class="benefit-header">
@@ -130,36 +316,102 @@ const handleExportPDF = () => {
                 <CheckCircle class="w-5 h-5 text-green-600" />
               </div>
               <div class="benefit-info">
-                <h4 class="benefit-title">{{ beneficio.descripcion }}</h4>
-                <p class="benefit-type">{{ beneficio.tipoBeneficio }} • {{ beneficio.origenBeneficio }}</p>
+                <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
+                <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
               </div>
             </div>
             <div class="benefit-details">
               <div class="benefit-discount">
                 <span class="discount-label">Descuento:</span>
                 <span class="discount-value">
-                  {{ beneficio.porcentajeMaximo ? `${beneficio.porcentajeMaximo}%` : formatCurrency(beneficio.montoMaximo || 0) }}
+                  {{ beca.beca.tipo_descuento === 'porcentaje'
+                      ? `${beca.descuento_aplicado}%`
+                      : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
                 </span>
               </div>
               <div class="benefit-applied">
                 <span class="applied-label">Aplicado:</span>
-                <span class="applied-value">{{ formatCurrency(beneficio.descuentoAplicado || 0) }}</span>
+                <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
               </div>
+            </div>
+            <div v-if="beca.beca.descripcion" class="benefit-description">
+              <p class="description-text">{{ beca.beca.descripcion }}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Beneficios no aplicables -->
-      <div v-if="results?.beneficiosNoAplicables?.length" class="benefits-section">
+      <!-- Mensaje cuando no hay becas aplicadas -->
+      <div v-else-if="esEstudianteSinResultados" class="no-benefits-section">
+        <div class="no-benefits-card">
+          <div class="no-benefits-icon">
+            <Info class="w-12 h-12 text-blue-600" />
+          </div>
+          <h3 class="no-benefits-title">Información Importante</h3>
+          <p class="no-benefits-message">
+            Para calcular con precisión las becas y descuentos disponibles, necesitamos tus resultados académicos (NEM y PAES).
+            Una vez que tengas estos datos, podrás realizar una simulación más completa.
+          </p>
+          <div class="no-benefits-actions">
+            <Button
+              variant="outline"
+              size="lg"
+              @click="handleNewSimulation"
+              class="retry-button"
+            >
+              <RotateCcw class="w-5 h-5 mr-2" />
+              Simular cuando tenga mis resultados
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Becas disponibles para estudiantes de enseñanza media -->
+      <div v-if="esEstudianteSinResultados && becasDisponiblesMedia.length" class="benefits-section">
         <h3 class="section-title">
-          <Info class="w-6 h-6" />
-          Otros Beneficios Disponibles
+          <Award class="w-6 h-6" />
+          Becas Disponibles para Ti
         </h3>
         <div class="benefits-grid">
           <div
-            v-for="beneficio in results.beneficiosNoAplicables"
-            :key="beneficio.id"
+            v-for="beca in becasDisponiblesMedia"
+            :key="beca.beca.id"
+            :class="['benefit-card', beca.elegible ? 'available' : 'disabled']"
+          >
+            <div class="benefit-header">
+              <div class="benefit-icon">
+                <CheckCircle v-if="beca.elegible" class="w-5 h-5 text-green-500" />
+                <XCircle v-else class="w-5 h-5 text-gray-400" />
+              </div>
+              <div class="benefit-info">
+                <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
+                <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+                <p v-if="beca.elegible" class="benefit-discount">
+                  {{ beca.descuento_aplicado }}% de descuento
+                </p>
+              </div>
+            </div>
+            <div class="benefit-reason">
+              <span class="reason-label">{{ beca.elegible ? '¡Elegible!' : 'Requisito:' }}</span>
+              <span class="reason-text">{{ beca.razon }}</span>
+            </div>
+            <div v-if="beca.beca.descripcion" class="benefit-description">
+              <p class="description-text">{{ beca.beca.descripcion }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Becas no elegibles para egresados -->
+      <div v-else-if="!esEstudianteSinResultados && becasNoElegibles.length" class="benefits-section">
+        <h3 class="section-title">
+          <Info class="w-6 h-6" />
+          Otras Becas Disponibles
+        </h3>
+        <div class="benefits-grid">
+          <div
+            v-for="beca in becasNoElegibles"
+            :key="beca.beca.id"
             class="benefit-card disabled"
           >
             <div class="benefit-header">
@@ -167,27 +419,30 @@ const handleExportPDF = () => {
                 <XCircle class="w-5 h-5 text-gray-400" />
               </div>
               <div class="benefit-info">
-                <h4 class="benefit-title">{{ beneficio.descripcion }}</h4>
-                <p class="benefit-type">{{ beneficio.tipoBeneficio }} • {{ beneficio.origenBeneficio }}</p>
+                <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
+                <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
               </div>
             </div>
             <div class="benefit-reason">
               <span class="reason-label">Razón:</span>
-              <span class="reason-text">{{ beneficio.razonElegibilidad }}</span>
+              <span class="reason-text">{{ beca.razon }}</span>
+            </div>
+            <div v-if="beca.beca.descripcion" class="benefit-description">
+              <p class="description-text">{{ beca.beca.descripcion }}</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Información del decil -->
-      <div class="decil-info">
+      <div v-if="formData.decil" class="decil-info">
         <div class="decil-card">
           <div class="decil-header">
             <TrendingUp class="w-6 h-6 text-blue-600" />
             <h4 class="decil-title">Tu Decil Socioeconómico</h4>
           </div>
           <div class="decil-content">
-            <div class="decil-number">{{ results?.decilCalculado || 0 }}° Decil</div>
+            <div class="decil-number">{{ formData.decil }}° Decil</div>
             <p class="decil-description">
               Este decil se utilizó para calcular tus beneficios y descuentos disponibles
             </p>
@@ -236,7 +491,13 @@ const handleExportPDF = () => {
           <Info class="w-5 h-5 text-blue-600" />
           <div class="info-content">
             <h4 class="info-title">Próximos Pasos</h4>
-            <ul class="info-list">
+            <ul v-if="esEstudianteSinResultados" class="info-list">
+              <li>• Contacta a admisiones para validar tu perfil</li>
+              <li>• Prepara la documentación necesaria</li>
+              <li>• Postula a UNIACC en el período correspondiente</li>
+              <li>• Realiza una nueva simulación cuando tengas tus resultados NEM y PAES</li>
+            </ul>
+            <ul v-else class="info-list">
               <li>• Contacta a admisiones para validar tu perfil</li>
               <li>• Revisa los requisitos específicos de cada beneficio</li>
               <li>• Prepara la documentación necesaria</li>
@@ -262,6 +523,10 @@ const handleExportPDF = () => {
   @apply text-center py-8;
 }
 
+.standard-header {
+  @apply text-center;
+}
+
 .success-icon {
   @apply mb-4;
 }
@@ -272,6 +537,34 @@ const handleExportPDF = () => {
 
 .results-description {
   @apply text-lg text-gray-600;
+}
+
+.personalized-header {
+  @apply text-center space-y-4;
+}
+
+.banner {
+  @apply bg-yellow-400 text-yellow-900 px-4 py-2 rounded-lg font-bold text-lg;
+}
+
+.personalized-title {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+}
+
+.personalized-email {
+  @apply text-lg text-gray-600 mb-4;
+}
+
+.personalized-message {
+  @apply text-lg text-gray-700 mb-6;
+}
+
+.explanation-card {
+  @apply bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3 max-w-2xl mx-auto;
+}
+
+.explanation-text {
+  @apply text-sm text-blue-800 flex-1;
 }
 
 .financial-summary {
@@ -342,8 +635,72 @@ const handleExportPDF = () => {
   @apply text-sm text-green-700;
 }
 
+.career-info {
+  @apply space-y-6;
+}
+
+.career-card {
+  @apply bg-white border border-gray-200 rounded-lg p-6;
+}
+
+.career-header {
+  @apply flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4;
+}
+
+.career-title {
+  @apply flex-1;
+}
+
+.career-name {
+  @apply text-xl font-bold text-gray-900 mb-1;
+}
+
+.career-degree {
+  @apply text-sm text-gray-600;
+}
+
+.career-faculty {
+  @apply flex items-center space-x-2 text-sm text-blue-600;
+}
+
+.career-details {
+  @apply flex flex-wrap gap-4 mt-4;
+}
+
+.career-detail {
+  @apply flex items-center space-x-2 text-sm text-gray-600;
+}
+
 .benefits-section {
   @apply space-y-6;
+}
+
+.no-benefits-section {
+  @apply space-y-6;
+}
+
+.no-benefits-card {
+  @apply bg-blue-50 border border-blue-200 rounded-lg p-8 text-center;
+}
+
+.no-benefits-icon {
+  @apply mb-4;
+}
+
+.no-benefits-title {
+  @apply text-xl font-bold text-blue-900 mb-4;
+}
+
+.no-benefits-message {
+  @apply text-lg text-blue-800 mb-6 max-w-2xl mx-auto;
+}
+
+.no-benefits-actions {
+  @apply flex justify-center;
+}
+
+.retry-button {
+  @apply bg-blue-600 text-white hover:bg-blue-700 border-blue-600;
 }
 
 .section-title {
@@ -360,6 +717,14 @@ const handleExportPDF = () => {
 
 .benefit-card.disabled {
   @apply bg-gray-50 border-gray-200;
+}
+
+.benefit-card.available {
+  @apply bg-green-50 border-green-200;
+}
+
+.benefit-discount {
+  @apply text-green-600 font-semibold text-sm mt-1;
 }
 
 .benefit-header {
@@ -411,6 +776,14 @@ const handleExportPDF = () => {
 
 .reason-text {
   @apply text-gray-500;
+}
+
+.benefit-description {
+  @apply mt-3 pt-3 border-t border-gray-200;
+}
+
+.description-text {
+  @apply text-sm text-gray-600;
 }
 
 .decil-info {
@@ -567,6 +940,14 @@ const handleExportPDF = () => {
     @apply bg-gray-900 border-gray-600;
   }
 
+  .benefit-card.available {
+    @apply bg-green-900/20 border-green-700;
+  }
+
+  .benefit-discount {
+    @apply text-green-400;
+  }
+
   .benefit-title {
     @apply text-white;
   }
@@ -619,6 +1000,70 @@ const handleExportPDF = () => {
 
   .info-list {
     @apply text-blue-300;
+  }
+
+  .career-card {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .career-name {
+    @apply text-white;
+  }
+
+  .career-degree {
+    @apply text-gray-300;
+  }
+
+  .career-faculty {
+    @apply text-blue-400;
+  }
+
+  .career-detail {
+    @apply text-gray-300;
+  }
+
+  .benefit-description {
+    @apply border-gray-600;
+  }
+
+  .description-text {
+    @apply text-gray-300;
+  }
+
+  .personalized-title {
+    @apply text-white;
+  }
+
+  .personalized-email {
+    @apply text-gray-300;
+  }
+
+  .personalized-message {
+    @apply text-gray-200;
+  }
+
+  .explanation-card {
+    @apply bg-blue-900 border-blue-700;
+  }
+
+  .explanation-text {
+    @apply text-blue-200;
+  }
+
+  .no-benefits-card {
+    @apply bg-blue-900 border-blue-700;
+  }
+
+  .no-benefits-title {
+    @apply text-blue-200;
+  }
+
+  .no-benefits-message {
+    @apply text-blue-300;
+  }
+
+  .retry-button {
+    @apply bg-blue-600 text-white hover:bg-blue-700 border-blue-600;
   }
 }
 </style>

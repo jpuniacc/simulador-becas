@@ -13,8 +13,9 @@ import {
   CheckCircle
 } from 'lucide-vue-next'
 import { useFormValidation } from '@/composables/useFormValidation'
+import { useCarreras } from '@/composables/useCarreras'
 import type { FormData } from '@/types/simulador'
-import { calculatePAESTotal } from '@/utils/calculations'
+import { calculatePAESTotal as calculatePAESTotalUtil } from '@/utils/calculations'
 
 // Props
 interface Props {
@@ -32,6 +33,13 @@ const emit = defineEmits<{
 // Estado local
 const formData = ref<FormData>({ ...props.formData })
 
+// Composable de carreras
+const {
+  carrerasVigentes,
+  loading: carrerasLoading,
+  error: carrerasError
+} = useCarreras()
+
 // Validación
 const {
   validateField,
@@ -46,23 +54,117 @@ const {
 // Computed
 const paesTotal = computed(() => {
   if (!formData.value.rendioPAES || !formData.value.paes) return 0
-  return calculatePAESTotal(formData.value.paes)
+  return calculatePAESTotalUtil(formData.value.paes)
 })
 
 const paesPromedio = computed(() => {
   if (paesTotal.value === 0) return 0
-  const pruebasRendidas = Object.values(formData.value.paes).filter(p => p && p > 0).length
+  const pruebasRendidas = Object.values(formData.value.paes).filter(p => typeof p === 'number' && p > 0).length
   return pruebasRendidas > 0 ? Math.round(paesTotal.value / pruebasRendidas) : 0
 })
 
 const pruebasRendidas = computed(() => {
   if (!formData.value.rendioPAES || !formData.value.paes) return 0
-  return Object.values(formData.value.paes).filter(p => p && p > 0).length
+  return Object.values(formData.value.paes).filter(p => typeof p === 'number' && p > 0).length
 })
 
 const isStepValid = computed(() => {
   // El paso es siempre válido (PAES es opcional)
   return true
+})
+
+// Computed para manejar values null en inputs numéricos
+const lenguajeValue = computed({
+  get: () => formData.value.paes.lenguaje ?? '',
+  set: (value: string | number) => {
+    formData.value.paes.lenguaje = value === '' ? null : Number(value)
+  }
+})
+
+const matematicaValue = computed({
+  get: () => formData.value.paes.matematica ?? '',
+  set: (value: string | number) => {
+    formData.value.paes.matematica = value === '' ? null : Number(value)
+  }
+})
+
+const terceraAsignaturaValue = computed({
+  get: () => {
+    if (!formData.value.paes.terceraAsignatura) return ''
+    return formData.value.paes[formData.value.paes.terceraAsignatura] ?? ''
+  },
+  set: (value: string | number) => {
+    if (!formData.value.paes.terceraAsignatura) return
+    formData.value.paes[formData.value.paes.terceraAsignatura] = value === '' ? null : Number(value)
+  }
+})
+
+// Computed para lógica dinámica de PAES según área de carrera
+const areaCarrera = computed(() => {
+  if (!formData.value.carrera) return null
+  const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === formData.value.carrera)
+  return carrera?.area_actual || null
+})
+
+// Determinar las asignaturas PAES recomendadas según el área
+const asignaturasRecomendadas = computed(() => {
+  const area = areaCarrera.value
+  switch (area) {
+    case 'TECNOLOGÍA':
+      return {
+        opciones: [
+          { value: 'matematica2', label: 'Matemática 2', descripcion: 'Para carreras tecnológicas e ingenierías' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras científicas y de salud' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Tecnología)'
+      }
+    case 'CIENCIAS SOCIALES':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras sociales y políticas' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras de salud y ciencias sociales' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Ciencias Sociales)'
+      }
+    case 'ADMINISTRACIÓN Y COMERCIO':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras de administración y comercio' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras de economía y estadística' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Administración)'
+      }
+    case 'DERECHO':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras jurídicas y políticas' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Derecho)'
+      }
+    case 'ARTE Y ARQUITECTURA':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras artísticas y de diseño' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para arquitectura y diseño industrial' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Arte y Arquitectura)'
+      }
+    case 'HUMANIDADES':
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras humanísticas y de comunicación' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje (Humanidades)'
+      }
+    default:
+      return {
+        opciones: [
+          { value: 'historia', label: 'Historia y CCSS', descripcion: 'Para carreras sociales y humanísticas' },
+          { value: 'ciencias', label: 'Ciencias', descripcion: 'Para carreras científicas y de salud' }
+        ],
+        titulo: 'Selecciona tu mejor puntaje'
+      }
+  }
 })
 
 // Métodos
@@ -73,7 +175,9 @@ const handlePAESToggle = () => {
       matematica: null,
       lenguaje: null,
       ciencias: null,
-      historia: null
+      historia: null,
+      matematica2: null,
+      terceraAsignatura: null
     }
   }
 
@@ -84,10 +188,6 @@ const handlePAESToggle = () => {
   emit('validate', 4, isStepValid.value)
 }
 
-const calculatePAESTotal = () => {
-  // Recalcular total cuando cambien los puntajes
-  // Esto se hace automáticamente con el computed
-}
 
 const handleSubmit = () => {
   // Validar campos PAES si los hay
@@ -129,6 +229,14 @@ watch(() => props.formData, (newData) => {
     formData.value = { ...newData }
   }
 }, { deep: true })
+
+// Limpiar tercera asignatura cuando cambie la carrera
+watch(() => formData.value.carrera, () => {
+  formData.value.paes.terceraAsignatura = null
+  formData.value.paes.matematica2 = null
+  formData.value.paes.historia = null
+  formData.value.paes.ciencias = null
+})
 
 // Lifecycle
 onMounted(() => {
@@ -185,46 +293,21 @@ onMounted(() => {
           </div>
 
           <div class="paes-grid">
-            <!-- Matemática -->
-            <div class="paes-field">
-              <label for="matematica" class="paes-label">
-                <Calculator class="w-5 h-5" />
-                Matemática
-              </label>
-              <Input
-                id="matematica"
-                v-model="formData.paes.matematica"
-                type="number"
-                min="100"
-                max="1000"
-                placeholder="750"
-                :class="{ 'error': hasFieldError('paes.matematica') }"
-                @blur="validateField('paes.matematica')"
-                @input="calculatePAESTotal"
-              />
-              <ValidationMessage
-                v-if="hasFieldError('paes.matematica')"
-                :message="getFieldErrorMessage('paes.matematica')"
-                type="error"
-              />
-            </div>
-
-            <!-- Lenguaje -->
+            <!-- Comprensión Lectora (obligatoria para todas) -->
             <div class="paes-field">
               <label for="lenguaje" class="paes-label">
                 <BookOpen class="w-5 h-5" />
-                Lenguaje
+                Comprensión Lectora
               </label>
               <Input
                 id="lenguaje"
-                v-model="formData.paes.lenguaje"
+                v-model="lenguajeValue"
                 type="number"
                 min="100"
                 max="1000"
                 placeholder="800"
                 :class="{ 'error': hasFieldError('paes.lenguaje') }"
                 @blur="validateField('paes.lenguaje')"
-                @input="calculatePAESTotal"
               />
               <ValidationMessage
                 v-if="hasFieldError('paes.lenguaje')"
@@ -233,52 +316,98 @@ onMounted(() => {
               />
             </div>
 
-            <!-- Ciencias -->
+            <!-- Matemática 1 (obligatoria para todas) -->
             <div class="paes-field">
-              <label for="ciencias" class="paes-label">
-                <FlaskConical class="w-5 h-5" />
-                Ciencias
+              <label for="matematica" class="paes-label">
+                <Calculator class="w-5 h-5" />
+                Matemática 1
               </label>
               <Input
-                id="ciencias"
-                v-model="formData.paes.ciencias"
+                id="matematica"
+                v-model="matematicaValue"
                 type="number"
                 min="100"
                 max="1000"
-                placeholder="700"
-                :class="{ 'error': hasFieldError('paes.ciencias') }"
-                @blur="validateField('paes.ciencias')"
-                @input="calculatePAESTotal"
+                placeholder="750"
+                :class="{ 'error': hasFieldError('paes.matematica') }"
+                @blur="validateField('paes.matematica')"
               />
               <ValidationMessage
-                v-if="hasFieldError('paes.ciencias')"
-                :message="getFieldErrorMessage('paes.ciencias')"
+                v-if="hasFieldError('paes.matematica')"
+                :message="getFieldErrorMessage('paes.matematica')"
                 type="error"
               />
             </div>
 
-            <!-- Historia -->
-            <div class="paes-field">
-              <label for="historia" class="paes-label">
-                <Globe class="w-5 h-5" />
-                Historia
+            <!-- Tercera asignatura según área de la carrera -->
+            <div v-if="areaCarrera" class="paes-field paes-field-full">
+              <label class="paes-label mb-3">{{ asignaturasRecomendadas.titulo }}:</label>
+              <div class="space-y-3">
+                <label
+                  v-for="opcion in asignaturasRecomendadas.opciones"
+                  :key="opcion.value"
+                  class="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    v-model="formData.paes.terceraAsignatura"
+                    type="radio"
+                    :value="opcion.value"
+                    class="w-4 h-4 text-uniacc-blue border-gray-300 focus:ring-uniacc-blue mt-1"
+                  />
+                  <div class="flex-1">
+                    <span class="text-sm font-medium text-gray-900">{{ opcion.label }}</span>
+                    <p class="text-xs text-gray-500 mt-1">{{ opcion.descripcion }}</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Mensaje cuando no hay carrera seleccionada -->
+            <div v-else class="paes-field paes-field-full">
+              <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                  <strong>Selecciona una carrera</strong> para ver las asignaturas PAES recomendadas según tu área de estudio.
+                </p>
+              </div>
+            </div>
+
+            <!-- Campo dinámico para la tercera asignatura -->
+            <div v-if="formData.paes.terceraAsignatura" class="paes-field">
+              <label class="paes-label">
+                <component
+                  :is="formData.paes.terceraAsignatura === 'matematica2' ? Calculator :
+                        formData.paes.terceraAsignatura === 'historia' ? Globe : FlaskConical"
+                  class="w-5 h-5"
+                />
+                {{ formData.paes.terceraAsignatura === 'matematica2' ? 'Matemática 2' :
+                    formData.paes.terceraAsignatura === 'historia' ? 'Historia y CCSS' : 'Ciencias' }}
               </label>
               <Input
-                id="historia"
-                v-model="formData.paes.historia"
+                v-model="terceraAsignaturaValue"
                 type="number"
                 min="100"
                 max="1000"
-                placeholder="650"
-                :class="{ 'error': hasFieldError('paes.historia') }"
-                @blur="validateField('paes.historia')"
-                @input="calculatePAESTotal"
+                :placeholder="`${formData.paes.terceraAsignatura === 'matematica2' ? '680' : '600'}`"
+                :class="{ 'error': hasFieldError(`paes.${formData.paes.terceraAsignatura}`) }"
+                @blur="validateField(`paes.${formData.paes.terceraAsignatura}`)"
               />
               <ValidationMessage
-                v-if="hasFieldError('paes.historia')"
-                :message="getFieldErrorMessage('paes.historia')"
+                v-if="hasFieldError(`paes.${formData.paes.terceraAsignatura}`)"
+                :message="getFieldErrorMessage(`paes.${formData.paes.terceraAsignatura}`)"
                 type="error"
               />
+            </div>
+
+            <!-- Indicador del área de carrera -->
+            <div v-if="areaCarrera" class="paes-field paes-field-full">
+              <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-center space-x-2">
+                  <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span class="text-sm font-medium text-blue-900">
+                    Área: {{ areaCarrera }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -447,6 +576,10 @@ input:checked + .slider:before {
 
 .paes-field {
   @apply space-y-2;
+}
+
+.paes-field-full {
+  @apply col-span-2;
 }
 
 .paes-label {
