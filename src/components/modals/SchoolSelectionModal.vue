@@ -145,9 +145,11 @@ const selectOption = async (option: any) => {
   switch (currentStep.value) {
     case 'region':
       await seleccionarRegion(option)
+      await goNext(); // Ir automaticamente a comuna
       break
     case 'comuna':
       await seleccionarComuna(option)
+      await goNext(); // Ir automaticamente a colegio
       break
     case 'colegio':
       seleccionarColegio(option)

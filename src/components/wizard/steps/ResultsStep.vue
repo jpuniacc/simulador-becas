@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import {
   CheckCircle,
@@ -20,6 +20,7 @@ import {
 import type { SimulationResults } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
 import { useSimuladorStore } from '@/stores/simuladorStore'
+import { useProspectos } from '@/composables/useProspectos'
 
 // Props
 interface Props {
@@ -38,6 +39,7 @@ const emit = defineEmits<{
 
 // Store
 const simuladorStore = useSimuladorStore()
+const { insertarProspecto, error: insertError } = useProspectos()
 
 // Computed
 const calculoBecas = computed(() => simuladorStore.calculoBecas)
@@ -188,10 +190,23 @@ const handleShare = () => {
 const handleExportPDF = () => {
   emit('export-pdf')
 }
+
+// Guardar prospecto al montar el step de resultados
+onMounted(async () => {
+  try {
+    // Insertar usando los datos actuales del formulario
+    await insertarProspecto(formData.value)
+    if (insertError.value) {
+      console.warn('No se pudo guardar el prospecto:', insertError.value)
+    }
+  } catch (e) {
+    console.warn('Fallo al guardar prospecto:', e)
+  }
+})
 </script>
 
 <template>
-  <div class="results-step">
+  <div class="results-step p-8 animate-fade-in min-h-full bg-white">
     <div class="step-content">
       <!-- Header de resultados -->
       <div class="results-header">

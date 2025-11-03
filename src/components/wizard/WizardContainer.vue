@@ -53,7 +53,7 @@ const totalSteps = computed(() => {
   // Si es egresado: 7 pasos (0-6) (incluye PAES en paso 4)
   // Si no es egresado: 6 pasos (0-5) (sin PAES)
   const isEgresado = simuladorStore.formData.nivelEducativo === 'Egresado'
-  return isEgresado ? 7 : 6
+  return isEgresado ? 6 : 5
 })
 const canGoBack = computed(() => simuladorStore.canGoBack)
 const canGoNext = computed(() => simuladorStore.canGoNext)
