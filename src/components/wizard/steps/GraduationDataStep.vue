@@ -349,7 +349,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="graduation-data-step">
+  <div class="graduation-data-step p-8 animate-fade-in min-h-full bg-white">
     <div class="step-content">
       <div class="step-header">
         <h2 class="step-title">{{ stepTitle }}</h2>

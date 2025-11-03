@@ -201,7 +201,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="school-data-step">
+  <div class="school-data-step p-8 animate-fade-in min-h-full bg-white">
     <div class="step-content">
       <div class="step-header">
         <h2 class="step-title">Estado Académico</h2>

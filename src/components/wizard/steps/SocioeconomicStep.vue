@@ -153,7 +153,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="socioeconomic-step">
+  <div class="socioeconomic-step p-8 animate-fade-in min-h-full bg-white">
     <div class="step-content">
       <!-- Información del paso -->
       <div class="step-info">
