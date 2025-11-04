@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
-type CarreraRow = Database['public']['Tables']['carreras']['Row']
+type CarreraRow = Database['public']['Tables']['carreras_uniacc']['Row']
 export type Carrera = CarreraRow
 
 export const useCarrerasStore = defineStore('carreras', () => {
@@ -14,47 +14,20 @@ export const useCarrerasStore = defineStore('carreras', () => {
 
   // Computed para carreras filtradas por vigencia
   const carrerasVigentes = computed(() => {
-    return carreras.value.filter(carrera => carrera.vigencia === 'SI')
-  })
-
-  // Computed para agrupar carreras por facultad
-  const carrerasPorFacultad = computed(() => {
-    const grupos: Record<string, Carrera[]> = {}
-
-    carrerasVigentes.value.forEach(carrera => {
-      const facultad = carrera.descripcion_facultad
-      if (!grupos[facultad]) {
-        grupos[facultad] = []
-      }
-      grupos[facultad].push(carrera)
-    })
-
-    return grupos
-  })
-
-  // Computed para obtener facultades únicas
-  const facultades = computed(() => {
-    const facultadesUnicas = new Set(carrerasVigentes.value.map(c => c.descripcion_facultad))
-    return Array.from(facultadesUnicas).sort()
-  })
-
-  // Computed para obtener áreas únicas
-  const areas = computed(() => {
-    const areasUnicas = new Set(carrerasVigentes.value.map(c => c.area_actual))
-    return Array.from(areasUnicas).sort()
+    return carreras.value
   })
 
   // Computed para carreras con aranceles definidos
   const carrerasConArancel = computed(() => {
     return carrerasVigentes.value.filter(carrera =>
-      carrera.arancel_carrera && carrera.arancel_carrera > 0
+      carrera.arancel && carrera.arancel > 0
     )
   })
 
   // Computed para rango de aranceles
   const rangoAranceles = computed(() => {
     const aranceles = carrerasConArancel.value
-      .map(c => c.arancel_carrera!)
+      .map(c => c.arancel!)
       .filter(arancel => arancel > 0)
       .sort((a, b) => a - b)
 
@@ -73,9 +46,9 @@ export const useCarrerasStore = defineStore('carreras', () => {
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('carreras')
+        .from('carreras_uniacc')
         .select('*')
-        .order('nombre_carrera')
+        .order('nombre_programa')
 
       if (supabaseError) {
         throw supabaseError
@@ -95,42 +68,22 @@ export const useCarrerasStore = defineStore('carreras', () => {
 
     const terminoLower = termino.toLowerCase()
     return carrerasVigentes.value.filter(carrera =>
-      carrera.nombre_carrera.toLowerCase().includes(terminoLower) ||
-      carrera.descripcion_facultad.toLowerCase().includes(terminoLower) ||
-      carrera.area_actual.toLowerCase().includes(terminoLower)
-    )
-  }
-
-  const filtrarPorFacultad = (facultad: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.descripcion_facultad === facultad
-    )
-  }
-
-  const filtrarPorArea = (area: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.area_actual === area
-    )
-  }
-
-  const filtrarPorNivel = (nivel: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.nivel_global === nivel
+      carrera.nombre_programa.toLowerCase().includes(terminoLower) 
     )
   }
 
   const obtenerArancelCarrera = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-    return carrera?.arancel_carrera || 0
+    const carrera = carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
+    return carrera?.arancel || 0
   }
 
   const obtenerMatriculaCarrera = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-    return carrera?.matricula_carrera || 0
+    const carrera = carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
+    return carrera?.matricula || 0
   }
 
   const obtenerCarreraPorNombre = (nombreCarrera: string) => {
-    return carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
+    return carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
   }
 
   const obtenerCostosCarrera = (nombreCarrera: string) => {
@@ -138,11 +91,11 @@ export const useCarrerasStore = defineStore('carreras', () => {
     if (!carrera) return null
 
     return {
-      arancel: carrera.arancel_carrera || 0,
-      matricula: carrera.matricula_carrera || 0,
-      duracion: carrera.duracion_en_semestres || 0,
+      arancel: carrera.arancel || 0,
+      matricula: carrera.matricula || 0,
+      duracion: carrera.duracion_programa || '',
       anio: carrera.anio || new Date().getFullYear(),
-      totalAnual: (carrera.arancel_carrera || 0) + (carrera.matricula_carrera || 0)
+      totalAnual: (carrera.arancel || 0) + (carrera.matricula || 0)
     }
   }
 
@@ -150,10 +103,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
     // Estado
     carreras,
     carrerasVigentes,
-    carrerasPorFacultad,
     carrerasConArancel,
-    facultades,
-    areas,
     rangoAranceles,
     loading,
     error,
@@ -161,9 +111,6 @@ export const useCarrerasStore = defineStore('carreras', () => {
     // Acciones
     cargarCarreras,
     buscarCarreras,
-    filtrarPorFacultad,
-    filtrarPorArea,
-    filtrarPorNivel,
     obtenerArancelCarrera,
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre,

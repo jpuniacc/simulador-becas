@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
-type CarreraRow = Database['public']['Tables']['carreras']['Row']
+type CarreraRow = Database['public']['Tables']['carreras_uniacc']['Row']
 
 export type Carrera = CarreraRow
 
@@ -13,34 +13,7 @@ export function useCarreras() {
 
   // Computed para carreras filtradas por vigencia
   const carrerasVigentes = computed(() => {
-    return carreras.value.filter(carrera => carrera.vigencia === 'SI')
-  })
-
-  // Computed para agrupar carreras por facultad
-  const carrerasPorFacultad = computed(() => {
-    const grupos: Record<string, Carrera[]> = {}
-
-    carrerasVigentes.value.forEach(carrera => {
-      const facultad = carrera.descripcion_facultad
-      if (!grupos[facultad]) {
-        grupos[facultad] = []
-      }
-      grupos[facultad].push(carrera)
-    })
-
-    return grupos
-  })
-
-  // Computed para obtener facultades únicas
-  const facultades = computed(() => {
-    const facultadesUnicas = new Set(carrerasVigentes.value.map(c => c.descripcion_facultad))
-    return Array.from(facultadesUnicas).sort()
-  })
-
-  // Computed para obtener áreas únicas
-  const areas = computed(() => {
-    const areasUnicas = new Set(carrerasVigentes.value.map(c => c.area_actual))
-    return Array.from(areasUnicas).sort()
+    return carreras.value // en tabla nueva no hay vigencia
   })
 
   // Función para inicializar carreras
@@ -51,9 +24,9 @@ export function useCarreras() {
       console.log('Inicializando carreras desde Supabase...')
 
       const { data, error: supabaseError } = await supabase
-        .from('carreras')
+        .from('carreras_uniacc')
         .select('*')
-        .order('nombre_carrera')
+        .order('nombre_programa')
 
       if (supabaseError) {
         throw supabaseError
@@ -76,61 +49,38 @@ export function useCarreras() {
 
     const terminoLower = termino.toLowerCase()
     return carrerasVigentes.value.filter(carrera =>
-      carrera.nombre_carrera.toLowerCase().includes(terminoLower) ||
-      carrera.descripcion_facultad.toLowerCase().includes(terminoLower) ||
-      carrera.area_actual.toLowerCase().includes(terminoLower)
-    )
-  }
-
-  // Función para filtrar carreras por facultad
-  const filtrarPorFacultad = (facultad: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.descripcion_facultad === facultad
-    )
-  }
-
-  // Función para filtrar carreras por área
-  const filtrarPorArea = (area: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.area_actual === area
-    )
-  }
-
-  // Función para obtener carreras por nivel
-  const filtrarPorNivel = (nivel: string) => {
-    return carrerasVigentes.value.filter(carrera =>
-      carrera.nivel_global === nivel
+      carrera.nombre_programa.toLowerCase().includes(terminoLower)
     )
   }
 
   // Función para obtener arancel de una carrera específica
   const obtenerArancelCarrera = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-    return carrera?.arancel_carrera || 0
+    const carrera = carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
+    return carrera?.arancel || 0
   }
 
   // Función para obtener matrícula de una carrera específica
   const obtenerMatriculaCarrera = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
-    return carrera?.matricula_carrera || 0
+    const carrera = carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
+    return carrera?.matricula || 0
   }
 
   // Función para obtener información completa de una carrera
   const obtenerCarreraPorNombre = (nombreCarrera: string) => {
-    return carrerasVigentes.value.find(c => c.nombre_carrera === nombreCarrera)
+    return carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
   }
 
   // Computed para carreras con aranceles definidos
   const carrerasConArancel = computed(() => {
     return carrerasVigentes.value.filter(carrera =>
-      carrera.arancel_carrera && carrera.arancel_carrera > 0
+      carrera.arancel && carrera.arancel > 0
     )
   })
 
   // Computed para rango de aranceles
   const rangoAranceles = computed(() => {
     const aranceles = carrerasConArancel.value
-      .map(c => c.arancel_carrera!)
+      .map(c => c.arancel!)
       .filter(arancel => arancel > 0)
       .sort((a, b) => a - b)
 
@@ -146,10 +96,7 @@ export function useCarreras() {
     // Estado
     carreras,
     carrerasVigentes,
-    carrerasPorFacultad,
     carrerasConArancel,
-    facultades,
-    areas,
     rangoAranceles,
     loading,
     error,
@@ -157,9 +104,6 @@ export function useCarreras() {
     // Métodos
     inicializar,
     buscarCarreras,
-    filtrarPorFacultad,
-    filtrarPorArea,
-    filtrarPorNivel,
     obtenerArancelCarrera,
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre

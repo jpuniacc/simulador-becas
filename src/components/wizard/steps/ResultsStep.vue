@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import {
   CheckCircle,
@@ -21,6 +21,8 @@ import type { SimulationResults } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useProspectos } from '@/composables/useProspectos'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 // Props
 interface Props {
@@ -40,6 +42,9 @@ const emit = defineEmits<{
 // Store
 const simuladorStore = useSimuladorStore()
 const { insertarProspecto, error: insertError } = useProspectos()
+
+// Ref para el elemento a capturar
+const pdfContentRef = ref<HTMLElement | null>(null)
 
 // Computed
 const calculoBecas = computed(() => simuladorStore.calculoBecas)
@@ -187,8 +192,46 @@ const handleShare = () => {
   emit('share')
 }
 
-const handleExportPDF = () => {
-  emit('export-pdf')
+const handleExportPDF = async () => {
+  try {
+    if (!pdfContentRef.value) {
+      console.warn('No se encontró el elemento a capturar')
+      return
+    }
+
+    // Capturar el elemento como imagen
+    const canvas = await html2canvas(pdfContentRef.value, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    })
+
+    const imgData = canvas.toDataURL('image/png')
+    const imgWidth = 210 // A4 width in mm
+    const pageHeight = 297 // A4 height in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    let heightLeft = imgHeight
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    let position = 0
+
+    // Agregar primera página
+    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+
+    // Agregar páginas adicionales si el contenido es más alto
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight
+      doc.addPage()
+      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
+
+    doc.save('simulacion-uniacc.pdf')
+  } catch (e) {
+    console.warn('No se pudo generar el PDF:', e)
+  }
 }
 
 // Guardar prospecto al montar el step de resultados
@@ -207,7 +250,7 @@ onMounted(async () => {
 
 <template>
   <div class="results-step p-8 animate-fade-in min-h-full bg-white">
-    <div class="step-content">
+    <div ref="pdfContentRef" class="step-content">
       <!-- Header de resultados -->
       <div class="results-header">
         <div v-if="mensajePersonalizado" class="personalized-header">
@@ -242,23 +285,20 @@ onMounted(async () => {
         <div class="career-card">
           <div class="career-header">
             <div class="career-title">
-              <h4 class="career-name">{{ carreraInfo.nombre_carrera }}</h4>
-              <p class="career-degree">{{ carreraInfo.nombre_titulo }}</p>
+              <h4 class="career-name">{{ carreraInfo.nombre_programa }}</h4>
+              <p class="career-degree">{{ carreraInfo.nivel_academico }}</p>
             </div>
             <div class="career-faculty">
               <BookOpen class="w-5 h-5 text-blue-600" />
-              <span>{{ carreraInfo.descripcion_facultad }}</span>
+              <span>{{ carreraInfo.modalidad_programa }}</span>
             </div>
           </div>
           <div class="career-details">
             <div class="career-detail">
               <Calendar class="w-4 h-4" />
-              <span>{{ carreraInfo.duracion_en_semestres }} semestres</span>
+              <span>{{ carreraInfo.duracion_programa }}</span>
             </div>
-            <div class="career-detail">
-              <MapPin class="w-4 h-4" />
-              <span>{{ carreraInfo.area_actual }}</span>
-            </div>
+            
           </div>
         </div>
       </div>

@@ -26,8 +26,6 @@ const formData = ref<FormData>({ ...props.formData })
 // Composable de carreras
 const {
   carrerasVigentes,
-  facultades,
-  areas,
   loading: carrerasLoading,
   error: carrerasError,
   inicializar: inicializarCarreras,
@@ -70,17 +68,9 @@ const rankingValue = computed({
   }
 })
 
-// Obtener el área de la carrera seleccionada
-const areaCarrera = computed(() => {
-  if (!formData.value.carrera) return null
-
-  const carrera = carrerasVigentes.value.find(c => c.nombre_carrera === formData.value.carrera)
-  return carrera?.area_actual || null
-})
-
 // Determinar las asignaturas PAES recomendadas según el área
 const asignaturasRecomendadas = computed(() => {
-  const area = areaCarrera.value
+  const area = 'TECNOLOGÍA'
 
   switch (area) {
     case 'TECNOLOGÍA':
@@ -191,8 +181,8 @@ const isStepValid = computed(() => {
 // Métodos
 const selectCarrera = (carrera: Carrera) => {
   carreraSeleccionada.value = carrera
-  formData.value.carrera = carrera.nombre_carrera
-  searchTerm.value = carrera.nombre_carrera
+  formData.value.carrera = carrera.nombre_programa
+  searchTerm.value = carrera.nombre_programa
   showDropdown.value = false
 
   // Limpiar datos de PAES cuando cambie la carrera
@@ -405,9 +395,9 @@ onUnmounted(() => {
                     class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                     @click="selectCarrera(carrera)"
                   >
-                    <div class="font-medium text-gray-900">{{ carrera.nombre_carrera }}</div>
-                    <div class="text-sm text-gray-500">{{ carrera.descripcion_facultad }}</div>
-                    <div class="text-xs text-blue-600 mt-1">{{ carrera.area_actual }}</div>
+                    <div class="font-medium text-gray-900">{{ carrera.nombre_programa }}</div>
+                    <div class="text-sm text-gray-500">{{ carrera.nivel_academico }}</div>
+                    <div class="text-xs text-blue-600 mt-1">{{ carrera.duracion_programa }}</div>
                   </div>
                 </div>
               </div>
@@ -417,14 +407,15 @@ onUnmounted(() => {
             </div>
 
             <!-- Indicador del área de la carrera seleccionada -->
-            <div v-if="areaCarrera" class="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
+            <!-- <div v-if="areaCarrera" class="mt-4 p-3 bg-green-100 border border-green-200 rounded-lg">
               <div class="flex items-center space-x-2">
                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span class="text-sm font-medium text-green-900">
                   Área: {{ areaCarrera }}
                 </span>
               </div>
-            </div>
+            </div> -->
+
           </div>
 
           <!-- Mensaje para no egresados -->
