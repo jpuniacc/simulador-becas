@@ -76,6 +76,7 @@ const handleDecilChange = () => {
 
   // Actualizar datos del formulario
   formData.value.decil = selectedDecil.value
+  formData.value.ingresoMensual = '0'
 
   // Validar campo
   validateField('decil')

@@ -115,6 +115,8 @@ const handleSchoolSelectionComplete = (region: Region, comuna: Comuna, colegio: 
   comunaSeleccionada.value = comuna
   colegioSeleccionado.value = colegio
   formData.value.colegio = colegio.nombre
+  formData.value.regionResidencia = colegio.region_nombre
+  formData.value.comunaResidencia = colegio.comuna_nombre
   console.log('FormData actualizado:', formData.value)
   isSchoolModalOpen.value = false
 }

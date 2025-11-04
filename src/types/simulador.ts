@@ -16,13 +16,14 @@ export interface FormData {
   nivelEducativo: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado' | ''
   colegio: string
   carrera: string
+  carreraId: number
   tipoPrograma: 'Regular' | 'Advance' | 'Especial' | ''
   nem: number | null
   ranking: number | null
   añoEgreso: string
 
   // Datos Socioeconómicos
-  ingresoMensual: number | null
+  ingresoMensual: string | null
   integrantes: string
   planeaUsarCAE: boolean
   usaBecasEstado: boolean

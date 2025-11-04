@@ -182,6 +182,7 @@ const isStepValid = computed(() => {
 const selectCarrera = (carrera: Carrera) => {
   carreraSeleccionada.value = carrera
   formData.value.carrera = carrera.nombre_programa
+  formData.value.carreraId = carrera.id
   searchTerm.value = carrera.nombre_programa
   showDropdown.value = false
 
