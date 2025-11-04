@@ -162,7 +162,7 @@ const handleSearch = async (term: string) => {
   isSearching.value = true
 
   if (currentStep.value === 'colegio' && comunaSeleccionada.value && term.length >= 2) {
-    await buscarColegios(comunaSeleccionada.value.comuna_id, term)
+    await buscarColegios(comunaSeleccionada.value.comuna_nombre, term)
   }
 
   setTimeout(() => {

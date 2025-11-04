@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
 // Tipos extraídos de la base de datos
-type ColegioRow = Database['public']['Tables']['colegios']['Row']
+type ColegioRow = Database['public']['Tables']['colegios2']['Row']
 
 export interface Region {
   region_id: number
@@ -12,7 +12,6 @@ export interface Region {
 }
 
 export interface Comuna {
-  comuna_id: number
   comuna_nombre: string
 }
 
@@ -41,7 +40,7 @@ export function useColegios() {
 
   const colegiosFiltrados = computed(() => {
     if (!comunaSeleccionada.value) return []
-    return colegios.value.filter(colegio => colegio.comuna_id === comunaSeleccionada.value?.comuna_id)
+    return colegios.value.filter(colegio => colegio.comuna_nombre === comunaSeleccionada.value?.comuna_nombre)
   })
 
   // Métodos
@@ -51,26 +50,11 @@ export function useColegios() {
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('colegios')
-        .select('region_id, region_nombre')
-        .eq('activo', true)
-        .order('region_nombre')
+        .rpc('get_regiones_unicas')
 
       if (supabaseError) throw supabaseError
 
-      // Obtener regiones únicas
-      const regionesUnicas = data?.reduce((acc: Region[], current) => {
-        const existe = acc.find(r => r.region_id === current.region_id)
-        if (!existe) {
-          acc.push({
-            region_id: current.region_id,
-            region_nombre: current.region_nombre
-          })
-        }
-        return acc
-      }, []) || []
-
-      regiones.value = regionesUnicas
+      regiones.value = (data as unknown as Region[]) || []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Error al cargar regiones'
       console.error('Error cargando regiones:', err)
@@ -85,27 +69,11 @@ export function useColegios() {
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('colegios')
-        .select('comuna_id, comuna_nombre')
-        .eq('region_id', regionId)
-        .eq('activo', true)
-        .order('comuna_nombre')
+        .rpc('get_comunas_por_region', { region: regionId })
 
       if (supabaseError) throw supabaseError
 
-      // Obtener comunas únicas
-      const comunasUnicas = data?.reduce((acc: Comuna[], current) => {
-        const existe = acc.find(c => c.comuna_id === current.comuna_id)
-        if (!existe) {
-          acc.push({
-            comuna_id: current.comuna_id,
-            comuna_nombre: current.comuna_nombre
-          })
-        }
-        return acc
-      }, []) || []
-
-      comunas.value = comunasUnicas
+      comunas.value = (data as unknown as Comuna[]) || []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Error al cargar comunas'
       console.error('Error cargando comunas:', err)
@@ -114,16 +82,15 @@ export function useColegios() {
     }
   }
 
-  const cargarColegios = async (comunaId: number) => {
+  const cargarColegios = async (comunaNombre: string) => {
     try {
       loading.value = true
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('colegios')
+        .from('colegios2')
         .select('*')
-        .eq('comuna_id', comunaId)
-        .eq('activo', true)
+        .eq('comuna_nombre', comunaNombre)
         .order('nombre')
 
       if (supabaseError) throw supabaseError
@@ -137,16 +104,15 @@ export function useColegios() {
     }
   }
 
-  const buscarColegios = async (comunaId: number, termino: string) => {
+  const buscarColegios = async (comunaNombre: number, termino: string) => {
     try {
       loading.value = true
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('colegios')
+        .from('colegios2')
         .select('*')
-        .eq('comuna_id', comunaId)
-        .eq('activo', true)
+        .eq('comuna_nombre', comunaNombre)
         .ilike('nombre', `%${termino}%`)
         .order('nombre')
         .limit(50) // Limitar resultados para mejor rendimiento
@@ -181,7 +147,7 @@ export function useColegios() {
     colegios.value = []
 
     if (comuna) {
-      await cargarColegios(comuna.comuna_id)
+      await cargarColegios(comuna.comuna_nombre)
     }
   }
 
