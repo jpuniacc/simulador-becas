@@ -246,7 +246,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="paes-step">
+  <div class="paes-step p-8 animate-fade-in min-h-full bg-white">
     <div class="step-content">
       <!-- Información del paso -->
       <div class="step-info">
@@ -499,7 +499,7 @@ onMounted(() => {
 }
 
 .step-title {
-  @apply text-2xl font-bold text-gray-900 mb-2;
+  @apply text-xl font-bold text-gray-900 mb-2;
 }
 
 .step-description {
