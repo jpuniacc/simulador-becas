@@ -57,6 +57,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
     nivelEducativo: '', // Obligatorio seleccionar
     colegio: '',
     carrera: '',
+    carreraId: 0,
     tipoPrograma: 'Regular',
     nem: null,
     ranking: null,
@@ -305,6 +306,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
       nivelEducativo: '', // Obligatorio seleccionar
       colegio: '',
       carrera: '',
+      carreraId: 0,
       tipoPrograma: 'Regular',
       nem: null,
       ranking: null,

@@ -159,7 +159,6 @@ const stepProps = computed(() => {
   }
 })
 
-// Métodos
 const handleFormDataUpdate = (data: any) => {
   console.log('WizardContainer recibió actualización de formData:', data)
   simuladorStore.updateFormData(data)
@@ -274,78 +273,78 @@ const handleOverlayClick = () => {
 </script>
 
 <template>
-  <div class="wizard-container">
-    <!-- Overlay del modal -->
-    <div class="wizard-overlay fixed inset-0 z-40" @click="handleOverlayClick">
-      <!-- Modal del wizard usando Card -->
-      <div class="wizard-modal-container max-w-4xl w-full mx-4 my-8 max-h-[90vh]" @click.stop>
-        <Card class="wizard-card h-full flex flex-col shadow-2xl border-0">
-          <!-- Header del wizard -->
-          <CardHeader class="p-0">
-            <WizardHeader
-              :step="currentStep"
-              :total="totalSteps"
-              :title="stepTitle"
-              :description="stepDescription"
-              :show-progress="showProgress"
-            />
-          </CardHeader>
-
-          <!-- Contenido del wizard -->
-          <CardContent class="flex-1 overflow-y-auto p-0">
-            <div class="wizard-content">
-              <Transition
-                :name="transitionName"
-                mode="out-in"
-                appear
-              >
-                <component
-                  :is="currentStepComponent"
-                  :key="currentStep"
-                  v-bind="stepProps"
-                  @update:form-data="handleFormDataUpdate"
-                  @validate="handleStepValidation"
-                  @simulate="handleSimulation"
-                />
-              </Transition>
-            </div>
-          </CardContent>
-
-          <!-- Navegación del wizard -->
-          <CardFooter v-if="!isCompleted" class="p-0">
-            <div class="wizard-navigation w-full">
-              <WizardNavigation
-                :can-go-back="canGoBack"
-                :can-go-next="canGoNext"
-                :is-last-step="isLastStep"
-                :is-loading="isSimulating"
-                :loading-text="loadingText"
-                @back="handlePrevious"
-                @next="handleNext"
+    <div class="wizard-container">
+      <!-- Overlay del modal -->
+      <div class="wizard-overlay fixed inset-0 z-40" @click="handleOverlayClick">
+        <!-- Modal del wizard usando Card -->
+        <div class="wizard-modal-container max-w-4xl w-full mx-4 my-8 max-h-[90vh]" @click.stop>
+          <Card class="wizard-card h-full flex flex-col shadow-2xl border-0">
+            <!-- Header del wizard -->
+            <CardHeader class="p-0">
+              <WizardHeader
+                :step="currentStep"
+                :total="totalSteps"
+                :title="stepTitle"
+                :description="stepDescription"
+                :show-progress="showProgress"
               />
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
-    </div>
+            </CardHeader>
 
-    <!-- Overlay de carga -->
-    <div
-      v-if="isSimulating"
-      class="wizard-overlay"
-    >
-      <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <p class="loading-text">{{ loadingText }}</p>
-        <div class="loading-progress">
-          <div
-            class="progress-bar"
-            :style="{ width: `${simulationProgress}%` }"
-          ></div>
+            <!-- Contenido del wizard -->
+            <CardContent class="flex-1 overflow-y-auto p-0">
+              <div class="wizard-content">
+                <Transition
+                  :name="transitionName"
+                  mode="out-in"
+                  appear
+                >
+                  <component
+                    :is="currentStepComponent"
+                    :key="currentStep"
+                    v-bind="stepProps"
+                    @update:form-data="handleFormDataUpdate"
+                    @validate="handleStepValidation"
+                    @simulate="handleSimulation"
+                  />
+                </Transition>
+              </div>
+            </CardContent>
+
+            <!-- Navegación del wizard -->
+            <CardFooter v-if="!isCompleted" class="p-0">
+              <div class="wizard-navigation w-full">
+                <WizardNavigation
+                  :can-go-back="canGoBack"
+                  :can-go-next="canGoNext"
+                  :is-last-step="isLastStep"
+                  :is-loading="isSimulating"
+                  :loading-text="loadingText"
+                  @back="handlePrevious"
+                  @next="handleNext"
+                />
+              </div>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+
+      <!-- Overlay de carga -->
+      <div
+        v-if="isSimulating"
+        class="wizard-overlay"
+      >
+        <div class="loading-content">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">{{ loadingText }}</p>
+          <div class="loading-progress">
+            <div
+              class="progress-bar"
+              :style="{ width: `${simulationProgress}%` }"
+            ></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <style scoped>

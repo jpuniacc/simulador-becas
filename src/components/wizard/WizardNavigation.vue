@@ -61,7 +61,7 @@ const handleSpecialAction = () => {
 </script>
 
 <template>
-  <div class="wizard-navigation flex items-center justify-between">
+  <div class="wizard-navigation-footer flex items-center justify-between">
     <!-- Botón Anterior -->
     <div class="nav-button nav-previous">
       <Button
@@ -134,8 +134,8 @@ const handleSpecialAction = () => {
 </template>
 
 <style scoped>
-.wizard-navigation {
-  @apply flex items-center justify-between mt-8 pt-6 border-t border-gray-200;
+.wizard-navigation-footer {
+  @apply flex items-center justify-between mt-0 pt-0;
 }
 
 .nav-button {
