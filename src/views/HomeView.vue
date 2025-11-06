@@ -57,10 +57,9 @@ const scrollToFeatures = () => {
               Comenzar Simulación
             </Button>
             <Button
-              variant="outline"
               size="lg"
               @click="scrollToFeatures"
-              class="bg-transparent border-2 border-white text-white hover:bg-white hover:text-uniacc-blue px-8 py-4 text-lg font-semibold rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+              class="bg-uniacc-purple hover:bg-uniacc-purple-hover text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
               <Info class="w-5 h-5 mr-2" />
               Conocer Más
@@ -239,16 +238,15 @@ const scrollToFeatures = () => {
             <Button
               size="lg"
               @click="goToSimulator"
-              class="cta-button"
+              class="bg-uniacc-orange-light hover:bg-uniacc-orange-light text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
               <Calculator class="w-5 h-5 mr-2" />
               Comenzar Simulación
             </Button>
             <Button
-              variant="outline"
               size="lg"
               @click="goToAbout"
-              class="secondary-button"
+              class="bg-uniacc-purple-light hover:bg-uniacc-purple-light text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
               <Info class="w-5 h-5 mr-2" />
               Conocer UNIACC

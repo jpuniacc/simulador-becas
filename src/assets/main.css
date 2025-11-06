@@ -23,6 +23,9 @@
   --uniacc-pink: #FF007F;
   --uniacc-green: #00FF00;
   --uniacc-orange: #FF6B35;
+  --uniacc-orange-light: #fb923c;
+  --uniacc-purple: #8d01b3;
+  --uniacc-purple-light: #c084fc;
 
   /* Estados */
   --success: #10b981;
@@ -61,6 +64,19 @@
 .bg-uniacc-orange { background-color: var(--uniacc-orange); }
 .text-uniacc-orange { color: var(--uniacc-orange); }
 .border-uniacc-orange { border-color: var(--uniacc-orange); }
+
+.bg-uniacc-orange-light { background-color: var(--uniacc-orange-light); }
+.text-uniacc-orange-light { color: var(--uniacc-orange-light); }
+.border-uniacc-orange-light { border-color: var(--uniacc-orange-light); }
+
+.bg-uniacc-purple { background-color: var(--uniacc-purple); }
+.text-uniacc-purple { color: var(--uniacc-purple); }
+.border-uniacc-purple { border-color: var(--uniacc-purple); }
+
+.bg-uniacc-purple-light { background-color: var(--uniacc-purple-light); }
+.text-uniacc-purple-light { color: var(--uniacc-purple-light); }
+.border-uniacc-purple-light { border-color: var(--uniacc-purple-light); }
+
 
 /* Aplicar variables globales */
 body {
