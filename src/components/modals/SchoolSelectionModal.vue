@@ -157,7 +157,9 @@ const selectOption = async (option: any) => {
   }
 }
 
-const handleSearch = async (term: string) => {
+const handleSearch = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const term = target.value
   searchTerm.value = term
   isSearching.value = true
 
@@ -283,11 +285,11 @@ onMounted(async () => {
                   :key="option.id || index"
                   @click="selectOption(option)"
                   :class="[
-                    'w-full p-4 text-left rounded-lg transition-colors duration-150',
+                    'w-full px-4 py-3 text-left rounded-lg transition-colors duration-150',
                     'hover:bg-gray-50 focus:bg-gray-50 focus:outline-none',
                     'flex items-center space-x-3',
                     (currentStep === 'region' && regionSeleccionada?.region_id === option.region_id) ||
-                    (currentStep === 'comuna' && comunaSeleccionada?.comuna_id === option.comuna_id) ||
+                    (currentStep === 'comuna' && comunaSeleccionada?.comuna_nombre === option.comuna_nombre) ||
                     (currentStep === 'colegio' && colegioSeleccionado?.id === option.id)
                       ? 'bg-uniacc-blue/10 text-uniacc-blue font-medium border border-uniacc-blue/20'
                       : 'text-gray-900'

@@ -104,7 +104,7 @@ export function useColegios() {
     }
   }
 
-  const buscarColegios = async (comunaNombre: number, termino: string) => {
+  const buscarColegios = async (comunaNombre: string, termino: string) => {
     try {
       loading.value = true
       error.value = null
