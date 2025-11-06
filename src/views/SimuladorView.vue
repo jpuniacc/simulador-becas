@@ -77,50 +77,6 @@ onUnmounted(() => {
 
 <template>
   <div class="simulador-view">
-    <!-- Header de navegación -->
-    <div class="simulador-header">
-      <div class="header-content">
-        <div class="header-left">
-          <Button
-            variant="ghost"
-            size="sm"
-            @click="goBack"
-            class="back-button"
-          >
-            <ArrowLeft class="w-4 h-4 mr-2" />
-            Volver
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            @click="goHome"
-            class="home-button"
-          >
-            <Home class="w-4 h-4 mr-2" />
-            Inicio
-          </Button>
-        </div>
-
-        <div class="header-center">
-          <h1 class="simulador-title">Simulador de Becas UNIACC</h1>
-          <p class="simulador-subtitle">Descubre qué beneficios puedes obtener</p>
-        </div>
-
-        <div class="header-right">
-          <Button
-            variant="outline"
-            size="sm"
-            @click="handleNewSimulation"
-            class="new-simulation-button"
-          >
-            <RotateCcw class="w-4 h-4 mr-2" />
-            Nueva Simulación
-          </Button>
-        </div>
-      </div>
-    </div>
-
     <!-- Contenido principal -->
     <div class="simulador-content">
       <!-- Estado de carga -->
@@ -165,23 +121,11 @@ onUnmounted(() => {
           @complete="handleSimulationComplete"
           @step-change="handleStepChange"
           @error="handleSimulationError"
+
         />
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="simulador-footer">
-      <div class="footer-content">
-        <p class="footer-text">
-          © 2024 UNIACC - Simulador de Becas y Beneficios
-        </p>
-        <div class="footer-links">
-          <a href="#" class="footer-link">Términos y Condiciones</a>
-          <a href="#" class="footer-link">Política de Privacidad</a>
-          <a href="#" class="footer-link">Contacto</a>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -196,7 +140,7 @@ onUnmounted(() => {
 
 .header-content {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4;
-  @apply flex items-center justify-between;
+  @apply flex items-center justify-start;
 }
 
 .header-left {
@@ -270,7 +214,7 @@ onUnmounted(() => {
 }
 
 .wizard-container {
-  @apply w-full max-w-6xl mx-auto;
+  @apply w-full max-w-7xl mx-auto;
 }
 
 .simulador-footer {

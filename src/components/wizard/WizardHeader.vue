@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowLeft, Home, RotateCcw } from 'lucide-vue-next'
+import { Home, RotateCcw } from 'lucide-vue-next'
+import router from '@/router'
+import { useSimuladorStore } from '@/stores/simuladorStore'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 
 // Props
 interface Props {
@@ -16,6 +19,17 @@ const props = withDefaults(defineProps<Props>(), {
   showProgress: true,
   estimatedTime: ''
 })
+
+const simuladorStore = useSimuladorStore()
+
+// Métodos
+const goHome = () => {
+  router.push('/')
+}
+
+const reiniciarWizard = () => {
+  simuladorStore.resetWizard()
+}
 
 // Computed
 const progressPercentage = computed(() => {
@@ -39,10 +53,41 @@ const progressPercentage = computed(() => {
           </div>
         </div>
 
-        <!-- Acción única -->
-        <button class="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-lg hover:bg-gray-100">
-          <RotateCcw class="w-5 h-5" />
-        </button>
+        <!-- botones accion -->
+        <TooltipProvider>
+    <div class="flex items-center space-x-2">
+      <!-- Botón Home -->
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <button
+            @click="goHome"
+            class="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-lg hover:bg-gray-100"
+          >
+            <Home class="w-5 h-5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Volver al inicio</p>
+        </TooltipContent>
+      </Tooltip>
+
+      <!-- Botón Reset -->
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <button
+            @click="reiniciarWizard"
+            class="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-lg hover:bg-gray-100"
+          >
+            <RotateCcw class="w-5 h-5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Reiniciar simulación</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  </TooltipProvider>
+
       </div>
     </div>
 
