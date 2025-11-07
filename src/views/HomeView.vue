@@ -67,8 +67,8 @@ const scrollToFeatures = () => {
           </div>
         </div>
         <div class="hero-image">
-          <div class="image-placeholder bg-white bg-opacity-20 backdrop-blur-sm">
-            <GraduationCap class="w-32 h-32 text-white" />
+          <div class="container-logo-uniacc">
+            <img src="../assets/universidad-uniacc-logo.png" alt="Logo UNIACC" class="logo-uniacc" />
           </div>
         </div>
       </div>
@@ -445,6 +445,14 @@ const scrollToFeatures = () => {
   @apply scale-105;
 }
 
+.container-logo-uniacc {
+  @apply flex items-center justify-center bg-white backdrop-blur-sm rounded-full w-[272px] h-[272px];
+}
+
+.logo-uniacc {
+  @apply w-48 h-48 object-contain;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .hero-title {
@@ -465,6 +473,14 @@ const scrollToFeatures = () => {
 
   .stats-grid {
     @apply grid-cols-2;
+  }
+
+  .container-logo-uniacc {
+    @apply flex items-center justify-center bg-white backdrop-blur-sm rounded-full w-[180px] h-[180px];
+  }
+
+  .logo-uniacc {
+    @apply w-32 h-32 object-contain;
   }
 }
 

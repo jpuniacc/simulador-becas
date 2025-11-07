@@ -114,8 +114,8 @@ const scrollToStats = () => {
           </div>
         </div>
         <div class="hero-image">
-          <div class="image-placeholder">
-            <GraduationCap class="w-32 h-32 text-blue-600" />
+          <div class="container-logo-uniacc">
+            <img src="../assets/universidad-uniacc-logo.png" alt="Logo UNIACC" class="logo-uniacc" />
           </div>
         </div>
       </div>
@@ -291,7 +291,7 @@ const scrollToStats = () => {
               <Button
                 size="lg"
                 @click="goToSimulator"
-                class="cta-button"
+                class="bg-uniacc-orange-light hover:bg-uniacc-orange-light text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
               >
                 Comenzar Simulación
               </Button>
@@ -637,6 +637,15 @@ const scrollToStats = () => {
   @apply text-sm text-gray-400 hover:text-white transition-colors;
 }
 
+.container-logo-uniacc {
+  @apply flex items-center justify-center bg-white backdrop-blur-sm rounded-full w-[272px] h-[272px];
+}
+
+.logo-uniacc {
+  @apply w-48 h-48 object-contain;
+}
+
+
 /* Responsive */
 @media (max-width: 768px) {
   .header-content {
@@ -691,6 +700,14 @@ const scrollToStats = () => {
 
   .footer-links {
     @apply flex-col space-y-2 space-x-0;
+  }
+
+  .container-logo-uniacc {
+    @apply flex items-center justify-center bg-white backdrop-blur-sm rounded-full w-[180px] h-[180px];
+  }
+
+  .logo-uniacc {
+    @apply w-32 h-32 object-contain;
   }
 }
 
