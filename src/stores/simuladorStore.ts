@@ -160,7 +160,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
       apellido: formData.value.apellido,
       email: formData.value.email,
       nivelEducativo: formData.value.nivelEducativo,
-      genero: formData.value.genero,
       colegio: formData.value.colegio,
       carrera: formData.value.carrera
     }
@@ -172,7 +171,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
            required.apellido &&
            required.email &&
            required.nivelEducativo &&
-           required.genero &&
            required.colegio &&
            required.carrera)
 
@@ -182,7 +180,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
       apellido: !!required.apellido,
       email: !!required.email,
       nivelEducativo: !!required.nivelEducativo,
-      genero: !!required.genero,
       colegio: !!required.colegio,
       carrera: !!required.carrera
     })
