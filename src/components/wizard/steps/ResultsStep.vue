@@ -15,14 +15,14 @@ import {
   GraduationCap,
   BookOpen,
   Calendar,
-  MapPin
+  MapPin,
+  FileText
 } from 'lucide-vue-next'
 import type { SimulationResults } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useProspectos } from '@/composables/useProspectos'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import html2pdf from 'html2pdf.js'
 
 // Props
 interface Props {
@@ -56,9 +56,69 @@ const carreraInfo = computed(() => {
   return simuladorStore.carrerasStore.obtenerCarreraPorNombre(formData.value.carrera)
 })
 
-// Computed para becas aplicadas
+// Computed para becas aplicadas (internas)
 const becasAplicadas = computed(() => {
   return calculoBecas.value?.becas_aplicadas || []
+})
+
+// Computed para becas del estado aplicadas con montos calculados (para mostrar en tarjetas)
+const becasEstadoAplicadasConDetalle = computed(() => {
+  return becasEstadoConMontos.value
+})
+
+// Computed para becas del estado elegibles
+const becasEstadoElegibles = computed(() => {
+  return simuladorStore.becasStore.becasElegiblesEstado || []
+})
+
+// Computed para becas del estado aplicadas (solo las elegibles)
+const becasEstadoAplicadas = computed(() => {
+  return becasEstadoElegibles.value.filter(b => b.elegible)
+})
+
+// Computed para becas del estado con montos calculados
+const becasEstadoConMontos = computed(() => {
+  if (!calculoBecas.value || becasEstadoAplicadas.value.length === 0) return []
+  
+  let arancelActual = calculoBecas.value.arancel_base
+  const becasConMontos = becasEstadoAplicadas.value.map(becaEstado => {
+    let montoDescuento = 0
+    if (becaEstado.beca.tipo_descuento === 'porcentaje' && becaEstado.descuento_aplicado) {
+      montoDescuento = (arancelActual * becaEstado.descuento_aplicado) / 100
+    } else if (becaEstado.beca.tipo_descuento === 'monto_fijo' && becaEstado.monto_descuento) {
+      montoDescuento = becaEstado.monto_descuento
+    }
+    arancelActual -= montoDescuento
+    return {
+      ...becaEstado,
+      monto_descuento: montoDescuento
+    }
+  })
+  
+  return becasConMontos
+})
+
+// Computed para calcular descuento total de becas del estado
+const descuentoBecasEstado = computed(() => {
+  return becasEstadoConMontos.value.reduce((total, beca) => total + beca.monto_descuento, 0)
+})
+
+// Computed para arancel después de aplicar becas del estado
+const arancelDespuesBecasEstado = computed(() => {
+  if (!calculoBecas.value) return 0
+  return calculoBecas.value.arancel_base - descuentoBecasEstado.value
+})
+
+// Computed para descuento total (becas del estado + becas internas)
+const descuentoTotalReal = computed(() => {
+  if (!calculoBecas.value) return 0
+  return descuentoBecasEstado.value + calculoBecas.value.descuento_total
+})
+
+// Computed para arancel final real
+const arancelFinalReal = computed(() => {
+  if (!calculoBecas.value) return 0
+  return calculoBecas.value.arancel_base - descuentoTotalReal.value
 })
 
 // Computed para becas no elegibles
@@ -149,11 +209,17 @@ const becasDisponiblesMedia = computed(() => {
     })
 })
 
-// Computed para porcentaje de ahorro
+// Computed para porcentaje de ahorro (incluye becas del estado)
 const porcentajeAhorro = computed(() => {
   if (!calculoBecas.value) return 0
-  const { arancel_base, ahorro_total } = calculoBecas.value
-  return arancel_base > 0 ? Math.round((ahorro_total / arancel_base) * 100) : 0
+  const { arancel_base } = calculoBecas.value
+  const ahorroTotal = descuentoTotalReal.value
+  return arancel_base > 0 ? Math.round((ahorroTotal / arancel_base) * 100) : 0
+})
+
+// Computed para ahorro total (incluye becas del estado)
+const ahorroTotalReal = computed(() => {
+  return descuentoTotalReal.value
 })
 
 // Computed para detectar si es estudiante sin NEM/PAES
@@ -199,38 +265,36 @@ const handleExportPDF = async () => {
       return
     }
 
-    // Capturar el elemento como imagen
-    const canvas = await html2canvas(pdfContentRef.value, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
-    })
-
-    const imgData = canvas.toDataURL('image/png')
-    const imgWidth = 210 // A4 width in mm
-    const pageHeight = 297 // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-    let heightLeft = imgHeight
-
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-    let position = 0
-
-    // Agregar primera página
-    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-    heightLeft -= pageHeight
-
-    // Agregar páginas adicionales si el contenido es más alto
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight
-      doc.addPage()
-      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
+    // Configuración para html2pdf.js
+    const options = {
+      margin: [10, 10, 10, 10],
+      filename: 'simulacion-uniacc.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { 
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        letterRendering: true
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+        compress: true
+      },
+      pagebreak: { 
+        mode: ['avoid-all', 'css', 'legacy'],
+        before: '.page-break-before',
+        after: '.page-break-after',
+        avoid: ['.no-break', 'table', 'tr']
+      }
     }
 
-    doc.save('simulacion-uniacc.pdf')
+    // Generar PDF directamente desde HTML
+    await html2pdf().set(options).from(pdfContentRef.value).save()
   } catch (e) {
-    console.warn('No se pudo generar el PDF:', e)
+    console.error('No se pudo generar el PDF:', e)
   }
 }
 
@@ -303,6 +367,163 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- Tabla de resultados detallada -->
+      <div v-if="calculoBecas" class="results-table-section">
+        <h3 class="section-title">
+          <DollarSign class="w-6 h-6" />
+          Detalle de la Simulación
+        </h3>
+        <div class="table-container">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th class="table-header">Concepto</th>
+                <th class="table-header text-right">Tipo</th>
+                <th class="table-header text-right">Descuento</th>
+                <th class="table-header text-right">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Arancel base -->
+              <tr class="table-row base-row">
+                <td class="table-cell font-semibold">
+                  Arancel Base de la Carrera
+                </td>
+                <td class="table-cell text-right text-gray-500">-</td>
+                <td class="table-cell text-right text-gray-500">-</td>
+                <td class="table-cell text-right font-semibold">
+                  {{ formatCurrency(calculoBecas.arancel_base) }}
+                </td>
+              </tr>
+              
+              <!-- Sección: Beneficios del Estado -->
+              <template v-if="becasEstadoConMontos.length > 0">
+                <tr class="table-row section-header-row">
+                  <td class="table-cell font-bold text-purple-700" colspan="4">
+                    Beneficios del Estado
+                  </td>
+                </tr>
+                <tr
+                  v-for="becaEstado in becasEstadoConMontos"
+                  :key="`estado-${becaEstado.beca.id}`"
+                  class="table-row benefit-row estado-row"
+                >
+                  <td class="table-cell">
+                    <div class="benefit-name">
+                      <Award class="w-4 h-4 text-purple-600 inline mr-2" />
+                      {{ becaEstado.beca.nombre || 'Beca del Estado' }}
+                    </div>
+                  </td>
+                  <td class="table-cell text-right">
+                    <span class="badge-type badge-estado">
+                      {{ becaEstado.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' : 
+                         becaEstado.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
+                    </span>
+                  </td>
+                  <td class="table-cell text-right">
+                    <span v-if="becaEstado.beca.tipo_descuento === 'porcentaje'" class="discount-percentage">
+                      {{ becaEstado.descuento_aplicado }}%
+                    </span>
+                    <span v-else-if="becaEstado.beca.tipo_descuento === 'monto_fijo'" class="text-gray-500">
+                      Monto Fijo
+                    </span>
+                    <span v-else class="discount-percentage">
+                      {{ becaEstado.descuento_aplicado }}%
+                    </span>
+                  </td>
+                  <td class="table-cell text-right font-semibold text-green-600">
+                    -{{ formatCurrency(becaEstado.monto_descuento) }}
+                  </td>
+                </tr>
+                <tr class="table-row subtotal-row">
+                  <td class="table-cell font-semibold text-purple-700" colspan="3">
+                    Subtotal después de Beneficios del Estado
+                  </td>
+                  <td class="table-cell text-right font-semibold text-purple-700">
+                    {{ formatCurrency(arancelDespuesBecasEstado) }}
+                  </td>
+                </tr>
+              </template>
+              
+              <!-- Sección: Beneficios Internos -->
+              <template v-if="becasAplicadas.length > 0">
+                <tr class="table-row section-header-row">
+                  <td class="table-cell font-bold text-blue-700" colspan="4">
+                    Beneficios Internos (UNIACC)
+                  </td>
+                </tr>
+                <tr
+                  v-for="beca in becasAplicadas"
+                  :key="beca.beca.id"
+                  class="table-row benefit-row interno-row"
+                >
+                  <td class="table-cell">
+                    <div class="benefit-name">
+                      <Award class="w-4 h-4 text-blue-600 inline mr-2" />
+                      {{ beca.beca.nombre }}
+                    </div>
+                  </td>
+                  <td class="table-cell text-right">
+                    <span class="badge-type">
+                      {{ beca.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' : 
+                         beca.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
+                    </span>
+                  </td>
+                  <td class="table-cell text-right">
+                    <span v-if="beca.beca.tipo_descuento === 'porcentaje'" class="discount-percentage">
+                      {{ beca.descuento_aplicado }}%
+                    </span>
+                    <span v-else-if="beca.beca.tipo_descuento === 'monto_fijo'" class="text-gray-500">
+                      Monto Fijo
+                    </span>
+                    <span v-else class="discount-percentage">
+                      {{ beca.descuento_aplicado }}%
+                    </span>
+                  </td>
+                  <td class="table-cell text-right font-semibold text-green-600">
+                    -{{ formatCurrency(beca.monto_descuento) }}
+                  </td>
+                </tr>
+              </template>
+              
+              <!-- Mensaje si no hay beneficios del estado elegibles pero el usuario marcó que usa -->
+              <template v-if="formData.usaBecasEstado && becasEstadoElegibles.length > 0 && becasEstadoAplicadas.length === 0">
+                <tr class="table-row section-header-row">
+                  <td class="table-cell font-bold text-purple-700" colspan="4">
+                    Beneficios del Estado
+                  </td>
+                </tr>
+                <tr class="table-row info-row">
+                  <td class="table-cell text-sm text-gray-600 italic" colspan="4">
+                    No cumples con los requisitos para las becas del estado disponibles
+                  </td>
+                </tr>
+              </template>
+              
+              <!-- Total descuentos -->
+              <tr class="table-row discount-total-row">
+                <td class="table-cell font-semibold" colspan="3">
+                  Total Descuentos Aplicados
+                </td>
+                <td class="table-cell text-right font-bold text-red-600">
+                  -{{ formatCurrency(descuentoTotalReal) }}
+                </td>
+              </tr>
+              
+              <!-- Arancel final -->
+              <tr class="table-row final-row">
+                <td class="table-cell font-bold text-lg" colspan="3">
+                  Arancel Final a Pagar
+                </td>
+                <td class="table-cell text-right font-bold text-lg text-green-600">
+                  {{ formatCurrency(arancelFinalReal) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Resumen financiero -->
       <div class="financial-summary">
         <h3 class="summary-title">Resumen Financiero</h3>
@@ -323,7 +544,7 @@ onMounted(async () => {
               <h4 class="card-title">Descuento Total</h4>
             </div>
             <div class="card-value">
-              -{{ formatCurrency(calculoBecas?.descuento_total || 0) }}
+              -{{ formatCurrency(descuentoTotalReal) }}
             </div>
           </div>
 
@@ -333,7 +554,7 @@ onMounted(async () => {
               <h4 class="card-title">Arancel Final</h4>
             </div>
             <div class="card-value">
-              {{ formatCurrency(calculoBecas?.arancel_final || 0) }}
+              {{ formatCurrency(arancelFinalReal) }}
             </div>
           </div>
         </div>
@@ -345,7 +566,7 @@ onMounted(async () => {
               <TrendingUp class="w-8 h-8 text-green-600" />
             </div>
             <div class="savings-text">
-              <h4 class="savings-title">¡Ahorras {{ formatCurrency(calculoBecas?.ahorro_total || 0) }}!</h4>
+              <h4 class="savings-title">¡Ahorras {{ formatCurrency(ahorroTotalReal) }}!</h4>
               <p class="savings-subtitle">
                 {{ porcentajeAhorro }}% de descuento total
               </p>
@@ -355,42 +576,103 @@ onMounted(async () => {
       </div>
 
       <!-- Becas aplicadas -->
-      <div v-if="becasAplicadas.length" class="benefits-section">
+      <div v-if="becasAplicadas.length || becasEstadoAplicadasConDetalle.length" class="benefits-section">
         <h3 class="section-title">
           <Award class="w-6 h-6" />
           Becas Aplicadas
         </h3>
-        <div class="benefits-grid">
-          <div
-            v-for="beca in becasAplicadas"
-            :key="beca.beca.id"
-            class="benefit-card"
-          >
-            <div class="benefit-header">
-              <div class="benefit-icon">
-                <CheckCircle class="w-5 h-5 text-green-600" />
+
+        <!-- Becas del Estado Aplicadas -->
+        <div v-if="becasEstadoAplicadasConDetalle.length" class="benefits-subsection">
+          <h4 class="subsection-title">
+            <Award class="w-5 h-5 text-purple-600" />
+            Beneficios del Estado
+          </h4>
+          <div class="benefits-grid">
+            <div
+              v-for="becaEstado in becasEstadoAplicadasConDetalle"
+              :key="`estado-${becaEstado.beca.id}`"
+              class="benefit-card benefit-card-estado"
+            >
+              <div class="benefit-header">
+                <div class="benefit-icon">
+                  <CheckCircle class="w-5 h-5 text-purple-600" />
+                </div>
+                <div class="benefit-info">
+                  <h4 class="benefit-title">{{ becaEstado.beca.nombre || 'Beca del Estado' }}</h4>
+                  <p class="benefit-type">{{ becaEstado.beca.tipo_descuento || 'Descuento' }}</p>
+                </div>
               </div>
-              <div class="benefit-info">
-                <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
-                <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+              <div class="benefit-details">
+                <div class="benefit-discount">
+                  <span class="discount-label">Descuento:</span>
+                  <span class="discount-value">
+                    {{ becaEstado.beca.tipo_descuento === 'porcentaje'
+                        ? `${becaEstado.descuento_aplicado}%`
+                        : formatCurrency(becaEstado.beca.descuento_monto || 0) }}
+                  </span>
+                </div>
+                <div class="benefit-applied">
+                  <span class="applied-label">Aplicado:</span>
+                  <span class="applied-value">{{ formatCurrency(becaEstado.monto_descuento) }}</span>
+                </div>
+              </div>
+              <div v-if="becaEstado.beca.descripcion" class="benefit-description">
+                <p class="description-text">{{ becaEstado.beca.descripcion }}</p>
               </div>
             </div>
-            <div class="benefit-details">
-              <div class="benefit-discount">
-                <span class="discount-label">Descuento:</span>
-                <span class="discount-value">
-                  {{ beca.beca.tipo_descuento === 'porcentaje'
-                      ? `${beca.descuento_aplicado}%`
-                      : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
-                </span>
+          </div>
+        </div>
+
+        <!-- Becas Internas Aplicadas -->
+        <div v-if="becasAplicadas.length" class="benefits-subsection">
+          <h4 class="subsection-title">
+            <Award class="w-5 h-5 text-blue-600" />
+            Beneficios Internos (UNIACC)
+          </h4>
+          <div class="benefits-grid">
+            <div
+              v-for="beca in becasAplicadas"
+              :key="beca.beca.id"
+              class="benefit-card benefit-card-interno"
+            >
+              <div class="benefit-header">
+                <div class="benefit-icon">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                </div>
+                <div class="benefit-info">
+                  <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
+                  <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+                </div>
               </div>
-              <div class="benefit-applied">
-                <span class="applied-label">Aplicado:</span>
-                <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
+              <div class="benefit-details">
+                <div class="benefit-discount">
+                  <span class="discount-label">Descuento:</span>
+                  <span class="discount-value">
+                    {{ beca.beca.tipo_descuento === 'porcentaje'
+                        ? `${beca.descuento_aplicado}%`
+                        : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
+                  </span>
+                </div>
+                <div class="benefit-applied">
+                  <span class="applied-label">Aplicado:</span>
+                  <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
+                </div>
               </div>
-            </div>
-            <div v-if="beca.beca.descripcion" class="benefit-description">
-              <p class="description-text">{{ beca.beca.descripcion }}</p>
+              <div v-if="beca.beca.descripcion" class="benefit-description">
+                <p class="description-text">{{ beca.beca.descripcion }}</p>
+              </div>
+              <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0" class="benefit-documentation">
+                <div class="documentation-header">
+                  <FileText class="w-4 h-4 text-blue-600" />
+                  <span class="documentation-title">Documentación Requerida:</span>
+                </div>
+                <ul class="documentation-list">
+                  <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index" class="documentation-item">
+                    {{ doc }}
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -690,6 +972,86 @@ onMounted(async () => {
   @apply text-sm text-green-700;
 }
 
+.results-table-section {
+  @apply space-y-6;
+}
+
+.table-container {
+  @apply overflow-x-auto;
+}
+
+.results-table {
+  @apply w-full border-collapse bg-white rounded-lg shadow-sm overflow-hidden;
+}
+
+.table-header {
+  @apply bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200;
+}
+
+.table-row {
+  @apply border-b border-gray-200 transition-colors;
+}
+
+.table-row:hover {
+  @apply bg-gray-50;
+}
+
+.table-row.base-row {
+  @apply bg-blue-50;
+}
+
+.table-row.benefit-row {
+  @apply bg-white;
+}
+
+.table-row.discount-total-row {
+  @apply bg-red-50 border-t-2 border-red-200;
+}
+
+.table-row.final-row {
+  @apply bg-green-50 border-t-2 border-green-200;
+}
+
+.table-row.section-header-row {
+  @apply bg-gray-100 border-t-2 border-gray-300;
+}
+
+.table-row.subtotal-row {
+  @apply bg-purple-50 border-t border-purple-200;
+}
+
+.table-row.estado-row {
+  @apply bg-purple-50/30;
+}
+
+.table-row.interno-row {
+  @apply bg-blue-50/30;
+}
+
+.table-row.info-row {
+  @apply bg-gray-50;
+}
+
+.table-cell {
+  @apply px-4 py-3 text-sm text-gray-900;
+}
+
+.badge-estado {
+  @apply bg-purple-100 text-purple-800;
+}
+
+.benefit-name {
+  @apply flex items-center;
+}
+
+.badge-type {
+  @apply inline-block px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800;
+}
+
+.discount-percentage {
+  @apply font-semibold text-blue-600;
+}
+
 .career-info {
   @apply space-y-6;
 }
@@ -728,6 +1090,22 @@ onMounted(async () => {
 
 .benefits-section {
   @apply space-y-6;
+}
+
+.benefits-subsection {
+  @apply space-y-4 mt-6;
+}
+
+.subsection-title {
+  @apply flex items-center space-x-2 text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
+}
+
+.benefit-card-estado {
+  @apply border-purple-200 bg-purple-50/30;
+}
+
+.benefit-card-interno {
+  @apply border-blue-200 bg-blue-50/30;
 }
 
 .no-benefits-section {
@@ -839,6 +1217,31 @@ onMounted(async () => {
 
 .description-text {
   @apply text-sm text-gray-600;
+}
+
+.benefit-documentation {
+  @apply mt-3 pt-3 border-t border-gray-200;
+}
+
+.documentation-header {
+  @apply flex items-center space-x-2 mb-2;
+}
+
+.documentation-title {
+  @apply text-sm font-semibold text-gray-700;
+}
+
+.documentation-list {
+  @apply list-none space-y-1.5 pl-0;
+}
+
+.documentation-item {
+  @apply text-sm text-gray-600 flex items-start;
+}
+
+.documentation-item::before {
+  content: '•';
+  @apply text-blue-600 font-bold mr-2 mt-0.5;
 }
 
 .decil-info {
@@ -999,6 +1402,18 @@ onMounted(async () => {
     @apply bg-green-900/20 border-green-700;
   }
 
+  .benefit-card-estado {
+    @apply border-purple-700 bg-purple-900/20;
+  }
+
+  .benefit-card-interno {
+    @apply border-blue-700 bg-blue-900/20;
+  }
+
+  .subsection-title {
+    @apply text-gray-200 border-gray-600;
+  }
+
   .benefit-discount {
     @apply text-green-400;
   }
@@ -1077,12 +1492,96 @@ onMounted(async () => {
     @apply text-gray-300;
   }
 
+  .results-table {
+    @apply bg-gray-800;
+  }
+
+  .table-header {
+    @apply bg-gray-700 text-gray-200 border-gray-600;
+  }
+
+  .table-row {
+    @apply border-gray-700;
+  }
+
+  .table-row:hover {
+    @apply bg-gray-700;
+  }
+
+  .table-row.base-row {
+    @apply bg-blue-900/20;
+  }
+
+  .table-row.benefit-row {
+    @apply bg-gray-800;
+  }
+
+  .table-row.discount-total-row {
+    @apply bg-red-900/20 border-red-700;
+  }
+
+  .table-row.final-row {
+    @apply bg-green-900/20 border-green-700;
+  }
+
+  .table-row.section-header-row {
+    @apply bg-gray-700 border-gray-500;
+  }
+
+  .table-row.subtotal-row {
+    @apply bg-purple-900/30 border-purple-700;
+  }
+
+  .table-row.estado-row {
+    @apply bg-purple-900/20;
+  }
+
+  .table-row.interno-row {
+    @apply bg-blue-900/20;
+  }
+
+  .table-row.info-row {
+    @apply bg-gray-800;
+  }
+
+  .table-cell {
+    @apply text-gray-200;
+  }
+
+  .badge-estado {
+    @apply bg-purple-900 text-purple-200;
+  }
+
+  .badge-type {
+    @apply bg-blue-900 text-blue-200;
+  }
+
+  .discount-percentage {
+    @apply text-blue-400;
+  }
+
   .benefit-description {
     @apply border-gray-600;
   }
 
   .description-text {
     @apply text-gray-300;
+  }
+
+  .benefit-documentation {
+    @apply border-gray-600;
+  }
+
+  .documentation-title {
+    @apply text-gray-200;
+  }
+
+  .documentation-item {
+    @apply text-gray-300;
+  }
+
+  .documentation-item::before {
+    @apply text-blue-400;
   }
 
   .personalized-title {

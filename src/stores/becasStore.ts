@@ -58,11 +58,43 @@ export interface CalculoBecas {
   ahorro_total: number
 }
 
+// Tipos para becas del estado
+export interface BecasEstado {
+  id: number
+  codigo_beca: string | null
+  nombre: string | null
+  descripcion: string | null
+  descuento_porcentaje: number | null
+  descuento_monto: number | null
+  tipo_descuento: string | null
+  requiere_nem: boolean | null
+  nem_minimo: number | null
+  requiere_paes: boolean | null
+  paes_minimo: number | null
+  requeire_decil: boolean | null
+  decil_maximo: number | null
+  created_at: string
+}
+
+export interface BecasElegiblesEstado {
+  beca: BecasEstado
+  elegible: boolean
+  razon: string
+  descuento_aplicado: number
+  monto_descuento: number
+}
+
 export const useBecasStore = defineStore('becas', () => {
   // Estado
   const becas = ref<BecasUniacc[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  // Estado para becas del estado
+  const becasEstado = ref<BecasEstado[]>([])
+  const loadingEstado = ref(false)
+  const errorEstado = ref<string | null>(null)
+  const becasElegiblesEstado = ref<BecasElegiblesEstado[]>([])
 
   // Integrar con carreras store
   const carrerasStore = useCarrerasStore()
@@ -113,6 +145,32 @@ export const useBecasStore = defineStore('becas', () => {
       console.error('Error cargando becas:', err)
     } finally {
       loading.value = false
+    }
+  }
+
+  // Cargar becas del estado desde Supabase
+  const cargarBecasEstado = async () => {
+    try {
+      loadingEstado.value = true
+      errorEstado.value = null
+
+      const { data, error: supabaseError } = await supabase
+        .from('becas_estado')
+        .select('*')
+        .order('id', { ascending: true })
+
+        console.log('STORE - becasEstado cargadas:', data)
+
+      if (supabaseError) {
+        throw supabaseError
+      }
+
+      becasEstado.value = data || []
+    } catch (err) {
+      errorEstado.value = err instanceof Error ? err.message : 'Error al cargar becas del estado'
+      console.error('Error cargando becas del estado:', err)
+    } finally {
+      loadingEstado.value = false
     }
   }
 
@@ -169,14 +227,6 @@ export const useBecasStore = defineStore('becas', () => {
         elegible = true
         razon = `Elegible por residir en región ${regionId} (fuera de Región Metropolitana)`
         console.log('  ✅ ELEGIBLE - Fuera de Región Metropolitana')
-      }
-    }
-
-    // 4. Verificar género
-    if (beca.requiere_genero) {
-      if (formData.genero !== beca.requiere_genero) {
-        elegible = false
-        razon = `Requiere género ${beca.requiere_genero}`
       }
     }
 
@@ -250,7 +300,6 @@ export const useBecasStore = defineStore('becas', () => {
       elegible = false
       razon = `No hay cupos disponibles`
     }
-
     // Si es elegible, calcular descuento
     if (elegible) {
       if (beca.tipo_descuento === 'porcentaje' && beca.descuento_porcentaje) {
@@ -272,6 +321,120 @@ export const useBecasStore = defineStore('becas', () => {
   // Calcular becas elegibles para un estudiante
   const calcularBecasElegibles = (formData: FormData): BecasElegibles[] => {
     return becas.value.map(beca => verificarElegibilidad(beca, formData))
+  }
+
+  // Verificar elegibilidad de una beca del estado específica
+  const verificarElegibilidadEstado = (beca: BecasEstado, formData: FormData): BecasElegiblesEstado => {
+    console.log('🔍 verificarElegibilidadEstado - Inicio:', {
+      becaNombre: beca.nombre,
+      becaId: beca.id,
+      usaBecasEstado: formData.usaBecasEstado,
+      formData: {
+        nem: formData.nem,
+        rendioPAES: formData.rendioPAES,
+        paes: formData.paes,
+        decil: formData.decil
+      }
+    })
+
+    let elegible = true
+    let razon = ''
+    let descuento_aplicado = 0
+    let monto_descuento = 0
+
+    // Verificar que el usuario haya marcado que usa becas del estado
+    if (!formData.usaBecasEstado) {
+      console.log('❌ verificarElegibilidadEstado - No usa becas del estado')
+      elegible = false
+      razon = 'El estudiante no indicó que usa becas del estado'
+      return {
+        beca,
+        elegible,
+        razon,
+        descuento_aplicado,
+        monto_descuento
+      }
+    }
+
+    // 1. Verificar NEM
+    if (beca.requiere_nem && beca.nem_minimo !== null) {
+      if (!formData.nem || formData.nem < beca.nem_minimo) {
+        elegible = false
+        razon = `Requiere NEM mínimo ${beca.nem_minimo}`
+      }
+    }
+
+    // 2. Verificar PAES
+    if (beca.requiere_paes && beca.paes_minimo !== null) {
+      const puntajePAES = formData.paes?.matematica || formData.paes?.lenguaje || 0
+      if (!formData.rendioPAES || puntajePAES < beca.paes_minimo) {
+        elegible = false
+        razon = `Requiere PAES mínimo ${beca.paes_minimo}`
+      }
+    }
+
+    // 3. Verificar decil
+    if (beca.requeire_decil && beca.decil_maximo !== null) {
+      if (!formData.decil || formData.decil > beca.decil_maximo) {
+        elegible = false
+        razon = `Requiere decil máximo ${beca.decil_maximo}`
+      }
+    }
+
+    // Si es elegible, calcular descuento
+    if (elegible) {
+      if (beca.tipo_descuento === 'porcentaje' && beca.descuento_porcentaje !== null) {
+        descuento_aplicado = beca.descuento_porcentaje
+      } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto !== null) {
+        monto_descuento = beca.descuento_monto
+      }
+    }
+
+    console.log('✅ verificarElegibilidadEstado - Resultado:', {
+      becaNombre: beca.nombre,
+      elegible,
+      razon,
+      descuento_aplicado,
+      monto_descuento
+    })
+
+    return {
+      beca,
+      elegible,
+      razon,
+      descuento_aplicado,
+      monto_descuento
+    }
+  }
+
+  // Calcular becas del estado elegibles para un estudiante
+  const calcularBecasElegiblesEstado = (formData: FormData): BecasElegiblesEstado[] => {
+    console.log('📊 calcularBecasElegiblesEstado - Inicio:', {
+      totalBecasEstado: becasEstado.value.length,
+      usaBecasEstado: formData.usaBecasEstado,
+      formData: {
+        nem: formData.nem,
+        rendioPAES: formData.rendioPAES,
+        paes: formData.paes,
+        decil: formData.decil
+      }
+    })
+
+    const elegibles = becasEstado.value.map(beca => verificarElegibilidadEstado(beca, formData))
+    becasElegiblesEstado.value = elegibles
+    
+    const aplicadas = elegibles.filter(b => b.elegible)
+    console.log('📊 calcularBecasElegiblesEstado - Resultado:', {
+      totalElegibles: elegibles.length,
+      totalAplicadas: aplicadas.length,
+      aplicadas: aplicadas.map(b => ({
+        nombre: b.beca.nombre,
+        elegible: b.elegible,
+        razon: b.razon
+      }))
+    })
+
+    return elegibles
   }
 
   // Aplicar algoritmo de prelación de becas
@@ -347,8 +510,47 @@ export const useBecasStore = defineStore('becas', () => {
       arancelCalculado = carrerasStore.obtenerArancelCarrera(formData.carrera)
     }
 
+    // Primero calcular y aplicar becas del estado si el usuario las usa
+    let arancelDespuesEstado = arancelCalculado
+    console.log('💰 calcularBecas - Verificando becas del estado:', {
+      usaBecasEstado: formData.usaBecasEstado,
+      totalBecasEstado: becasEstado.value.length,
+      arancelCalculado
+    })
+
+    if (formData.usaBecasEstado && becasEstado.value.length > 0) {
+      const becasEstadoElegibles = calcularBecasElegiblesEstado(formData)
+      const becasEstadoAplicadas = becasEstadoElegibles.filter(b => b.elegible)
+      console.log('💰 calcularBecas - Becas del estado aplicadas:', {
+        total: becasEstadoAplicadas.length,
+        becas: becasEstadoAplicadas.map(b => ({
+          nombre: b.beca.nombre,
+          monto_descuento: b.monto_descuento,
+          descuento_aplicado: b.descuento_aplicado
+        }))
+      })
+      
+      // Aplicar descuentos de becas del estado
+      for (const becaEstado of becasEstadoAplicadas) {
+        let montoDescuento = 0
+        if (becaEstado.beca.tipo_descuento === 'porcentaje' && becaEstado.descuento_aplicado) {
+          montoDescuento = (arancelDespuesEstado * becaEstado.descuento_aplicado) / 100
+        } else if (becaEstado.beca.tipo_descuento === 'monto_fijo' && becaEstado.monto_descuento) {
+          montoDescuento = becaEstado.monto_descuento
+        }
+        arancelDespuesEstado -= montoDescuento
+      }
+    }
+
+    // Calcular becas internas sobre el arancel después de aplicar becas del estado
     const becasElegibles = calcularBecasElegibles(formData)
-    return aplicarPrelacion(becasElegibles, arancelCalculado)
+    const resultado = aplicarPrelacion(becasElegibles, arancelDespuesEstado)
+    
+    // Ajustar el arancel_base al original para mantener consistencia
+    return {
+      ...resultado,
+      arancel_base: arancelCalculado
+    }
   }
 
   // Obtener información completa de costos de una carrera
@@ -363,6 +565,11 @@ export const useBecasStore = defineStore('becas', () => {
     error,
     becasPorTipo,
     becasPorPrioridad,
+    // Becas del estado
+    becasEstado,
+    loadingEstado,
+    errorEstado,
+    becasElegiblesEstado,
 
     // Acciones
     cargarBecas,
@@ -370,6 +577,9 @@ export const useBecasStore = defineStore('becas', () => {
     calcularBecasElegibles,
     aplicarPrelacion,
     calcularBecas,
-    obtenerCostosCarrera
+    obtenerCostosCarrera,
+    cargarBecasEstado,
+    verificarElegibilidadEstado,
+    calcularBecasElegiblesEstado
   }
 })

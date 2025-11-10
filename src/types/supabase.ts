@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      becas_estado: {
+        Row: {
+          codigo_beca: string | null
+          created_at: string
+          decil_maximo: number | null
+          descripcion: string | null
+          descuento_monto: number | null
+          descuento_porcentaje: number | null
+          id: number
+          nem_minimo: number | null
+          nombre: string | null
+          paes_minimo: number | null
+          requeire_decil: boolean | null
+          requiere_nem: boolean | null
+          requiere_paes: boolean | null
+          tipo_descuento: string | null
+        }
+        Insert: {
+          codigo_beca?: string | null
+          created_at?: string
+          decil_maximo?: number | null
+          descripcion?: string | null
+          descuento_monto?: number | null
+          descuento_porcentaje?: number | null
+          id?: number
+          nem_minimo?: number | null
+          nombre?: string | null
+          paes_minimo?: number | null
+          requeire_decil?: boolean | null
+          requiere_nem?: boolean | null
+          requiere_paes?: boolean | null
+          tipo_descuento?: string | null
+        }
+        Update: {
+          codigo_beca?: string | null
+          created_at?: string
+          decil_maximo?: number | null
+          descripcion?: string | null
+          descuento_monto?: number | null
+          descuento_porcentaje?: number | null
+          id?: number
+          nem_minimo?: number | null
+          nombre?: string | null
+          paes_minimo?: number | null
+          requeire_decil?: boolean | null
+          requiere_nem?: boolean | null
+          requiere_paes?: boolean | null
+          tipo_descuento?: string | null
+        }
+        Relationships: []
+      }
       becas_uniacc: {
         Row: {
           activa: boolean | null

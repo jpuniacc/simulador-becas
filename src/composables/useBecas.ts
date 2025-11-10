@@ -57,10 +57,33 @@ export interface CalculoBecas {
   ahorro_total: number
 }
 
+// Tipos para becas del estado
+export interface BecasEstado {
+  id: number
+  codigo_beca: string | null
+  nombre: string | null
+  descripcion: string | null
+  descuento_porcentaje: number | null
+  descuento_monto: number | null
+  tipo_descuento: string | null
+  requiere_nem: boolean | null
+  nem_minimo: number | null
+  requiere_paes: boolean | null
+  paes_minimo: number | null
+  requeire_decil: boolean | null
+  decil_maximo: number | null
+  created_at: string
+}
+
 export function useBecas() {
   const becas = ref<BecasUniacc[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  // Estado para becas del estado
+  const becasEstado = ref<BecasEstado[]>([])
+  const loadingEstado = ref(false)
+  const errorEstado = ref<string | null>(null)
 
   // Integrar con useCarreras para obtener aranceles
   const { obtenerArancelCarrera, obtenerMatriculaCarrera, obtenerCarreraPorNombre } = useCarreras()
@@ -80,13 +103,37 @@ export function useBecas() {
       if (supabaseError) {
         throw supabaseError
       }
-
       becas.value = data || []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Error al cargar becas'
       console.error('Error cargando becas:', err)
     } finally {
       loading.value = false
+    }
+  }
+
+  // Cargar becas del estado desde Supabase
+  const cargarBecasEstado = async () => {
+    try {
+      loadingEstado.value = true
+      errorEstado.value = null
+
+      const { data, error: supabaseError } = await supabase
+        .from('becas_estado')
+        .select('*')
+        .order('id', { ascending: true })
+
+        console.log('COMPOSABLE - becasEstado cargadas:', data)
+
+      if (supabaseError) {
+        throw supabaseError
+      }
+      becasEstado.value = data || []
+    } catch (err) {
+      errorEstado.value = err instanceof Error ? err.message : 'Error al cargar becas del estado'
+      console.error('Error cargando becas del estado:', err)
+    } finally {
+      loadingEstado.value = false
     }
   }
 
@@ -344,6 +391,11 @@ export function useBecas() {
     calcularBecas,
     obtenerCostosCarrera,
     becasPorTipo,
-    becasPorPrioridad
+    becasPorPrioridad,
+    // Becas del estado
+    becasEstado,
+    loadingEstado,
+    errorEstado,
+    cargarBecasEstado
   }
 }

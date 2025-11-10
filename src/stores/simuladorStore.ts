@@ -436,6 +436,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
     console.log('canSimulate.value:', canSimulate.value)
     console.log('formData en simulate:', formData.value)
 
+
     if (!canSimulate.value) {
       console.log('ERROR: canSimulate es false, no se puede simular')
       throw new Error('No se puede simular: faltan datos requeridos')
@@ -454,6 +455,23 @@ export const useSimuladorStore = defineStore('simulador', () => {
       if (becasStore.becas.length === 0) {
         await becasStore.cargarBecas()
       }
+      // Cargar becas del estado si no están cargadas
+      console.log('🚀 simulate - Verificando becas del estado:', {
+        becasEstadoLength: becasStore.becasEstado.length,
+        loadingEstado: becasStore.loadingEstado,
+        errorEstado: becasStore.errorEstado
+      })
+      
+      if (becasStore.becasEstado.length === 0) {
+        console.log('🚀 simulate - Cargando becas del estado...')
+        await becasStore.cargarBecasEstado()
+        console.log('🚀 simulate - Becas del estado cargadas:', {
+          length: becasStore.becasEstado.length,
+          datos: becasStore.becasEstado
+        })
+      } else {
+        console.log('🚀 simulate - Becas del estado ya cargadas:', becasStore.becasEstado.length)
+      }
 
       // Obtener costos de la carrera seleccionada
       if (formData.value.carrera) {
@@ -462,6 +480,14 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
       // Calcular becas elegibles
       calculoBecas.value = becasStore.calcularBecas(formData.value)
+
+      // Calcular becas del estado elegibles
+      console.log('🚀 simulate - Calculando becas del estado elegibles')
+      becasStore.calcularBecasElegiblesEstado(formData.value)
+      console.log('🚀 simulate - Becas del estado calculadas:', {
+        total: becasStore.becasElegiblesEstado.length,
+        aplicadas: becasStore.becasElegiblesEstado.filter(b => b.elegible).length
+      })
 
       // Recrear simulación con datos actuales
       simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
@@ -481,6 +507,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
       return resultados
     } catch (err) {
+      console.log('LOCAL error')
       error.value = err instanceof Error ? err.message : 'Error desconocido en la simulación'
       throw err
     } finally {

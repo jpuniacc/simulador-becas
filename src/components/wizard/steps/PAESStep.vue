@@ -571,7 +571,7 @@ input:checked + .slider:before {
 }
 
 .paes-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+  @apply grid grid-cols-[1fr_1fr] gap-6;
 }
 
 .paes-field {

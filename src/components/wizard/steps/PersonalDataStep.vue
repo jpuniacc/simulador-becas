@@ -214,30 +214,7 @@ onMounted(() => {
           />
         </FormField>
 
-        <!-- Género -->
-        <FormField
-          label="¿Cuál es tu género? *"
-          :icon="User"
-          :required="true"
-          :error="getFieldErrorMessage('genero')"
-          :has-error="hasFieldError('genero')"
-        >
-          <select
-            v-model="formData.genero"
-            class="w-full px-4 py-4 border border-gray-200 rounded-lg focus:ring-1 focus:ring-uniacc-blue focus:border-uniacc-blue transition-all duration-200 group-hover:border-gray-300"
-            :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasFieldError('genero') }"
-            @blur="validateField('genero')"
-          >
-            <option value="">Selecciona tu género</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Femenino">Femenino</option>
-            <option value="Otro">Otro</option>
-            <option value="Prefiero no decir">Prefiero no decir</option>
-          </select>
-          <template #help>
-            Esta información nos ayuda a identificar becas específicas disponibles
-          </template>
-        </FormField>
+        
       </div>
     </form>
 
