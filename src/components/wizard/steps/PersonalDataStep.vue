@@ -45,13 +45,11 @@ const {
 const isStepValid = computed(() => {
   const valid = !!(
     formData.value.identificacion &&
-    formData.value.telefono &&
-    formData.value.genero
+    formData.value.telefono 
   )
   console.log('PersonalDataStep validation:', {
     identificacion: formData.value.identificacion,
     telefono: formData.value.telefono,
-    genero: formData.value.genero,
     isValid: valid
   })
   return valid
