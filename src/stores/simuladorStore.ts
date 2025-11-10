@@ -358,13 +358,11 @@ export const useSimuladorStore = defineStore('simulador', () => {
       case 1: // Datos Personales
         isValid = !!(
           formData.value.identificacion &&
-          formData.value.telefono &&
-          formData.value.genero
+          formData.value.telefono
         )
         console.log('Validating step 1 (Datos Personales):', {
           identificacion: formData.value.identificacion,
           telefono: formData.value.telefono,
-          genero: formData.value.genero,
           isValid
         })
         break
