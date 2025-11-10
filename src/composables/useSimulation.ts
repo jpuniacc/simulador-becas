@@ -88,7 +88,6 @@ export function useSimulation(
            formData.apellido &&
            formData.email &&
            formData.nivelEducativo &&
-           formData.genero &&
            formData.colegio &&
            formData.carrera
   })
