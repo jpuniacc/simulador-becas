@@ -231,6 +231,7 @@ export type Database = {
         Row: {
           anio: number
           arancel: number
+          arancel_referencia_cae: number | null
           descripcion_programa: string
           duracion_programa: string
           id: number
@@ -244,6 +245,7 @@ export type Database = {
         Insert: {
           anio: number
           arancel: number
+          arancel_referencia_cae?: number | null
           descripcion_programa: string
           duracion_programa: string
           id?: number
@@ -257,6 +259,7 @@ export type Database = {
         Update: {
           anio?: number
           arancel?: number
+          arancel_referencia_cae?: number | null
           descripcion_programa?: string
           duracion_programa?: string
           id?: number

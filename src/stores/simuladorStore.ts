@@ -450,20 +450,9 @@ export const useSimuladorStore = defineStore('simulador', () => {
       if (becasStore.becas.length === 0) {
         await becasStore.cargarBecas()
       }
-      // Cargar becas del estado si no están cargadas
-      console.log('🚀 simulate - Verificando becas del estado:', {
-        becasEstadoLength: becasStore.becasEstado.length,
-        loadingEstado: becasStore.loadingEstado,
-        errorEstado: becasStore.errorEstado
-      })
       
       if (becasStore.becasEstado.length === 0) {
-        console.log('🚀 simulate - Cargando becas del estado...')
         await becasStore.cargarBecasEstado()
-        console.log('🚀 simulate - Becas del estado cargadas:', {
-          length: becasStore.becasEstado.length,
-          datos: becasStore.becasEstado
-        })
       } else {
         console.log('🚀 simulate - Becas del estado ya cargadas:', becasStore.becasEstado.length)
       }

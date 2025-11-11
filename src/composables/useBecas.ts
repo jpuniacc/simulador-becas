@@ -349,6 +349,7 @@ export function useBecas() {
 
     return {
       arancel: carrera.arancel_carrera || 0,
+      arancelReferenciaCae: carrera.arancel_referencia_cae || 0,
       matricula: carrera.matricula_carrera || 0,
       duracion: carrera.duracion_en_semestres || 0,
       anio: carrera.anio || new Date().getFullYear(),

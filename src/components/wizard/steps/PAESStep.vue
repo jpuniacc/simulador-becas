@@ -363,13 +363,13 @@ onMounted(() => {
             </div>
 
             <!-- Mensaje cuando no hay carrera seleccionada -->
-            <div v-else class="paes-field paes-field-full">
+            <!-- <div v-else class="paes-field paes-field-full">
               <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p class="text-sm text-yellow-800">
                   <strong>Selecciona una carrera</strong> para ver las asignaturas PAES recomendadas según tu área de estudio.
                 </p>
               </div>
-            </div>
+            </div> -->
 
             <!-- Campo dinámico para la tercera asignatura -->
             <div v-if="formData.paes.terceraAsignatura" class="paes-field">
@@ -427,10 +427,10 @@ onMounted(() => {
                   <span class="summary-label">Promedio:</span>
                   <span class="summary-value">{{ paesPromedio }} puntos</span>
                 </div>
-                <div class="summary-item">
+                <!-- <div class="summary-item">
                   <span class="summary-label">Pruebas Rendidas:</span>
                   <span class="summary-value">{{ pruebasRendidas }}/4</span>
-                </div>
+                </div> -->
               </div>
             </div>
           </div>

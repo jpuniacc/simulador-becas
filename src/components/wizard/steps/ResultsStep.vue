@@ -109,16 +109,46 @@ const arancelDespuesBecasEstado = computed(() => {
   return calculoBecas.value.arancel_base - descuentoBecasEstado.value
 })
 
-// Computed para descuento total (becas del estado + becas internas)
+// Computed para descuento total (becas del estado + becas internas) - sin CAE
 const descuentoTotalReal = computed(() => {
   if (!calculoBecas.value) return 0
   return descuentoBecasEstado.value + calculoBecas.value.descuento_total
 })
 
-// Computed para arancel final real
-const arancelFinalReal = computed(() => {
+// Computed para obtener arancel referencia CAE
+const arancelReferenciaCae = computed(() => {
+  if (!formData.value.carrera || !formData.value.planeaUsarCAE) return 0
+  return simuladorStore.carrerasStore.obtenerArancelReferenciaCae(formData.value.carrera) || 0
+})
+
+// Computed para arancel después de becas internas (remanente antes de CAE)
+const arancelDespuesBecasInternas = computed(() => {
   if (!calculoBecas.value) return 0
-  return calculoBecas.value.arancel_base - descuentoTotalReal.value
+  // Usar el arancel_final que ya tiene el arancel después de aplicar becas internas
+  return calculoBecas.value.arancel_final
+})
+
+// Computed para descuento CAE aplicado
+const descuentoCae = computed(() => {
+  if (arancelReferenciaCae.value === 0) return 0
+  // El descuento es el monto del arancel_referencia_cae, pero no puede ser mayor al remanente
+  return Math.min(arancelReferenciaCae.value, arancelDespuesBecasInternas.value)
+})
+
+// Computed para arancel después de aplicar CAE
+const arancelDespuesCae = computed(() => {
+  return Math.max(0, arancelDespuesBecasInternas.value - descuentoCae.value)
+})
+
+// Computed para arancel final real (incluye descuento CAE)
+const arancelFinalReal = computed(() => {
+  return arancelDespuesCae.value
+})
+
+// Computed para descuento total real (incluye CAE)
+const descuentoTotalRealConCae = computed(() => {
+  if (!calculoBecas.value) return 0
+  return descuentoBecasEstado.value + calculoBecas.value.descuento_total + descuentoCae.value
 })
 
 // Computed para becas no elegibles
@@ -209,17 +239,17 @@ const becasDisponiblesMedia = computed(() => {
     })
 })
 
-// Computed para porcentaje de ahorro (incluye becas del estado)
+// Computed para porcentaje de ahorro (incluye becas del estado y CAE)
 const porcentajeAhorro = computed(() => {
   if (!calculoBecas.value) return 0
   const { arancel_base } = calculoBecas.value
-  const ahorroTotal = descuentoTotalReal.value
+  const ahorroTotal = descuentoTotalRealConCae.value
   return arancel_base > 0 ? Math.round((ahorroTotal / arancel_base) * 100) : 0
 })
 
-// Computed para ahorro total (incluye becas del estado)
+// Computed para ahorro total (incluye becas del estado y CAE)
 const ahorroTotalReal = computed(() => {
-  return descuentoTotalReal.value
+  return descuentoTotalRealConCae.value
 })
 
 // Computed para detectar si es estudiante sin NEM/PAES
@@ -384,13 +414,24 @@ onMounted(async () => {
               </tr>
             </thead>
             <tbody>
+              <!-- Matricula -->
+              <!-- <tr class="table-row base-row">
+                <td class="table-cell font-semibold">
+                  Matrícula
+                </td>
+                <td class="table-cell text-center text-gray-500">-</td>
+                <td class="table-cell text-center text-gray-500">-</td>
+                <td class="table-cell text-right font-semibold">
+                  {{ formatCurrency(carreraInfo.matricula) }}
+                </td>
+              </tr> -->
               <!-- Arancel base -->
               <tr class="table-row base-row">
                 <td class="table-cell font-semibold">
-                  Arancel Base de la Carrera
+                  Arancel Base
                 </td>
-                <td class="table-cell text-right text-gray-500">-</td>
-                <td class="table-cell text-right text-gray-500">-</td>
+                <td class="table-cell text-center text-gray-500">-</td>
+                <td class="table-cell text-center text-gray-500">-</td>
                 <td class="table-cell text-right font-semibold">
                   {{ formatCurrency(calculoBecas.arancel_base) }}
                 </td>
@@ -414,18 +455,18 @@ onMounted(async () => {
                       {{ becaEstado.beca.nombre || 'Beca del Estado' }}
                     </div>
                   </td>
-                  <td class="table-cell text-right">
+                  <td class="table-cell text-center">
                     <span class="badge-type badge-estado">
                       {{ becaEstado.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' : 
                          becaEstado.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
                     </span>
                   </td>
-                  <td class="table-cell text-right">
+                  <td class="table-cell text-center">
                     <span v-if="becaEstado.beca.tipo_descuento === 'porcentaje'" class="discount-percentage">
                       {{ becaEstado.descuento_aplicado }}%
                     </span>
                     <span v-else-if="becaEstado.beca.tipo_descuento === 'monto_fijo'" class="text-gray-500">
-                      Monto Fijo
+                      -
                     </span>
                     <span v-else class="discount-percentage">
                       {{ becaEstado.descuento_aplicado }}%
@@ -463,13 +504,13 @@ onMounted(async () => {
                       {{ beca.beca.nombre }}
                     </div>
                   </td>
-                  <td class="table-cell text-right">
+                  <td class="table-cell text-center">
                     <span class="badge-type">
                       {{ beca.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' : 
                          beca.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
                     </span>
                   </td>
-                  <td class="table-cell text-right">
+                  <td class="table-cell text-center">
                     <span v-if="beca.beca.tipo_descuento === 'porcentaje'" class="discount-percentage">
                       {{ beca.descuento_aplicado }}%
                     </span>
@@ -482,6 +523,50 @@ onMounted(async () => {
                   </td>
                   <td class="table-cell text-right font-semibold text-green-600">
                     -{{ formatCurrency(beca.monto_descuento) }}
+                  </td>
+                </tr>
+                <tr class="table-row subtotal-row">
+                  <td class="table-cell font-semibold text-blue-700" colspan="3">
+                    Subtotal después de Beneficios Internos
+                  </td>
+                  <td class="table-cell text-right font-semibold text-blue-700">
+                    {{ formatCurrency(arancelDespuesBecasInternas) }}
+                  </td>
+                </tr>
+              </template>
+              
+              <!-- Sección: Arancel Referencia CAE -->
+              <template v-if="arancelReferenciaCae > 0">
+                <tr class="table-row section-header-row">
+                  <td class="table-cell font-bold text-orange-700" colspan="4">
+                    Arancel Referencia CAE
+                  </td>
+                </tr>
+                <tr class="table-row benefit-row cae-row">
+                  <td class="table-cell">
+                    <div class="benefit-name">
+                      <DollarSign class="w-4 h-4 text-orange-600 inline mr-2" />
+                      Descuento por Arancel Referencia CAE
+                    </div>
+                  </td>
+                  <td class="table-cell text-center">
+                    <span class="badge-type badge-cae">
+                      Monto Fijo
+                    </span>
+                  </td>
+                  <td class="table-cell text-center text-gray-500">
+                    -
+                  </td>
+                  <td class="table-cell text-right font-semibold text-green-600">
+                    -{{ formatCurrency(descuentoCae) }}
+                  </td>
+                </tr>
+                <tr class="table-row subtotal-row">
+                  <td class="table-cell font-semibold text-orange-700" colspan="3">
+                    Subtotal después de Arancel Referencia CAE
+                  </td>
+                  <td class="table-cell text-right font-semibold text-orange-700">
+                    {{ formatCurrency(arancelDespuesCae) }}
                   </td>
                 </tr>
               </template>
@@ -506,7 +591,7 @@ onMounted(async () => {
                   Total Descuentos Aplicados
                 </td>
                 <td class="table-cell text-right font-bold text-red-600">
-                  -{{ formatCurrency(descuentoTotalReal) }}
+                  -{{ formatCurrency(descuentoTotalRealConCae) }}
                 </td>
               </tr>
               
@@ -1028,6 +1113,10 @@ onMounted(async () => {
   @apply bg-blue-50/30;
 }
 
+.table-row.cae-row {
+  @apply bg-orange-50/30;
+}
+
 .table-row.info-row {
   @apply bg-gray-50;
 }
@@ -1038,6 +1127,10 @@ onMounted(async () => {
 
 .badge-estado {
   @apply bg-purple-100 text-purple-800;
+}
+
+.badge-cae {
+  @apply bg-orange-100 text-orange-800;
 }
 
 .benefit-name {
@@ -1540,6 +1633,10 @@ onMounted(async () => {
     @apply bg-blue-900/20;
   }
 
+  .table-row.cae-row {
+    @apply bg-orange-900/20;
+  }
+
   .table-row.info-row {
     @apply bg-gray-800;
   }
@@ -1550,6 +1647,10 @@ onMounted(async () => {
 
   .badge-estado {
     @apply bg-purple-900 text-purple-200;
+  }
+
+  .badge-cae {
+    @apply bg-orange-900 text-orange-200;
   }
 
   .badge-type {
