@@ -106,8 +106,9 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                         </div>
                         <div class="flex pt-6 justify-end">
                             <Button 
-                                label="Next" 
+                                label="Siguiente" 
                                 icon="pi pi-arrow-right" 
+                                class="m-4"
                                 :disabled="!isStep1Valid"
                                 @click="activateCallback('2')" 
                             />
@@ -123,11 +124,12 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                             />
                         </div>
                         <div class="flex pt-6 justify-between">
-                            <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
+                            <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"
                                 @click="activateCallback('1')" />
                             <Button 
-                                label="Next" 
+                                label="Ver resultados" 
                                 icon="pi pi-arrow-right" 
+                                class="m-4"
                                 iconPos="right"
                                 :disabled="!isStep2Valid"
                                 @click="() => handleNextToStep3(activateCallback)" 
@@ -139,7 +141,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                             <Results ref="resultsRef" :form-data="formData" />
                         </div>
                         <div class="pt-6">
-                            <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
+                            <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"
                                 @click="activateCallback('2')" />
                         </div>
                     </StepPanel>

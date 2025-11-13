@@ -226,7 +226,7 @@ const seleccionarCarreraSugerida = async (nombre: string) => {
     if (dropdownRef.value) {
         const input = dropdownRef.value.querySelector('input') as HTMLInputElement
         if (input) {
-            input.focus()
+            input.click()
         }
     }
 }
