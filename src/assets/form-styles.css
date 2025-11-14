@@ -39,6 +39,7 @@
     @apply w-full px-4 py-3 border-2 rounded-lg transition-all duration-200;
     border-color: #e5e7eb;
     background-color: #ffffff;
+    font-size: 16px !important; /* Evita zoom automático en móviles */
 }
 
 /* Estilos para InputGroup */
@@ -130,6 +131,7 @@
     @apply w-full px-4 py-3 border-2 rounded-lg transition-all duration-200;
     border-color: #e5e7eb;
     background-color: #ffffff;
+    font-size: 16px !important; /* Evita zoom automático en móviles */
 }
 
 :deep(.p-inputnumber .p-inputtext:focus) {
