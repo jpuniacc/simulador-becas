@@ -16,7 +16,7 @@ const router = createRouter({
     {
       path: '/simulador',
       name: 'simulador',
-      component: () => import('../views/SimuladorView.vue'),
+      component: () => import('../views/Simulador2View.vue'),
       meta: {
         title: 'Simulador de Becas - UNIACC',
         description: 'Simula tus beneficios y becas disponibles en UNIACC en solo 5 minutos'
@@ -25,7 +25,7 @@ const router = createRouter({
     {
       path: '/simulador2',
       name: 'simulador2',
-      component: () => import('../views/Simulador2View.vue'),
+      component: () => import('../views/SimuladorView.vue'),
       meta: {
         title: 'Simulador de Becas - UNIACC',
         description: 'Simula tus beneficios y becas disponibles en UNIACC en solo 5 minutos'

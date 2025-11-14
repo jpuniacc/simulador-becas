@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
@@ -28,6 +28,28 @@ const isLoading = ref(false)
 const error = ref<string | null>(null)
 const pdfContentRef = ref<HTMLElement | null>(null)
 const isGeneratingPDF = ref(false)
+const windowWidth = ref(window.innerWidth)
+
+// Computed para colspan responsive
+// En desktop: Concepto + Tipo + Descuento = 3 columnas
+// En mobile: Concepto + Tipo/Descuento = 2 columnas
+const subtotalColspan = computed(() => {
+    return windowWidth.value <= 1024 ? 2 : 3
+})
+
+// Actualizar ancho de ventana
+const updateWindowWidth = () => {
+    windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+    window.addEventListener('resize', updateWindowWidth)
+    updateWindowWidth()
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', updateWindowWidth)
+})
 
 // Computed
 const calculoBecas = computed(() => simuladorStore.calculoBecas)
@@ -268,16 +290,18 @@ defineExpose({
                             <thead>
                                 <tr>
                                     <th class="table-header">Concepto</th>
-                                    <th class="table-header text-center">Tipo</th>
-                                    <th class="table-header text-center">Descuento</th>
+                                    <th class="table-header text-center desktop-only">Tipo</th>
+                                    <th class="table-header text-center desktop-only">Descuento</th>
+                                    <th class="table-header text-center mobile-only">Descuento</th>
                                     <th class="table-header text-right">Monto</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr class="table-row base-row">
                                     <td class="table-cell font-semibold">Arancel Base</td>
-                                    <td class="table-cell text-center text-gray-500">-</td>
-                                    <td class="table-cell text-center text-gray-500">-</td>
+                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                    <td class="table-cell text-center text-gray-500 mobile-only">-</td>
                                     <td class="table-cell text-right font-semibold">
                                         {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
                                     </td>
@@ -290,8 +314,9 @@ defineExpose({
                                             <i v-tooltip="'Según tus datos, podrías optar a estos beneficios estatales'"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
-                                        <td></td>
-                                        <td></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
                                     <tr v-for="becaEstado in becasEstadoConMontos" :key="`estado-${becaEstado.beca.id}`"
@@ -302,27 +327,34 @@ defineExpose({
                                                 {{ becaEstado.beca.nombre || 'Beca del Estado' }}
                                             </div>
                                         </td>
-                                        <td class="table-cell text-center">
+                                        <td class="table-cell text-center desktop-only">
                                             <span class="badge-type badge-estado">
                                                 {{ becaEstado.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' :
                                                     becaEstado.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto'
                                                 }}
                                             </span>
                                         </td>
-                                        <td class="table-cell text-center">
+                                        <td class="table-cell text-center desktop-only">
                                             <span v-if="becaEstado.beca.tipo_descuento === 'porcentaje'"
                                                 class="discount-percentage">
                                                 {{ becaEstado.descuento_aplicado }}%
                                             </span>
                                             <span v-else class="text-gray-500">-</span>
                                         </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span v-if="becaEstado.beca.tipo_descuento === 'porcentaje'"
+                                                class="discount-percentage">
+                                                {{ becaEstado.descuento_aplicado }}%
+                                            </span>
+                                            <span v-else class="text-xs text-gray-600">Fijo</span>
+                                        </td>
                                         <td class="table-cell text-right font-semibold text-red-600">
                                             -{{ formatCurrency(becaEstado.monto_descuento) }}
                                         </td>
                                     </tr>
                                     <tr class="table-row subtotal-row subtotal-estado-row">
-                                        <td class="table-cell font-semibold" colspan="3">
-                                            Subtotal después de Beneficios del Estado
+                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
+                                            Después de Beneficios del Estado
                                         </td>
                                         <td class="table-cell text-right font-semibold">
                                             {{ formatCurrency(arancelDespuesBecasEstado) }}
@@ -337,8 +369,9 @@ defineExpose({
                                             <i v-tooltip="'Además, calificas para los siguientes beneficios UNIACC'"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
-                                        <td></td>
-                                        <td></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
                                     <tr v-for="beca in becasAplicadas" :key="`interno-${beca.beca.id}`"
@@ -349,13 +382,13 @@ defineExpose({
                                                 {{ beca.beca.nombre }}
                                             </div>
                                         </td>
-                                        <td class="table-cell text-center">
+                                        <td class="table-cell text-center desktop-only">
                                             <span class="badge-type">
                                                 {{ beca.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' :
                                                     beca.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
                                             </span>
                                         </td>
-                                        <td class="table-cell text-center">
+                                        <td class="table-cell text-center desktop-only">
                                             <span v-if="beca.beca.tipo_descuento === 'porcentaje'"
                                                 class="discount-percentage">
                                                 {{ beca.descuento_aplicado }}%
@@ -364,13 +397,20 @@ defineExpose({
                                                 Monto Fijo
                                             </span>
                                         </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span v-if="beca.beca.tipo_descuento === 'porcentaje'"
+                                                class="discount-percentage">
+                                                {{ beca.descuento_aplicado }}%
+                                            </span>
+                                            <span v-else class="text-xs text-gray-600">Fijo</span>
+                                        </td>
                                         <td class="table-cell text-right font-semibold text-red-600">
                                             -{{ formatCurrency(beca.monto_descuento) }}
                                         </td>
                                     </tr>
                                     <tr class="table-row subtotal-row subtotal-interno-row">
-                                        <td class="table-cell font-semibold" colspan="3">
-                                            Subtotal después de Beneficios Internos
+                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
+                                            Después de Beneficios Internos
                                         </td>
                                         <td class="table-cell text-right font-semibold">
                                             {{ formatCurrency(arancelDespuesBecasInternas) }}
@@ -385,8 +425,9 @@ defineExpose({
                                             <i v-tooltip="'El arancel restante puede ser financiado con CAE'"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
-                                        <td></td>
-                                        <td></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
                                     <tr class="table-row benefit-row cae-row">
@@ -396,17 +437,20 @@ defineExpose({
                                                 Descuento por Arancel Referencia CAE
                                             </div>
                                         </td>
-                                        <td class="table-cell text-center">
+                                        <td class="table-cell text-center desktop-only">
                                             <span class="badge-type badge-cae">Monto Fijo</span>
                                         </td>
-                                        <td class="table-cell text-center text-gray-500">-</td>
+                                        <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="text-xs text-gray-600">Fijo</span>
+                                        </td>
                                         <td class="table-cell text-right font-semibold text-red-600">
                                             -{{ formatCurrency(descuentoCae) }}
                                         </td>
                                     </tr>
                                     <tr class="table-row subtotal-row subtotal-cae-row">
-                                        <td class="table-cell font-semibold" colspan="3">
-                                            Subtotal después de Arancel Referencia CAE
+                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
+                                            Después de Arancel Referencia CAE
                                         </td>
                                         <td class="table-cell text-right font-semibold">
                                             {{ formatCurrency(arancelDespuesCae) }}
@@ -422,19 +466,20 @@ defineExpose({
                                             <i v-tooltip="'Según tus datos, podrías optar a estos beneficios estatales'"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
-                                        <td></td>
-                                        <td></td>   
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
                                     <tr class="table-row info-row">
-                                        <td class="table-cell text-sm text-gray-600 italic" colspan="4">
+                                        <td class="table-cell text-sm text-gray-600 italic" :colspan="subtotalColspan + 1">
                                             No cumples con los requisitos para las becas del estado disponibles
                                         </td>
                                     </tr>
                                 </template>
 
                                 <tr class="table-row discount-total-row">
-                                    <td class="table-cell font-semibold" colspan="3">
+                                    <td class="table-cell font-semibold" :colspan="subtotalColspan">
                                         Total Descuentos Aplicados
                                     </td>
                                     <td class="table-cell text-right font-bold text-red-600">
@@ -442,7 +487,7 @@ defineExpose({
                                     </td>
                                 </tr>
                                 <tr class="table-row final-row">
-                                    <td class="table-cell font-bold text-lg" colspan="3">
+                                    <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
                                         Arancel Final a Pagar
                                     </td>
                                     <td class="table-cell text-right font-bold text-lg text-green-600">
@@ -490,6 +535,34 @@ defineExpose({
                     </template>
                 </Card>
             </div>
+
+            <!-- Mensaje de contacto con descuento -->
+            <Message 
+                v-if="descuentoPorcentualTotal > 0" 
+                severity="success" 
+                :closable="false" 
+                class="contact-message"
+                size="large"
+            >
+                <div class="contact-message-content">
+                    <div class="contact-message-text">
+                        <b class="simulation-question">¿Te gustó la simulación?</b>
+                        Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
+                        Si quieres saber tu descuento real, escríbenos a <a href="mailto:admision@uniacc.cl" class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
+                    </div>
+                </div>
+            </Message>
+
+            <!-- Mensaje informativo sobre confirmación -->
+            <Message 
+                v-if="descuentoPorcentualTotal > 0" 
+                severity="info" 
+                :closable="false" 
+                class="confirmation-message"
+                size="small"
+            >
+                La simulación es referencial; un asesor te confirma el monto final.
+            </Message>
 
             <!-- Becas aplicadas -->
             <div v-if="becasAplicadas.length || becasEstadoConMontos.length" class="benefits-section">
@@ -593,34 +666,6 @@ defineExpose({
                     </div>
                 </div>
             </div>
-
-            <!-- Mensaje de contacto con descuento -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="success" 
-                :closable="false" 
-                class="contact-message"
-                size="large"
-            >
-                <div class="contact-message-content">
-                    <div class="contact-message-text">
-                        <b class="simulation-question">¿Te gustó la simulación?</b>
-                        Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
-                        Si quieres saber tu descuento real, escríbenos a <a href="mailto:admision@uniacc.cl" class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
-                    </div>
-                </div>
-            </Message>
-
-            <!-- Mensaje informativo sobre confirmación -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="info" 
-                :closable="false" 
-                class="confirmation-message"
-                size="small"
-            >
-                La simulación es referencial; un asesor te confirma el monto final.
-            </Message>
         </div>
 
         <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
@@ -768,6 +813,52 @@ defineExpose({
 
 .table-cell {
     @apply px-4 py-3 text-sm text-gray-900;
+}
+
+/* Clases para responsive */
+.desktop-only {
+    display: table-cell;
+}
+
+.mobile-only {
+    display: none;
+}
+
+/* Estilos responsive para pantallas pequeñas y medianas */
+@media (max-width: 1024px) {
+    .desktop-only {
+        display: none;
+    }
+    
+    .mobile-only {
+        display: table-cell;
+    }
+    
+    .table-header,
+    .table-cell {
+        @apply px-2 py-2 text-xs;
+    }
+    
+    .table-cell.font-bold.text-lg {
+        @apply text-base;
+    }
+    
+    .benefit-name {
+        @apply text-xs;
+    }
+    
+    .benefit-name i {
+        @apply mr-1;
+        font-size: 0.75rem;
+    }
+    
+    .section-title {
+        @apply text-xs;
+    }
+    
+    .discount-percentage {
+        @apply text-xs;
+    }
 }
 
 .table-cell.text-red-600 {
