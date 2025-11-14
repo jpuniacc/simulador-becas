@@ -77,6 +77,24 @@
 .text-uniacc-purple-light { color: var(--uniacc-purple-light); }
 .border-uniacc-purple-light { border-color: var(--uniacc-purple-light); }
 
+/* Estilos para el botón seleccionado */
+.nivel-educativo-select [data-p="checked"] {
+  background-color: var(--p-button-primary-background) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  border-radius: 8px; /* opcional, por si quieres suavizar */
+  transition: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  transition: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
 
 /* Aplicar variables globales */
 body {
