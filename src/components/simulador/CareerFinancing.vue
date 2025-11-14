@@ -76,10 +76,8 @@ const showDropdown = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const dropdownStyle = ref<Record<string, string>>({})
 const carrerasSugeridas = ['Danza', 'Arquitectura', 'Ingeniería Comercial']
-const caeTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
-const becasTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
-const caeIconRef = ref<HTMLElement | null>(null)
-const becasIconRef = ref<HTMLElement | null>(null)
+const financingTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const financingIconRef = ref<HTMLElement | null>(null)
 
 // Computed para carreras filtradas
 const carrerasFiltradas = computed(() => {
@@ -231,27 +229,15 @@ const seleccionarCarreraSugerida = async (nombre: string) => {
     }
 }
 
-const showCAETooltip = (event: MouseEvent) => {
-    if (caeIconRef.value && caeTooltipRef.value) {
-        caeTooltipRef.value.toggle(event, caeIconRef.value)
+const showFinancingTooltip = (event: MouseEvent) => {
+    if (financingIconRef.value && financingTooltipRef.value) {
+        financingTooltipRef.value.toggle(event, financingIconRef.value)
     }
 }
 
-const hideCAETooltip = () => {
-    if (caeTooltipRef.value) {
-        caeTooltipRef.value.hide()
-    }
-}
-
-const showBecasTooltip = (event: MouseEvent) => {
-    if (becasIconRef.value && becasTooltipRef.value) {
-        becasTooltipRef.value.toggle(event, becasIconRef.value)
-    }
-}
-
-const hideBecasTooltip = () => {
-    if (becasTooltipRef.value) {
-        becasTooltipRef.value.hide()
+const hideFinancingTooltip = () => {
+    if (financingTooltipRef.value) {
+        financingTooltipRef.value.hide()
     }
 }
 
@@ -486,7 +472,29 @@ onUnmounted(() => {
 
                 <!-- Opciones de financiamiento -->
                 <div class="form-field financing-options-field">
-                    <h4 class="section-title">¿Qué tipo de financiamiento planeas utilizar?</h4>
+                    <h4 class="section-title">
+                        ¿Qué tipo de financiamiento planeas utilizar?
+                        <span ref="financingIconRef" class="inline-flex ml-2">
+                            <Info 
+                                class="w-4 h-4 text-gray-500 cursor-help hover:text-gray-700" 
+                                @click.stop="showFinancingTooltip"
+                                @mouseenter="showFinancingTooltip"
+                                @mouseleave="hideFinancingTooltip"
+                            />
+                        </span>
+                    </h4>
+                    <OverlayPanel ref="financingTooltipRef" class="custom-tooltip-panel">
+                        <div class="custom-tooltip">
+                            <div class="mb-3">
+                                <h4 class="tooltip-title">Becas:</h4>
+                                <p class="tooltip-description">Ayuda directa del Estado para reducir tu arancel.</p>
+                            </div>
+                            <div>
+                                <h4 class="tooltip-title">CAE:</h4>
+                                <p class="tooltip-description">Un crédito pensado para estudiantes. Sólo se paga después de titular y con ingresos.</p>
+                            </div>
+                        </div>
+                    </OverlayPanel>
                     <div class="options-grid">
                         <!-- CAE -->
                         <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE }">
@@ -502,28 +510,12 @@ onUnmounted(() => {
                                         <TrendingUp class="w-6 h-6" />
                                     </div>
                                     <div class="option-text">
-                                        <div class="flex items-center gap-2">
-                                            <h5>CAE (Crédito con Aval del Estado)</h5>
-                                            <span ref="caeIconRef" class="inline-flex">
-                                                <Info 
-                                                    class="w-4 h-4 text-gray-500 cursor-help hover:text-gray-700" 
-                                                    @click.stop="showCAETooltip"
-                                                    @mouseenter="showCAETooltip"
-                                                    @mouseleave="hideCAETooltip"
-                                                />
-                                            </span>
-                                        </div>
+                                        <h5>CAE (Crédito con Aval del Estado)</h5>
                                         <p>Crédito para financiar tu carrera universitaria</p>
                                     </div>
                                 </div>
                             </label>
                         </div>
-                        <OverlayPanel ref="caeTooltipRef" class="custom-tooltip-panel">
-                            <div class="custom-tooltip">
-                                <h4 class="tooltip-title">Financiamiento</h4>
-                                <p class="tooltip-description">Crédito del Estado para complementar de forma de pago del arancel</p>
-                            </div>
-                        </OverlayPanel>
 
                         <!-- Becas del Estado -->
                         <div class="option-card" :class="{ 'selected': formData.usaBecasEstado }">
@@ -539,35 +531,19 @@ onUnmounted(() => {
                                         <CheckCircle class="w-6 h-6" />
                                     </div>
                                     <div class="option-text">
-                                        <div class="flex items-center gap-2">
-                                            <h5>Becas del Estado</h5>
-                                            <span ref="becasIconRef" class="inline-flex">
-                                                <Info 
-                                                    class="w-4 h-4 text-gray-500 cursor-help hover:text-gray-700" 
-                                                    @click.stop="showBecasTooltip"
-                                                    @mouseenter="showBecasTooltip"
-                                                    @mouseleave="hideBecasTooltip"
-                                                />
-                                            </span>
-                                        </div>
+                                        <h5>Becas del Estado</h5>
                                         <p>Becas estatales como Beca Vocación de Profesor, etc.</p>
                                     </div>
                                 </div>
                             </label>
                         </div>
-                        <OverlayPanel ref="becasTooltipRef" class="custom-tooltip-panel">
-                            <div class="custom-tooltip">
-                                <h4 class="tooltip-title">Beneficio</h4>
-                                <p class="tooltip-description">Beca que cubre un monto que no debes pagar más adelante</p>
-                            </div>
-                        </OverlayPanel>
                     </div>
                 </div>
 
                 <!-- Select de Decil (solo si selecciona alguna opción de financiamiento) -->
                 <div v-if="showDecilSelection" class="form-field">
                     <label for="decil" class="form-label decil-label">
-                        Rango de Ingresos *
+                        Tramo de Renta Mensual *
                         <i 
                             v-tooltip="'Toma el total de ingresos y dividelos por la cantidad de personas que viven en él'"
                             class="pi pi-question-circle decil-icon"

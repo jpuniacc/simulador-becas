@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import Card from 'primevue/card'
-import Toast from 'primevue/toast'
-import { useToast } from 'primevue/usetoast'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
@@ -23,7 +21,6 @@ const props = defineProps<Props>()
 
 // Store y servicios
 const simuladorStore = useSimuladorStore()
-const toast = useToast()
 const { insertarProspecto, error: prospectoError } = useProspectos()
 
 // Estado
@@ -155,20 +152,6 @@ const handleSimulate = async () => {
         if (!prospectoGuardado && prospectoError.value) {
             console.warn('No se pudo guardar el prospecto:', prospectoError.value)
         }
-
-        if (descuentoPorcentualTotal.value > 0) {
-            toast.removeGroup('discount-toast')
-            setTimeout(() => {
-                toast.add({
-                    group: 'discount-toast',
-                    severity: 'success',
-                    life: 15000, // 15 segundos
-                    closable: true,
-                    styleClass: 'discount-toast-wrapper',
-                    summary: String(descuentoPorcentualTotal.value)
-                })
-            }, 3000)
-        }
     } catch (err) {
         error.value = err instanceof Error ? err.message : 'Error al realizar la simulación'
         console.error('Error en simulación:', err)
@@ -236,17 +219,6 @@ defineExpose({
 
 <template>
     <div class="results-container">
-        <Toast position="bottom-center" group="discount-toast">
-            <template #message="{ message }">
-                <div class="flex flex-col items-start flex-auto p-1">
-                    <div class="flex items-center gap-2 mb-0">
-                        <span class="text-lg font-bold">Aprovecha de estudiar con hasta {{ message.summary ?? '0' }}% de descuento</span>
-                    </div>
-                    <div class="font-small my-2"> Contáctanos en <a href="mailto:admision@uniacc.cl"
-                            class="">admision@uniacc.cl</a> o llámanos al <span class="">+56 2 1234 5678</span></div>
-                </div>
-            </template>
-        </Toast>
         <!-- Loading -->
         <div v-if="isLoading" class="loading-container">
             <div class="loading-content">
@@ -621,6 +593,34 @@ defineExpose({
                     </div>
                 </div>
             </div>
+
+            <!-- Mensaje de contacto con descuento -->
+            <Message 
+                v-if="descuentoPorcentualTotal > 0" 
+                severity="success" 
+                :closable="false" 
+                class="contact-message"
+                size="large"
+            >
+                <div class="contact-message-content">
+                    <div class="contact-message-text">
+                        <b class="simulation-question">¿Te gustó la simulación?</b>
+                        Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
+                        Si quieres saber tu descuento real, escríbenos a <a href="mailto:admision@uniacc.cl" class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
+                    </div>
+                </div>
+            </Message>
+
+            <!-- Mensaje informativo sobre confirmación -->
+            <Message 
+                v-if="descuentoPorcentualTotal > 0" 
+                severity="info" 
+                :closable="false" 
+                class="confirmation-message"
+                size="small"
+            >
+                La simulación es referencial; un asesor te confirma el monto final.
+            </Message>
         </div>
 
         <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
@@ -810,41 +810,45 @@ defineExpose({
     opacity: 1;
 }
 
-:deep(.discount-toast-wrapper .p-toast-message-content) {
-    background-color: #10b981;
-    border: none;
-    padding: 0;
-    box-shadow: none;
+/* Estilos para mensaje de contacto */
+.contact-message {
+    @apply mt-8;
 }
 
-:deep(.discount-toast-wrapper .p-toast-icon-close) {
-    color: #ffffff;
+.contact-message-content {
+    @apply flex flex-col;
 }
 
-.discount-toast {
-    @apply flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg text-white;
-    background-color: #10b981;
+.contact-message-text {
+    @apply text-sm;
+    line-height: 1.5;
 }
 
-.discount-toast__icon {
-    @apply text-white text-xl flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0;
-    background-color: rgba(255, 255, 255, 0.2);
+.contact-message-text .simulation-question {
+    @apply text-base;
+    display: block;
+    margin-bottom: 0.5rem;
 }
 
-.discount-toast__title {
-    @apply text-base font-semibold text-white leading-snug;
+.contact-message-text b:not(.simulation-question) {
+    font-weight: 600;
 }
 
-.discount-toast__body {
-    @apply text-sm text-white/90 mt-1;
+.contact-link {
+    @apply underline font-medium;
+    color: inherit;
 }
 
-.discount-toast__link {
-    @apply underline font-medium text-white;
+.contact-link:hover {
+    @apply opacity-80;
 }
 
-.discount-toast__phone {
-    @apply font-semibold text-white;
+.contact-phone {
+    @apply font-semibold;
+}
+
+.confirmation-message {
+    @apply mt-4;
 }
 
 .subtotal-estado-row {
