@@ -89,7 +89,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
             <h1>Simulador de Becas UNIACC</h1>
         </div>
         <div class="content-container">
-            <Stepper value="1" linear class="basis-[50rem]">
+            <Stepper value="1" linear class="w-full md:basis-[40rem] lg:basis-[50rem]">
                 <StepList class="stepper-header sticky top-0 z-10 bg-white py-4">
                     <Step value="1"><span class="">Datos Personales</span></Step>
                     <Step value="2"><span class="">Tu carrera</span></Step>
