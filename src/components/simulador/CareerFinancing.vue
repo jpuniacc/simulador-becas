@@ -447,6 +447,9 @@ onUnmounted(() => {
                         v-model="formData.rendioPAES"
                         class="paes-toggle"
                     />
+                    <span v-if="formData.rendioPAES" class="text-sm text-gray-500 mt-2 mb-0 block">
+                        Ingresa tus puntajes PAES en los campos a continuación
+                    </span>
                 </div>
 
                 <!-- Comprensión Lectora (solo si rindió PAES) -->

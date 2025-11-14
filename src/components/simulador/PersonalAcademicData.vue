@@ -7,6 +7,7 @@ import InputGroupAddon from 'primevue/inputgroupaddon'
 import FloatLabel from 'primevue/floatlabel'
 import SelectButton from 'primevue/selectbutton'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
 import type { FormData } from '@/types/simulador'
 import type { Region, Comuna, Colegio } from '@/composables/useColegios'
@@ -100,9 +101,23 @@ const nemValue = computed({
 // Estado de errores de validación
 const emailError = ref<string | null>(null)
 const rutError = ref<string | null>(null)
+const telefonoError = ref<string | null>(null)
+
+// Estado para controlar cuándo mostrar errores
+const submitted = ref(false)
+const touched = ref({
+    nombre: false,
+    apellido: false,
+    email: false,
+    telefono: false,
+    identificacion: false,
+    nivelEducativo: false,
+    colegio: false
+})
 
 // Validar email cuando cambie
 watch(() => formData.value.email, (newEmail) => {
+    touched.value.email = true
     if (newEmail && newEmail.trim() !== '') {
         if (!validateEmail(newEmail)) {
             emailError.value = 'Por favor ingresa un email válido'
@@ -126,8 +141,45 @@ const handleRUTInput = (event: Event) => {
     }
 }
 
+// Manejar keydown de teléfono: prevenir letras y caracteres no numéricos
+const handlePhoneKeydown = (event: KeyboardEvent) => {
+    // Permitir teclas de control (backspace, delete, tab, etc.)
+    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab' || 
+        event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || 
+        event.key === 'ArrowDown' || event.ctrlKey || event.metaKey) {
+        return
+    }
+    // Solo permitir números
+    if (!/[0-9]/.test(event.key)) {
+        event.preventDefault()
+    }
+}
+
+// Manejar paste de teléfono: filtrar solo números
+const handlePhonePaste = (event: ClipboardEvent) => {
+    event.preventDefault()
+    const paste = (event.clipboardData || (window as any).clipboardData).getData('text')
+    const numbersOnly = paste.replace(/[^0-9]/g, '').slice(0, 8)
+    if (numbersOnly) {
+        formData.value.telefono = numbersOnly
+    }
+}
+
+// Manejar input de teléfono: solo números y máximo 8 dígitos
+const handlePhoneInput = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    // Remover todo lo que no sea número
+    const numbersOnly = target.value.replace(/[^0-9]/g, '')
+    // Limitar a 8 dígitos
+    const limited = numbersOnly.slice(0, 8)
+    if (limited !== formData.value.telefono) {
+        formData.value.telefono = limited
+    }
+}
+
 // Validar RUT cuando cambie
 watch(() => formData.value.identificacion, (newRUT) => {
+    touched.value.identificacion = true
     if (newRUT && newRUT.trim() !== '') {
         if (!validateRUT(newRUT)) {
             rutError.value = 'Por favor ingresa un RUT válido'
@@ -136,6 +188,22 @@ watch(() => formData.value.identificacion, (newRUT) => {
         }
     } else {
         rutError.value = null
+    }
+})
+
+// Validar teléfono cuando cambie
+watch(() => formData.value.telefono, (newPhone) => {
+    touched.value.telefono = true
+    if (newPhone && newPhone.trim() !== '') {
+        // Validar que tenga exactamente 8 dígitos
+        const phoneNumbers = newPhone.replace(/[^0-9]/g, '')
+        if (phoneNumbers.length !== 8) {
+            telefonoError.value = 'El teléfono debe tener 8 dígitos'
+        } else {
+            telefonoError.value = null
+        }
+    } else {
+        telefonoError.value = null
     }
 })
 
@@ -152,8 +220,9 @@ const isFormValid = computed(() => {
     
     const isEmailValid = formData.value.email ? validateEmail(formData.value.email) : false
     const isRUTValid = formData.value.identificacion ? validateRUT(formData.value.identificacion) : false
+    const isPhoneValid = formData.value.telefono ? formData.value.telefono.replace(/[^0-9]/g, '').length === 8 : false
     
-    return hasRequiredFields && isEmailValid && isRUTValid && !emailError.value && !rutError.value
+    return hasRequiredFields && isEmailValid && isRUTValid && isPhoneValid && !emailError.value && !rutError.value && !telefonoError.value
 })
 
 // Emitir cambios de validación
@@ -161,10 +230,20 @@ watch(isFormValid, (newValue) => {
     emit('validation-change', newValue)
 }, { immediate: true })
 
+// Función para marcar el formulario como submitted (cuando se intenta avanzar)
+const markAsSubmitted = () => {
+    submitted.value = true
+    // Marcar todos los campos como touched
+    Object.keys(touched.value).forEach(key => {
+        touched.value[key as keyof typeof touched.value] = true
+    })
+}
+
 // Exponer el estado de validación al componente padre
 defineExpose({
     isFormValid,
-    emailError
+    emailError,
+    markAsSubmitted
 })
 
 // Métodos del modal
@@ -181,6 +260,7 @@ const handleSchoolSelectionComplete = (region: Region, comuna: Comuna, colegio: 
     formData.value.colegio = colegio.nombre
     formData.value.regionResidencia = colegio.region_nombre || region.region_nombre
     formData.value.comunaResidencia = colegio.comuna_nombre || comuna.comuna_nombre
+    touched.value.colegio = true
 
     isSchoolModalOpen.value = false
 }
@@ -259,74 +339,165 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
             <div class="form-grid">
                 <!-- Campo Nombre -->
                 <div class="form-field">
-                    <FloatLabel>
-                        <InputText id="nombre" v-model="formData.nombre" class="form-input"
-                            :class="{ 'p-invalid': !formData.nombre && formData.nombre !== '' }" />
-                        <label for="nombre">Nombre *</label>
-                    </FloatLabel>
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <InputText 
+                                id="nombre" 
+                                v-model="formData.nombre" 
+                                class="form-input"
+                                :invalid="(submitted || touched.nombre) && (!formData.nombre || formData.nombre.trim() === '')"
+                                @blur="touched.nombre = true"
+                            />
+                            <label for="nombre">Nombre *</label>
+                        </FloatLabel>
+                        <Message 
+                            v-if="(submitted || touched.nombre) && (!formData.nombre || formData.nombre.trim() === '')" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            Nombre es requerido
+                        </Message>
+                    </div>
                 </div>
 
                 <!-- Campo Apellido -->
                 <div class="form-field">
-                    <FloatLabel>
-                        <InputText id="apellido" v-model="formData.apellido" class="form-input"
-                            :class="{ 'p-invalid': !formData.apellido && formData.apellido !== '' }" />
-                        <label for="apellido">Apellido *</label>
-                    </FloatLabel>
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <InputText 
+                                id="apellido" 
+                                v-model="formData.apellido" 
+                                class="form-input"
+                                :invalid="(submitted || touched.apellido) && (!formData.apellido || formData.apellido.trim() === '')"
+                                @blur="touched.apellido = true"
+                            />
+                            <label for="apellido">Apellido *</label>
+                        </FloatLabel>
+                        <Message 
+                            v-if="(submitted || touched.apellido) && (!formData.apellido || formData.apellido.trim() === '')" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            Apellido es requerido
+                        </Message>
+                    </div>
                 </div>
 
                 <!-- Campo Email -->
                 <div class="form-field">
-                    <FloatLabel>
-                        <InputText id="email" v-model="formData.email" type="email" class="form-input"
-                            :class="{ 'p-invalid': emailError !== null || (formData.email && !validateEmail(formData.email)) }" />
-                        <label for="email">Email *</label>
-                    </FloatLabel>
-                    <small v-if="emailError" class="p-error">{{ emailError }}</small>
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <InputText 
+                                id="email" 
+                                v-model="formData.email" 
+                                type="email" 
+                                class="form-input"
+                                :invalid="(submitted || touched.email) && (emailError !== null || (formData.email && !validateEmail(formData.email)))"
+                                @blur="touched.email = true"
+                            />
+                            <label for="email">Email *</label>
+                        </FloatLabel>
+                        <Message 
+                            v-if="(submitted || touched.email) && (emailError || (formData.email && !validateEmail(formData.email)))" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            {{ emailError || 'Email no es válido' }}
+                        </Message>
+                    </div>
                 </div>
 
                 <!-- Campo Teléfono -->
                 <div class="form-field">
-                    <InputGroup class="form-input-group">
-                        <InputGroupAddon>+569</InputGroupAddon>
-                        <FloatLabel>
-                            <InputText id="telefono" v-model="formData.telefono" type="tel" class="form-input"
-                                :class="{ 'p-invalid': !formData.telefono && formData.telefono !== '' }" />
-                            <label for="telefono">Teléfono *</label>
-                        </FloatLabel>
-                    </InputGroup>
+                    <div class="flex flex-col gap-1">
+                        <InputGroup class="form-input-group">
+                            <InputGroupAddon>+569</InputGroupAddon>
+                            <FloatLabel>
+                                <InputText 
+                                    id="telefono" 
+                                    v-model="formData.telefono" 
+                                    type="tel" 
+                                    class="form-input"
+                                    maxlength="8"
+                                    :invalid="(submitted || touched.telefono) && (telefonoError !== null || (formData.telefono && formData.telefono.replace(/[^0-9]/g, '').length !== 8))"
+                                    @keydown="handlePhoneKeydown"
+                                    @paste="handlePhonePaste"
+                                    @input="handlePhoneInput"
+                                    @blur="touched.telefono = true"
+                                />
+                                <label for="telefono">Teléfono *</label>
+                            </FloatLabel>
+                        </InputGroup>
+                        <Message 
+                            v-if="(submitted || touched.telefono) && (telefonoError || (formData.telefono && formData.telefono.replace(/[^0-9]/g, '').length !== 8))" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            {{ telefonoError || 'El teléfono debe tener 8 dígitos' }}
+                        </Message>
+                    </div>
                 </div>
 
                 <!-- Campo RUT -->
                 <div class="form-field">
-                    <FloatLabel>
-                        <InputText 
-                            id="identificacion" 
-                            v-model="formData.identificacion" 
-                            type="text"
-                            placeholder="12.345.678-9"
-                            class="form-input"
-                            :class="{ 'p-invalid': rutError !== null || (formData.identificacion && !validateRUT(formData.identificacion)) }"
-                            @input="handleRUTInput"
-                        />
-                        <label for="identificacion">RUT *</label>
-                    </FloatLabel>
-                    <small v-if="rutError" class="p-error">{{ rutError }}</small>
-                    <small v-else class="text-gray-500 text-xs mt-1">Puedes utilizar un RUT provisorio</small>
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <InputText 
+                                id="identificacion" 
+                                v-model="formData.identificacion" 
+                                type="text"
+                                placeholder="12.345.678-9"
+                                class="form-input"
+                                :invalid="(submitted || touched.identificacion) && (rutError !== null || (formData.identificacion && !validateRUT(formData.identificacion)))"
+                                @input="handleRUTInput"
+                                @blur="touched.identificacion = true"
+                            />
+                            <label for="identificacion">RUT *</label>
+                        </FloatLabel>
+                        <Message 
+                            v-if="(submitted || touched.identificacion) && (rutError || (formData.identificacion && !validateRUT(formData.identificacion)))" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            {{ rutError || 'RUT no es válido' }}
+                        </Message>
+                        <small v-if="!rutError && (!formData.identificacion || validateRUT(formData.identificacion))" class="text-gray-500 text-xs">Puedes utilizar un RUT provisorio</small>
+                    </div>
                 </div>
 
                 <!-- Campo Nivel Educativo -->
                 <div class="form-field nivel-educativo-field">
-                    <label for="nivelEducativo" class="nivel-educativo-label">
-                        Nivel Educativo *
-                        <i 
-                            v-tooltip="'Que año de enseñanza media cursas, si eres egresado te pediremos datos adicionales'"
-                            class="pi pi-question-circle nivel-educativo-icon"
-                        ></i>
-                    </label>
-                    <SelectButton id="nivelEducativo" v-model="formData.nivelEducativo"
-                        :options="opcionesNivelEducativo" optionLabel="label" optionValue="value"
-                        class="nivel-educativo-select" />
+                    <div class="flex flex-col gap-1">
+                        <label for="nivelEducativo" class="nivel-educativo-label">
+                            Nivel Educativo *
+                            <i 
+                                v-tooltip="'Que año de enseñanza media cursas, si eres egresado te pediremos datos adicionales'"
+                                class="pi pi-question-circle nivel-educativo-icon"
+                            ></i>
+                        </label>
+                        <SelectButton 
+                            id="nivelEducativo" 
+                            v-model="formData.nivelEducativo"
+                            :options="opcionesNivelEducativo" 
+                            optionLabel="label" 
+                            optionValue="value"
+                            class="nivel-educativo-select"
+                            @change="touched.nivelEducativo = true"
+                        />
+                        <Message 
+                            v-if="(submitted || touched.nivelEducativo) && !formData.nivelEducativo" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            Nivel educativo es requerido
+                        </Message>
+                    </div>
                 </div>
 
                 <!-- Año de Egreso (solo para egresados) -->
@@ -358,26 +529,36 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 
                 <!-- Campo Selección de Colegio -->
                 <div class="form-field colegio-field">
-                    <label for="colegio" class="colegio-label">
-                        Colegio *
-                    </label>
-                    <div class="colegio-selection-container">
-                        <Button v-if="!formData.colegio" label="Seleccionar Colegio" icon="pi pi-map-marker"
-                            @click="openSchoolModal" class="colegio-button" outlined />
-                        <div v-else class="colegio-selected">
-                            <div class="colegio-info">
-                                <School class="colegio-icon" />
-                                <div class="colegio-details">
-                                    <div class="colegio-nombre">{{ formData.colegio }}</div>
-                                    <div class="colegio-location">
-                                        {{ formData.comunaResidencia }}{{ formData.regionResidencia ? `,
-                                        ${formData.regionResidencia}` : '' }}
+                    <div class="flex flex-col gap-1">
+                        <label for="colegio" class="colegio-label">
+                            Colegio *
+                        </label>
+                        <div class="colegio-selection-container">
+                            <Button v-if="!formData.colegio" label="Seleccionar Colegio" icon="pi pi-map-marker"
+                                @click="openSchoolModal" class="colegio-button" outlined />
+                            <div v-else class="colegio-selected">
+                                <div class="colegio-info">
+                                    <School class="colegio-icon" />
+                                    <div class="colegio-details">
+                                        <div class="colegio-nombre">{{ formData.colegio }}</div>
+                                        <div class="colegio-location">
+                                            {{ formData.comunaResidencia }}{{ formData.regionResidencia ? `,
+                                            ${formData.regionResidencia}` : '' }}
+                                        </div>
                                     </div>
                                 </div>
+                                <Button label="Cambiar" icon="pi pi-pencil" @click="openSchoolModal"
+                                    class="colegio-change-button colegio-completed" severity="success" text />
                             </div>
-                            <Button label="Cambiar" icon="pi pi-pencil" @click="openSchoolModal"
-                                class="colegio-change-button colegio-completed" severity="success" text />
                         </div>
+                        <Message 
+                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            Colegio es requerido
+                        </Message>
                     </div>
                 </div>
             </div>
@@ -491,6 +672,21 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
     background-color: #059669 !important;
     border-color: #059669 !important;
 }
+
+
+/* Sobrescribir colores del SelectButton */
+.p-togglebutton-content {
+  background-color: red !important;
+  color: white;
+}
+
+
+.p-selectbutton .p-button.p-highlight {
+  background-color: red !important;
+  border-color: blue !important;
+}
+
+
 
 /* Responsive */
 @media (max-width: 768px) {

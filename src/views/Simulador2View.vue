@@ -7,6 +7,7 @@ import StepItem from 'primevue/stepitem';
 import Step from 'primevue/step';
 import StepPanel from 'primevue/steppanel';
 import Button from 'primevue/button';
+import Message from 'primevue/message';
 import PersonalAcademicData from '@/components/simulador/PersonalAcademicData.vue';
 import CareerFinancing from '@/components/simulador/CareerFinancing.vue';
 import Results from '@/components/simulador/Results.vue';
@@ -90,10 +91,17 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
         <div class="content-container">
             <Stepper value="1" linear class="basis-[50rem]">
                 <StepList class="stepper-header sticky top-0 z-10 bg-white py-4">
-                    <Step value="1">Datos Personales</Step>
-                    <Step value="2">Tu carrera</Step>
-                    <Step value="3">Resultados</Step>
+                    <Step value="1"><span class="">Datos Personales</span></Step>
+                    <Step value="2"><span class="">Tu carrera</span></Step>
+                    <Step value="3"><span class="">Resultados</span></Step>
                 </StepList>
+                <Message severity="info" :closable="true" size="small" class="mb-1">
+                    <template #icon>
+                        <i class="pi pi-shield"></i>
+                    </template>
+                    <span class="font-semibold"> Tus datos se usan sólo para esta simulación</span>
+                    <span class="text-gray-600">.  Al continuar, aceptas su uso.</span>
+                </Message>
                 <StepPanels>
                     <StepPanel v-slot="{ activateCallback }" value="1">
                         <div class="stepper-panel flex flex-col">
@@ -105,13 +113,26 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                             />
                         </div>
                         <div class="flex pt-6 justify-end">
-                            <Button 
-                                label="Siguiente" 
-                                icon="pi pi-arrow-right" 
-                                class="m-4"
-                                :disabled="!isStep1Valid"
-                                @click="activateCallback('2')" 
-                            />
+                            <div 
+                                class="m-4 button-wrapper"
+                                @mousedown="() => {
+                                    if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
+                                        personalDataRef.markAsSubmitted()
+                                    }
+                                    // Esperar un tick para que se actualicen los errores antes de verificar validación
+                                    nextTick(() => {
+                                        if (isStep1Valid) {
+                                            activateCallback('2')
+                                        }
+                                    })
+                                }"
+                            >
+                                <Button 
+                                    label="Siguiente" 
+                                    icon="pi pi-arrow-right" 
+                                    :disabled="!isStep1Valid"
+                                />
+                            </div>
                         </div>
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="2">
@@ -219,5 +240,15 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     padding: 1rem 0;
     margin-bottom: 1rem;
     box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para el wrapper del botón deshabilitado */
+.button-wrapper {
+    position: relative;
+    cursor: pointer;
+}
+
+.button-wrapper :deep(.p-button:disabled) {
+    pointer-events: none;
 }
 </style>
