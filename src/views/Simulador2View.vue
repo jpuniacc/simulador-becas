@@ -69,13 +69,13 @@ const handleValidationChangeStep2 = (isValid: boolean) => {
 const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     // Activar el paso 3
     activateCallback('3');
-    
+
     // Esperar a que el componente Results se monte
     await nextTick();
-    
+
     // Esperar un momento adicional para asegurar que el componente esté completamente montado
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Llamar a simulate en el componente Results
     if (resultsRef.value && 'simulate' in resultsRef.value && typeof resultsRef.value.simulate === 'function') {
         await resultsRef.value.simulate();
@@ -91,70 +91,63 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
         <div class="content-container">
             <Stepper value="1" linear class="w-full md:basis-[40rem] lg:basis-[50rem]">
                 <StepList class="stepper-header sticky top-0 z-10 bg-white py-4">
-                    <Step value="1"><span class="">Datos Personales</span></Step>
-                    <Step value="2"><span class="">Tu carrera</span></Step>
-                    <Step value="3"><span class="">Resultados</span></Step>
+                    <Step value="1">
+                        <!-- Corto en móvil -->
+                        <span class="md:hidden">Datos</span>
+                        <!-- Largo en desktop -->
+                        <span class="hidden md:inline">Datos Personales</span>
+                    </Step>
+
+                    <Step value="2">
+                        <span class="md:hidden">Carrera</span>
+                        <span class="hidden md:inline">Tu Carrera</span>
+                    </Step>
+
+                    <Step value="3">
+                        <span class="md:hidden">Resumen</span>
+                        <span class="hidden md:inline">Resultados</span>
+                    </Step>
                 </StepList>
                 <Message severity="info" :closable="true" size="small" class="mb-1">
                     <template #icon>
                         <i class="pi pi-shield"></i>
                     </template>
                     <span class="font-semibold"> Tus datos se usan sólo para esta simulación</span>
-                    <span class="text-gray-600">.  Al continuar, aceptas su uso.</span>
+                    <span class="text-gray-600">. Al continuar, aceptas su uso.</span>
                 </Message>
                 <StepPanels>
                     <StepPanel v-slot="{ activateCallback }" value="1">
                         <div class="stepper-panel flex flex-col">
-                            <PersonalAcademicData 
-                                ref="personalDataRef"
-                                :form-data="formData"
-                                @update:form-data="handleFormDataUpdate"
-                                @validation-change="handleValidationChange"
-                            />
+                            <PersonalAcademicData ref="personalDataRef" :form-data="formData"
+                                @update:form-data="handleFormDataUpdate" @validation-change="handleValidationChange" />
                         </div>
                         <div class="flex pt-6 justify-end">
-                            <div 
-                                class="m-4 button-wrapper"
-                                @mousedown="() => {
-                                    if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
-                                        personalDataRef.markAsSubmitted()
+                            <div class="m-4 button-wrapper" @mousedown="() => {
+                                if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
+                                    personalDataRef.markAsSubmitted()
+                                }
+                                // Esperar un tick para que se actualicen los errores antes de verificar validación
+                                nextTick(() => {
+                                    if (isStep1Valid) {
+                                        activateCallback('2')
                                     }
-                                    // Esperar un tick para que se actualicen los errores antes de verificar validación
-                                    nextTick(() => {
-                                        if (isStep1Valid) {
-                                            activateCallback('2')
-                                        }
-                                    })
-                                }"
-                            >
-                                <Button 
-                                    label="Siguiente" 
-                                    icon="pi pi-arrow-right" 
-                                    :disabled="!isStep1Valid"
-                                />
+                                })
+                            }">
+                                <Button label="Siguiente" icon="pi pi-arrow-right" :disabled="!isStep1Valid" />
                             </div>
                         </div>
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="2">
                         <div class="flex flex-col">
-                            <CareerFinancing 
-                                ref="careerFinancingRef"
-                                :form-data="formData"
+                            <CareerFinancing ref="careerFinancingRef" :form-data="formData"
                                 @update:form-data="handleFormDataUpdate"
-                                @validation-change="handleValidationChangeStep2"
-                            />
+                                @validation-change="handleValidationChangeStep2" />
                         </div>
                         <div class="flex pt-6 justify-between">
                             <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"
                                 @click="activateCallback('1')" />
-                            <Button 
-                                label="Ver resultados" 
-                                icon="pi pi-arrow-right" 
-                                class="m-4"
-                                iconPos="right"
-                                :disabled="!isStep2Valid"
-                                @click="() => handleNextToStep3(activateCallback)" 
-                            />
+                            <Button label="Ver resultados" icon="pi pi-arrow-right" class="m-4" iconPos="right"
+                                :disabled="!isStep2Valid" @click="() => handleNextToStep3(activateCallback)" />
                         </div>
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="3">
@@ -200,13 +193,13 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(to right, 
-        #FF6B35 0%, 
-        #FF6B35 33.33%, 
-        #4ECDC4 33.33%, 
-        #4ECDC4 66.66%, 
-        #FF6B9D 66.66%, 
-        #FF6B9D 100%);
+    background: linear-gradient(to right,
+            #FF6B35 0%,
+            #FF6B35 33.33%,
+            #4ECDC4 33.33%,
+            #4ECDC4 66.66%,
+            #FF6B9D 66.66%,
+            #FF6B9D 100%);
 }
 
 .header-container h1 {
