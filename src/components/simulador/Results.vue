@@ -157,6 +157,35 @@ const descuentoPorcentualTotal = computed(() => {
     return Math.round((descuentoTotalRealConCae.value / base) * 100)
 })
 
+// Computed para mensajes de tooltips según las secciones visibles
+const tooltipMessages = computed(() => {
+    const tieneBecasEstado = becasEstadoConMontos.value.length > 0
+    const tieneBecasInternas = becasAplicadas.value.length > 0
+    const tieneCAE = arancelReferenciaCae.value > 0
+
+    let mensajeEstado = ''
+    let mensajeInternas = ''
+    let mensajeCAE = 'El arancel restante puede ser financiado con CAE'
+
+    // Si hay becas del estado
+    if (tieneBecasEstado) {
+        mensajeEstado = 'Según tus datos, podrías optar a estos beneficios estatales'
+    }
+
+    // Si hay becas internas
+    if (tieneBecasInternas) {
+        if (tieneBecasEstado) {
+            // Si también hay becas estado, usar "Además"
+            mensajeInternas = 'Además, calificas para los siguientes beneficios UNIACC'
+        } else {
+            // Si no hay becas estado, quitar "Además"
+            mensajeInternas = 'Calificas para los siguientes beneficios UNIACC'
+        }
+    }
+
+    return [mensajeEstado, mensajeInternas, mensajeCAE]
+})
+
 // Métodos
 const handleSimulate = async () => {
     try {
@@ -311,7 +340,7 @@ defineExpose({
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Beneficios del Estado
-                                            <i v-tooltip="'Según tus datos, podrías optar a estos beneficios estatales'"
+                                            <i v-if="tooltipMessages[0]" v-tooltip="tooltipMessages[0]"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
@@ -366,7 +395,7 @@ defineExpose({
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Beneficios Internos (UNIACC)
-                                            <i v-tooltip="'Además, calificas para los siguientes beneficios UNIACC'"
+                                            <i v-if="tooltipMessages[1]" v-tooltip="tooltipMessages[1]"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
@@ -422,7 +451,7 @@ defineExpose({
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Arancel Referencia CAE
-                                            <i v-tooltip="'El arancel restante puede ser financiado con CAE'"
+                                            <i v-if="tooltipMessages[2]" v-tooltip="tooltipMessages[2]"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
@@ -463,7 +492,7 @@ defineExpose({
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Beneficios del Estado
-                                            <i v-tooltip="'Según tus datos, podrías optar a estos beneficios estatales'"
+                                            <i v-if="tooltipMessages[0]" v-tooltip="tooltipMessages[0]"
                                                 class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
