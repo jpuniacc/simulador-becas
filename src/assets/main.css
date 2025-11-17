@@ -77,6 +77,19 @@
 .text-uniacc-purple-light { color: var(--uniacc-purple-light); }
 .border-uniacc-purple-light { border-color: var(--uniacc-purple-light); }
 
+/* --- estilos para stepper - pasos completados --- */
+/* Número del paso */
+.p-step-number[data-p~="completed"] {
+  color: var(--p-stepper-step-title-active-color) !important;
+}
+
+/* Texto del paso (título) */
+.p-step[data-p~="completed"] .p-step-title,
+.p-step-header[data-p~="completed"] .p-step-title {
+  color: var(--p-stepper-step-title-active-color) !important;
+}
+
+
 /* Estilos para el botón seleccionado */
 .nivel-educativo-select [data-p="checked"] {
   background-color: var(--p-button-primary-background) !important;
