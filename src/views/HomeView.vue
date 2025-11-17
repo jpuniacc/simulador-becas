@@ -21,7 +21,7 @@ const featuresSection = ref<HTMLElement>()
 
 // Métodos
 const goToSimulator = () => {
-  router.push('/simulador2')
+  router.push('/simulador')
 }
 
 const goToAbout = () => {
