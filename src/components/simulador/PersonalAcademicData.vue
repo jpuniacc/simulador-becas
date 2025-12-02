@@ -6,6 +6,7 @@ import InputGroup from 'primevue/inputgroup'
 import InputGroupAddon from 'primevue/inputgroupaddon'
 import FloatLabel from 'primevue/floatlabel'
 import SelectButton from 'primevue/selectbutton'
+import Select from 'primevue/select'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
@@ -48,6 +49,60 @@ const opcionesNivelEducativo = [
     { label: 'Egresado', value: 'Egresado' }
 ]
 
+// Países agrupados para el select de pasaporte (solo latinos excepto Chile + Haití)
+// El value tiene formato "REGION-PAIS" para poder extraer ambos valores
+const groupedCountries = [
+    {
+        label: 'América del Sur',
+        code: 'SA',
+        regionCode: 'LA',
+        items: [
+            { label: 'Argentina', value: 'LA-AR', code: 'ar' },
+            { label: 'Bolivia', value: 'LA-BO', code: 'bo' },
+            { label: 'Brasil', value: 'LA-BR', code: 'br' },
+            { label: 'Colombia', value: 'LA-CO', code: 'co' },
+            { label: 'Ecuador', value: 'LA-EC', code: 'ec' },
+            { label: 'Paraguay', value: 'LA-PY', code: 'py' },
+            { label: 'Perú', value: 'LA-PE', code: 'pe' },
+            { label: 'Uruguay', value: 'LA-UY', code: 'uy' },
+            { label: 'Venezuela', value: 'LA-VE', code: 've' }
+        ]
+    },
+    {
+        label: 'América Central',
+        code: 'CA',
+        regionCode: 'LA',
+        items: [
+            { label: 'Belice', value: 'CA-BZ', code: 'bz' },
+            { label: 'Costa Rica', value: 'CA-CR', code: 'cr' },
+            { label: 'El Salvador', value: 'CA-SV', code: 'sv' },
+            { label: 'Guatemala', value: 'CA-GT', code: 'gt' },
+            { label: 'Honduras', value: 'CA-HN', code: 'hn' },
+            { label: 'Nicaragua', value: 'CA-NI', code: 'ni' },
+            { label: 'Panamá', value: 'CA-PA', code: 'pa' }
+        ]
+    },
+    {
+        label: 'América del Norte',
+        code: 'NA',
+        regionCode: 'NA',
+        items: [
+            { label: 'México', value: 'NA-MX', code: 'mx' }
+        ]
+    },
+    {
+        label: 'Caribe',
+        code: 'CB',
+        regionCode: 'CB',
+        items: [
+            { label: 'Cuba', value: 'CB-CU', code: 'cu' },
+            { label: 'República Dominicana', value: 'CB-DO', code: 'do' },
+            { label: 'Haití', value: 'CB-HT', code: 'ht' },
+            { label: 'Puerto Rico', value: 'CB-PR', code: 'pr' }
+        ]
+    }
+]
+
 // Estado del modal de selección de colegio
 const isSchoolModalOpen = ref(false)
 const selectedRegion = ref<Region | null>(null)
@@ -62,6 +117,8 @@ const formData = ref<Partial<FormData>>({
     telefono: props.formData?.telefono || '',
     identificacion: props.formData?.identificacion || '',
     tipoIdentificacion: props.formData?.tipoIdentificacion || 'rut',
+    tieneRUT: props.formData?.tieneRUT !== undefined ? props.formData.tieneRUT : true,
+    paisPasaporte: props.formData?.paisPasaporte || '',
     nivelEducativo: props.formData?.nivelEducativo || '',
     regionResidencia: props.formData?.regionResidencia || '',
     comunaResidencia: props.formData?.comunaResidencia || '',
@@ -73,6 +130,15 @@ const formData = ref<Partial<FormData>>({
 
 // Computed para verificar si es egresado
 const isEgresado = computed(() => formData.value.nivelEducativo === 'Egresado')
+
+// Computed para verificar si se debe mostrar RUT o Pasaporte
+const mostrarRUT = computed(() => {
+    return formData.value.tieneRUT !== false
+})
+
+const mostrarPasaporte = computed(() => {
+    return formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte'
+})
 
 // Computed para manejar valores null en año de egreso
 const añoEgresoValue = computed({
@@ -111,6 +177,7 @@ const touched = ref({
     email: false,
     telefono: false,
     identificacion: false,
+    paisPasaporte: false,
     nivelEducativo: false,
     colegio: false
 })
@@ -128,6 +195,24 @@ watch(() => formData.value.email, (newEmail) => {
         emailError.value = null
     }
 })
+
+// Función para cambiar a pasaporte
+const cambiarAPasaporte = () => {
+    formData.value.tieneRUT = false
+    formData.value.tipoIdentificacion = 'pasaporte'
+    formData.value.identificacion = '' // Limpiar el campo al cambiar
+    formData.value.paisPasaporte = '' // Limpiar el país al cambiar
+    rutError.value = null // Limpiar error de RUT
+}
+
+// Función para volver a RUT
+const volverARUT = () => {
+    formData.value.tieneRUT = true
+    formData.value.tipoIdentificacion = 'rut'
+    formData.value.identificacion = '' // Limpiar el campo al cambiar
+    formData.value.paisPasaporte = '' // Limpiar el país al cambiar
+    rutError.value = null // Limpiar error de RUT
+}
 
 // Manejar input de RUT con formateo automático
 const handleRUTInput = (event: Event) => {
@@ -177,10 +262,10 @@ const handlePhoneInput = (event: Event) => {
     }
 }
 
-// Validar RUT cuando cambie
+// Validar RUT cuando cambie (solo si tieneRUT es true)
 watch(() => formData.value.identificacion, (newRUT) => {
     touched.value.identificacion = true
-    if (newRUT && newRUT.trim() !== '') {
+    if (mostrarRUT.value && newRUT && newRUT.trim() !== '') {
         if (!validateRUT(newRUT)) {
             rutError.value = 'Por favor ingresa un RUT válido'
         } else {
@@ -216,10 +301,16 @@ const isFormValid = computed(() => {
         formData.value.telefono?.trim() !== '' &&
         formData.value.identificacion?.trim() !== '' &&
         formData.value.nivelEducativo !== '' &&
-        formData.value.colegio?.trim() !== ''
+        // Colegio solo es requerido si NO usa pasaporte
+        (mostrarPasaporte.value || formData.value.colegio?.trim() !== '') &&
+        // Si es pasaporte, el país es requerido
+        (mostrarRUT.value || (mostrarPasaporte.value && formData.value.paisPasaporte?.trim() !== ''))
     
     const isEmailValid = formData.value.email ? validateEmail(formData.value.email) : false
-    const isRUTValid = formData.value.identificacion ? validateRUT(formData.value.identificacion) : false
+    // Validar RUT solo si tieneRUT es true, si es pasaporte solo verificar que no esté vacío
+    const isRUTValid = mostrarRUT.value 
+        ? (formData.value.identificacion ? validateRUT(formData.value.identificacion) : false)
+        : (formData.value.identificacion?.trim() !== '') // Para pasaporte solo verificar que no esté vacío
     const isPhoneValid = formData.value.telefono ? formData.value.telefono.replace(/[^0-9]/g, '').length === 8 : false
     
     return hasRequiredFields && isEmailValid && isRUTValid && isPhoneValid && !emailError.value && !rutError.value && !telefonoError.value
@@ -287,6 +378,8 @@ watch(() => props.formData, (newData) => {
             formData.value.telefono !== (newData.telefono || '') ||
             formData.value.identificacion !== (newData.identificacion || '') ||
             formData.value.tipoIdentificacion !== (newData.tipoIdentificacion || 'rut') ||
+            formData.value.tieneRUT !== (newData.tieneRUT !== undefined ? newData.tieneRUT : true) ||
+            formData.value.paisPasaporte !== (newData.paisPasaporte || '') ||
             formData.value.nivelEducativo !== (newData.nivelEducativo || '') ||
             formData.value.regionResidencia !== (newData.regionResidencia || '') ||
             formData.value.comunaResidencia !== (newData.comunaResidencia || '') ||
@@ -304,6 +397,8 @@ watch(() => props.formData, (newData) => {
                 telefono: newData.telefono || '',
                 identificacion: newData.identificacion || '',
                 tipoIdentificacion: newData.tipoIdentificacion || 'rut',
+                tieneRUT: newData.tieneRUT !== undefined ? newData.tieneRUT : true,
+                paisPasaporte: newData.paisPasaporte || '',
                 nivelEducativo: newData.nivelEducativo || '',
                 regionResidencia: newData.regionResidencia || '',
                 comunaResidencia: newData.comunaResidencia || '',
@@ -442,8 +537,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </div>
                 </div>
 
-                <!-- Campo RUT -->
-                <div class="form-field">
+                <!-- Campo RUT (solo si tieneRUT es true) -->
+                <div v-if="mostrarRUT" class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
                             <InputText 
@@ -466,7 +561,98 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                         >
                             {{ rutError || 'RUT no es válido' }}
                         </Message>
-                        <small v-if="!rutError && (!formData.identificacion || validateRUT(formData.identificacion))" class="text-gray-500 text-xs">Puedes utilizar un RUT provisorio</small>
+                        <small 
+                            v-if="mostrarRUT && !rutError && (!formData.identificacion || validateRUT(formData.identificacion))" 
+                            class="text-gray-500 text-xs cursor-pointer hover:text-blue-600 underline"
+                            @click="cambiarAPasaporte"
+                        >
+                            Puedes utilizar un pasaporte
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Campo Pasaporte (solo si tieneRUT es false y tipoIdentificacion es pasaporte) -->
+                <div v-if="mostrarPasaporte" class="form-field">
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <InputText 
+                                id="identificacion" 
+                                v-model="formData.identificacion" 
+                                type="text"
+                                placeholder="Ingresa tu número de pasaporte"
+                                class="form-input"
+                                :invalid="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')"
+                                @blur="touched.identificacion = true"
+                            />
+                            <label for="identificacion">Pasaporte *</label>
+                        </FloatLabel>
+                        <Message 
+                            v-if="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            Pasaporte es requerido
+                        </Message>
+                        <small 
+                            v-if="mostrarPasaporte" 
+                            class="text-gray-500 text-xs cursor-pointer hover:text-blue-600 underline"
+                            @click="volverARUT"
+                        >
+                            Usar RUT
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Campo País (solo si tipoIdentificacion es pasaporte) -->
+                <div v-if="mostrarPasaporte" class="form-field">
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <Select 
+                                id="paisPasaporte"
+                                v-model="formData.paisPasaporte" 
+                                :options="groupedCountries" 
+                                optionLabel="label" 
+                                optionGroupLabel="label" 
+                                optionGroupChildren="items"
+                                optionValue="value"
+                                class="w-full form-input"
+                                :invalid="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')"
+                                @blur="touched.paisPasaporte = true"
+                            >
+                                <template #optiongroup="slotProps">
+                                    <div class="flex items-center">
+                                        <img 
+                                            :alt="slotProps.option.label" 
+                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png" 
+                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`" 
+                                            style="width: 18px" 
+                                        />
+                                        <div>{{ slotProps.option.label }}</div>
+                                    </div>
+                                </template>
+                                <template #option="slotProps">
+                                    <div class="flex items-center">
+                                        <img 
+                                            :alt="slotProps.option.label" 
+                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png" 
+                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`" 
+                                            style="width: 18px" 
+                                        />
+                                        <div>{{ slotProps.option.label }}</div>
+                                    </div>
+                                </template>
+                            </Select>
+                            <label for="paisPasaporte">País de Origen del Pasaporte *</label>
+                        </FloatLabel>
+                        <Message 
+                            v-if="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')" 
+                            severity="error" 
+                            variant="simple" 
+                            size="small"
+                        >
+                            País es requerido
+                        </Message>
                     </div>
                 </div>
 
@@ -527,8 +713,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- Campo Selección de Colegio -->
-                <div class="form-field colegio-field">
+                <!-- Campo Selección de Colegio (solo si NO usa pasaporte) -->
+                <div v-if="mostrarRUT" class="form-field colegio-field">
                     <div class="flex flex-col gap-1">
                         <label for="colegio" class="colegio-label">
                             Colegio *
@@ -602,21 +788,6 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
     @apply text-gray-700;
 }
 
-:deep(.nivel-educativo-select) {
-    @apply w-full;
-}
-
-:deep(.nivel-educativo-select .p-button.p-highlight) {
-    background-color: #10b981 !important;
-    border-color: #10b981 !important;
-    color: #ffffff !important;
-}
-
-:deep(.nivel-educativo-select .p-button.p-highlight:hover) {
-    background-color: #059669 !important;
-    border-color: #059669 !important;
-}
-
 /* Estilos para selección de colegio */
 .colegio-field {
     @apply col-span-1 md:col-span-2;
@@ -624,6 +795,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 
 .colegio-label {
     @apply block text-sm font-medium text-gray-700 mb-3;
+}
+
+.form-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
 }
 
 .colegio-selection-container {

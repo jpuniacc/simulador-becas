@@ -95,7 +95,23 @@
   background-color: var(--p-button-primary-background) !important;
   color: #ffffff !important;
   box-shadow: none !important;
-  border-radius: 8px; /* opcional, por si quieres suavizar */
+  border-radius: 8px; 
+  transition: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  transition: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+.paes-select-button [data-p="checked"] {
+  background-color: var(--p-button-primary-background) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
   transition: none !important;
   border: none !important;
   outline: none !important;

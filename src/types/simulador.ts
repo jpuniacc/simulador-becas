@@ -9,6 +9,7 @@ export interface FormData {
   tipoIdentificacion: 'rut' | 'pasaporte' | ''
   identificacion: string
   nacionalidad: string
+  paisPasaporte: string
   fechaNacimiento: string
   genero: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | ''
 

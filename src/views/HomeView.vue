@@ -41,7 +41,7 @@ const scrollToFeatures = () => {
         <div class="hero-content">
           <h1 class="hero-title">
             Descubre qué beneficios puedes obtener en
-            <span class="text-uniacc-green">UNIACC</span>
+            <span class="text-uniacc-pink font-semibold">UNIACC</span>
           </h1>
           <p class="hero-description">
             Nuestro simulador te ayuda a conocer todas las becas, descuentos y beneficios
@@ -56,14 +56,14 @@ const scrollToFeatures = () => {
               <Calculator class="w-5 h-5 mr-2" />
               Comenzar Simulación
             </Button>
-            <Button
+            <!-- <Button
               size="lg"
               @click="scrollToFeatures"
               class="bg-uniacc-purple hover:bg-uniacc-purple-hover text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
               <Info class="w-5 h-5 mr-2" />
               Conocer Más
-            </Button>
+            </Button> -->
           </div>
         </div>
         <div class="hero-image">
@@ -75,7 +75,7 @@ const scrollToFeatures = () => {
     </section>
 
     <!-- Features Section -->
-    <section ref="featuresSection" class="features-section">
+    <!-- <section ref="featuresSection" class="features-section">
       <div class="container">
         <div class="section-header">
           <h2 class="section-title">¿Por qué elegir nuestro simulador?</h2>
@@ -146,10 +146,10 @@ const scrollToFeatures = () => {
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- Process Section -->
-    <section class="process-section">
+    <!-- <section class="process-section">
       <div class="container">
         <div class="section-header">
           <h2 class="section-title">¿Cómo funciona?</h2>
@@ -200,10 +200,10 @@ const scrollToFeatures = () => {
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- Stats Section -->
-    <section class="stats-section">
+    <!-- <section class="stats-section">
       <div class="container">
         <div class="stats-grid">
           <div class="stat-item">
@@ -224,10 +224,10 @@ const scrollToFeatures = () => {
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- CTA Section -->
-    <section class="cta-section">
+    <!-- <section class="cta-section">
       <div class="container">
         <div class="cta-content">
           <h2 class="cta-title">¿Listo para descubrir tus beneficios?</h2>
@@ -254,7 +254,9 @@ const scrollToFeatures = () => {
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
+
+
   </div>
 </template>
 

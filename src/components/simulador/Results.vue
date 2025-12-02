@@ -5,7 +5,8 @@ import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 import { useSimuladorStore } from '@/stores/simuladorStore'
-import { formatCurrency } from '@/utils/formatters'
+import { useDescuentosStore } from '@/stores/descuentosStore'
+import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
 import { Award, CheckCircle, FileText, Download } from 'lucide-vue-next'
@@ -21,6 +22,7 @@ const props = defineProps<Props>()
 
 // Store y servicios
 const simuladorStore = useSimuladorStore()
+const descuentosStore = useDescuentosStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
 
 // Estado
@@ -43,8 +45,12 @@ const updateWindowWidth = () => {
 }
 
 onMounted(() => {
+    console.log('Results mounted - becas aplicadas:', becasAplicadas.value);
     window.addEventListener('resize', updateWindowWidth)
     updateWindowWidth()
+    // Cargar descuentos de pago anticipado y modo de pago
+    descuentosStore.cargarDescuentosPagoAnticipado()
+    descuentosStore.cargarDescuentosModoPago()
 })
 
 onUnmounted(() => {
@@ -66,87 +72,29 @@ const becasAplicadas = computed(() => {
     return calculoBecas.value?.becas_aplicadas || []
 })
 
-// Computed para becas del estado elegibles
-const becasEstadoElegibles = computed(() => {
-    return simuladorStore.becasStore.becasElegiblesEstado || []
-})
-
-// Computed para becas del estado aplicadas (solo las elegibles)
-const becasEstadoAplicadas = computed(() => {
-    return becasEstadoElegibles.value.filter(b => b.elegible)
-})
-
-// Computed para becas del estado con montos calculados
-const becasEstadoConMontos = computed(() => {
-    if (!calculoBecas.value || becasEstadoAplicadas.value.length === 0) return []
-
-    let arancelActual = calculoBecas.value.arancel_base
-    const becasConMontos = becasEstadoAplicadas.value.map(becaEstado => {
-        let montoDescuento = 0
-        if (becaEstado.beca.tipo_descuento === 'porcentaje' && becaEstado.descuento_aplicado) {
-            montoDescuento = (arancelActual * becaEstado.descuento_aplicado) / 100
-        } else if (becaEstado.beca.tipo_descuento === 'monto_fijo' && becaEstado.monto_descuento) {
-            montoDescuento = becaEstado.monto_descuento
-        }
-        arancelActual -= montoDescuento
-        return {
-            ...becaEstado,
-            monto_descuento: montoDescuento
-        }
-    })
-
-    return becasConMontos
-})
-
-// Computed para calcular descuento total de becas del estado
-const descuentoBecasEstado = computed(() => {
-    return becasEstadoConMontos.value.reduce((total, beca) => total + beca.monto_descuento, 0)
-})
-
-// Computed para arancel después de aplicar becas del estado
-const arancelDespuesBecasEstado = computed(() => {
-    if (!calculoBecas.value) return 0
-    return calculoBecas.value.arancel_base - descuentoBecasEstado.value
-})
-
-// Computed para descuento total (becas del estado + becas internas) - sin CAE
-const descuentoTotalReal = computed(() => {
-    if (!calculoBecas.value) return 0
-    return descuentoBecasEstado.value + calculoBecas.value.descuento_total
-})
-
-// Computed para obtener arancel referencia CAE
-const arancelReferenciaCae = computed(() => {
-    if (!formData.value.carrera || !formData.value.planeaUsarCAE) return 0
-    return simuladorStore.carrerasStore.obtenerArancelReferenciaCae(formData.value.carrera) || 0
-})
-
-// Computed para arancel después de becas internas (remanente antes de CAE)
+// Computed para arancel después de becas internas
+// Calculado explícitamente: arancel base - descuento de becas internas solamente
 const arancelDespuesBecasInternas = computed(() => {
     if (!calculoBecas.value) return 0
-    return calculoBecas.value.arancel_final
+    return calculoBecas.value.arancel_base - calculoBecas.value.descuento_total
 })
 
-// Computed para descuento CAE aplicado
-const descuentoCae = computed(() => {
-    if (arancelReferenciaCae.value === 0) return 0
-    return Math.min(arancelReferenciaCae.value, arancelDespuesBecasInternas.value)
-})
-
-// Computed para arancel después de aplicar CAE
-const arancelDespuesCae = computed(() => {
-    return Math.max(0, arancelDespuesBecasInternas.value - descuentoCae.value)
-})
-
-// Computed para arancel final real (incluye descuento CAE)
-const arancelFinalReal = computed(() => {
-    return arancelDespuesCae.value
-})
-
-// Computed para descuento total real (incluye CAE)
+// Computed para descuento total (solo becas internas, no se calculan becas del estado ni CAE)
 const descuentoTotalRealConCae = computed(() => {
     if (!calculoBecas.value) return 0
-    return descuentoBecasEstado.value + calculoBecas.value.descuento_total + descuentoCae.value
+    // Solo incluye descuentos de becas internas
+    return calculoBecas.value.descuento_total
+})
+
+// Computed para arancel final (igual al arancel después de becas internas)
+const arancelFinalReal = computed(() => {
+    return arancelDespuesBecasInternas.value
+})
+
+// Computed para arancel final + matrícula
+const arancelMasMatricula = computed(() => {
+    const matricula = carreraInfo.value?.matricula || 0
+    return arancelFinalReal.value + matricula
 })
 
 // Porcentaje total de descuento aplicado sobre el arancel base
@@ -157,33 +105,25 @@ const descuentoPorcentualTotal = computed(() => {
     return Math.round((descuentoTotalRealConCae.value / base) * 100)
 })
 
-// Computed para mensajes de tooltips según las secciones visibles
-const tooltipMessages = computed(() => {
-    const tieneBecasEstado = becasEstadoConMontos.value.length > 0
-    const tieneBecasInternas = becasAplicadas.value.length > 0
-    const tieneCAE = arancelReferenciaCae.value > 0
+// Computed para descuento de pago anticipado vigente
+const descuentoPagoAnticipadoVigente = computed(() => {
+    return descuentosStore.obtenerDescuentoPagoAnticipadoVigente()
+})
 
-    let mensajeEstado = ''
-    let mensajeInternas = ''
-    let mensajeCAE = 'El arancel restante puede ser financiado con CAE'
+// Computed para descuentos de modo de pago activos
+const descuentosModoPagoActivos = computed(() => {
+    return descuentosStore.descuentosModoPagoActivos
+})
 
-    // Si hay becas del estado
-    if (tieneBecasEstado) {
-        mensajeEstado = 'Según tus datos, podrías optar a estos beneficios estatales'
-    }
+// Computed para verificar si hay descuentos disponibles
+const tieneDescuentosDisponibles = computed(() => {
+    return descuentoPagoAnticipadoVigente.value !== null || descuentosModoPagoActivos.value.length > 0
+})
 
-    // Si hay becas internas
-    if (tieneBecasInternas) {
-        if (tieneBecasEstado) {
-            // Si también hay becas estado, usar "Además"
-            mensajeInternas = 'Además, calificas para los siguientes beneficios UNIACC'
-        } else {
-            // Si no hay becas estado, quitar "Además"
-            mensajeInternas = 'Calificas para los siguientes beneficios UNIACC'
-        }
-    }
-
-    return [mensajeEstado, mensajeInternas, mensajeCAE]
+// Computed para formatear la fecha de término
+const fechaTerminoFormateada = computed(() => {
+    if (!descuentoPagoAnticipadoVigente.value?.fecha_termino) return ''
+    return formatDate(descuentoPagoAnticipadoVigente.value.fecha_termino, { format: 'long' })
 })
 
 // Métodos
@@ -335,58 +275,38 @@ defineExpose({
                                         {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
                                     </td>
                                 </tr>
+                                <tr class="table-row matricula-row">
+                                    <td class="table-cell font-semibold">Matrícula</td>
+                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                    <td class="table-cell text-center text-gray-500 mobile-only">-</td>
+                                    <td class="table-cell text-right font-semibold">
+                                        {{ formatCurrency(carreraInfo?.matricula || 0) }}
+                                    </td>
+                                </tr>
 
-                                <template v-if="becasEstadoConMontos.length > 0">
+                                <!-- Bloque informativo de Becas del Estado (solo si usaBecasEstado es true) -->
+                                <template v-if="formData?.usaBecasEstado">
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Beneficios del Estado
-                                            <i v-if="tooltipMessages[0]" v-tooltip="tooltipMessages[0]"
-                                                class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
                                         <td class="desktop-only"></td>
                                         <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
-                                    <tr v-for="becaEstado in becasEstadoConMontos" :key="`estado-${becaEstado.beca.id}`"
-                                        class="table-row benefit-row estado-row">
-                                        <td class="table-cell">
-                                            <div class="benefit-name">
-                                                <i class="pi pi-star-fill text-purple-600 mr-2"></i>
-                                                {{ becaEstado.beca.nombre || 'Beca del Estado' }}
+                                    <tr class="table-row info-row estado-info-row">
+                                        <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
+                                            <div class="flex items-start gap-2">
+                                                <i class="pi pi-info-circle text-purple-600 mt-0.5"></i>
+                                                <span>
+                                                    Becas Mineduc dependen de tu postulación en el FUAS. La asignación es realizada por el Estado y puede modificar el arancel final.
+                                                    <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 underline font-medium ml-1">
+                                                        Más info en sitio FUAS
+                                                    </a>
+                                                </span>
                                             </div>
-                                        </td>
-                                        <td class="table-cell text-center desktop-only">
-                                            <span class="badge-type badge-estado">
-                                                {{ becaEstado.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' :
-                                                    becaEstado.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto'
-                                                }}
-                                            </span>
-                                        </td>
-                                        <td class="table-cell text-center desktop-only">
-                                            <span v-if="becaEstado.beca.tipo_descuento === 'porcentaje'"
-                                                class="discount-percentage">
-                                                {{ becaEstado.descuento_aplicado }}%
-                                            </span>
-                                            <span v-else class="text-gray-500">-</span>
-                                        </td>
-                                        <td class="table-cell text-center mobile-only">
-                                            <span v-if="becaEstado.beca.tipo_descuento === 'porcentaje'"
-                                                class="discount-percentage">
-                                                {{ becaEstado.descuento_aplicado }}%
-                                            </span>
-                                            <span v-else class="text-xs text-gray-600">Fijo</span>
-                                        </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
-                                            -{{ formatCurrency(becaEstado.monto_descuento) }}
-                                        </td>
-                                    </tr>
-                                    <tr class="table-row subtotal-row subtotal-estado-row">
-                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
-                                            Después de Beneficios del Estado
-                                        </td>
-                                        <td class="table-cell text-right font-semibold">
-                                            {{ formatCurrency(arancelDespuesBecasEstado) }}
                                         </td>
                                     </tr>
                                 </template>
@@ -395,8 +315,6 @@ defineExpose({
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Beneficios Internos (UNIACC)
-                                            <i v-if="tooltipMessages[1]" v-tooltip="tooltipMessages[1]"
-                                                class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
                                         <td class="desktop-only"></td>
@@ -447,65 +365,29 @@ defineExpose({
                                     </tr>
                                 </template>
 
-                                <template v-if="arancelReferenciaCae > 0">
+                                <!-- Bloque informativo de CAE (solo si planeaUsarCAE es true) -->
+                                <template v-if="formData?.planeaUsarCAE">
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             Arancel Referencia CAE
-                                            <i v-if="tooltipMessages[2]" v-tooltip="tooltipMessages[2]"
-                                                class="pi pi-question-circle section-tooltip-icon"></i>
                                         </td>
                                         <td class="desktop-only"></td>
                                         <td class="desktop-only"></td>
                                         <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
-                                    <tr class="table-row benefit-row cae-row">
-                                        <td class="table-cell">
-                                            <div class="benefit-name">
-                                                <i class="pi pi-briefcase mr-2 text-orange-600"></i>
-                                                Descuento por Arancel Referencia CAE
+                                    <tr class="table-row info-row cae-info-row">
+                                        <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
+                                            <div class="flex items-start gap-2">
+                                                <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
+                                                <span>
+                                                    Si firmas el CAE, se aplicará el arancel de referencia definido para tu carrera. El monto exacto se confirmará al momento de la firma.
+                                                </span>
                                             </div>
-                                        </td>
-                                        <td class="table-cell text-center desktop-only">
-                                            <span class="badge-type badge-cae">Monto Fijo</span>
-                                        </td>
-                                        <td class="table-cell text-center text-gray-500 desktop-only">-</td>
-                                        <td class="table-cell text-center mobile-only">
-                                            <span class="text-xs text-gray-600">Fijo</span>
-                                        </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
-                                            -{{ formatCurrency(descuentoCae) }}
-                                        </td>
-                                    </tr>
-                                    <tr class="table-row subtotal-row subtotal-cae-row">
-                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
-                                            Después de Arancel Referencia CAE
-                                        </td>
-                                        <td class="table-cell text-right font-semibold">
-                                            {{ formatCurrency(arancelDespuesCae) }}
                                         </td>
                                     </tr>
                                 </template>
 
-                                <template
-                                    v-if="formData?.usaBecasEstado && becasEstadoElegibles.length > 0 && becasEstadoAplicadas.length === 0">
-                                    <tr class="table-row section-header-row">
-                                        <td class="table-cell section-title">
-                                            Beneficios del Estado
-                                            <i v-if="tooltipMessages[0]" v-tooltip="tooltipMessages[0]"
-                                                class="pi pi-question-circle section-tooltip-icon"></i>
-                                        </td>
-                                        <td class="desktop-only"></td>
-                                        <td class="desktop-only"></td>
-                                        <td class="mobile-only"></td>
-                                        <td></td>
-                                    </tr>
-                                    <tr class="table-row info-row">
-                                        <td class="table-cell text-sm text-gray-600 italic" :colspan="subtotalColspan + 1">
-                                            No cumples con los requisitos para las becas del estado disponibles
-                                        </td>
-                                    </tr>
-                                </template>
 
                                 <tr class="table-row discount-total-row">
                                     <td class="table-cell font-semibold" :colspan="subtotalColspan">
@@ -517,10 +399,10 @@ defineExpose({
                                 </tr>
                                 <tr class="table-row final-row">
                                     <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
-                                        Arancel Final a Pagar
+                                        Arancel + Matrícula final a pagar
                                     </td>
                                     <td class="table-cell text-right font-bold text-lg text-green-600">
-                                        {{ formatCurrency(arancelFinalReal) }}
+                                        {{ formatCurrency(arancelMasMatricula) }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -531,21 +413,35 @@ defineExpose({
 
             <!-- Resumen financiero -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card class="summary-item">
-                    <template #content>
-                        <div class="text-center">
-                            <div class="text-sm text-gray-600 mb-2">Arancel Original</div>
-                            <div class="text-2xl font-bold text-gray-900">
-                                {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
+                <!-- Primera columna: Arancel Original + Matrícula (apilados verticalmente) -->
+                <div class="flex flex-col gap-4">
+                    <Card class="summary-item first-column-card">
+                        <template #content>
+                            <div class="text-center first-column-content">
+                                <div class="text-sm text-gray-600 mb-2 first-column-label font-semibold">Arancel Original</div>
+                                <div class="text-2xl font-bold text-gray-900 first-column-value">
+                                    {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
+                                </div>
                             </div>
-                        </div>
-                    </template>
-                </Card>
+                        </template>
+                    </Card>
+                    <Card class="summary-item matricula-card first-column-card">
+                        <template #content>
+                            <div class="text-center first-column-content">
+                                <div class="text-sm text-gray-600 mb-2 first-column-label font-semibold">Matrícula</div>
+                                <div class="text-2xl font-bold text-gray-900 first-column-value">
+                                    {{ formatCurrency(carreraInfo?.matricula || 0) }}
+                                </div>
+                            </div>
+                        </template>
+                    </Card>
+                </div>
 
+                <!-- Segunda columna: Descuento Total -->
                 <Card class="summary-item discount">
                     <template #content>
                         <div class="text-center">
-                            <div class="text-sm text-gray-600 mb-2">Descuento Total</div>
+                            <div class="text-sm text-gray-600 mb-2 font-semibold">Descuento Total</div>
                             <div class="text-2xl font-bold text-red-600">
                                 -{{ formatCurrency(descuentoTotalRealConCae) }}
                             </div>
@@ -553,12 +449,13 @@ defineExpose({
                     </template>
                 </Card>
 
+                <!-- Tercera columna: Total Final a Pagar -->
                 <Card class="summary-item final">
                     <template #content>
                         <div class="text-center">
-                            <div class="text-sm text-gray-600 mb-2">Arancel Final</div>
+                            <div class="text-sm text-gray-600 mb-2 font-semibold">Total Final a Pagar</div>
                             <div class="text-2xl font-bold text-green-600">
-                                {{ formatCurrency(arancelFinalReal) }}
+                                {{ formatCurrency(arancelMasMatricula) }}
                             </div>
                         </div>
                     </template>
@@ -582,10 +479,51 @@ defineExpose({
                 </div>
             </Message>
 
+            <!-- Mensaje informativo sobre descuentos adicionales -->
+            <Message 
+                v-if="tieneDescuentosDisponibles" 
+                severity="info" 
+                :closable="false" 
+                class="anticipado-message"
+                size="small"
+            >
+                <div class="anticipado-message-content">
+                    <div class="anticipado-message-title">
+                        <b>Tenemos descuentos adicionales disponibles.</b>
+                    </div>
+                    <ul class="anticipado-message-list">
+                        <!-- Subtítulo: Por pago anticipado -->
+                        <li v-if="descuentoPagoAnticipadoVigente" class="subtitle-item">
+                            <b>Por pago anticipado:</b>
+                            <ul class="anticipado-sublist">
+                                <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
+                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
+                                </li>
+                                <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
+                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
+                                </li>
+                                <li v-if="fechaTerminoFormateada">
+                                    Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
+                                </li>
+                            </ul>
+                        </li>
+                        <!-- Subtítulo: Por medio de pago -->
+                        <li v-if="descuentosModoPagoActivos.length > 0" class="subtitle-item">
+                            <b>Por medio de pago:</b>
+                            <ul class="anticipado-sublist">
+                                <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
+                                    <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </Message>
+
             <!-- Mensaje informativo sobre confirmación -->
             <Message 
                 v-if="descuentoPorcentualTotal > 0" 
-                severity="info" 
+                severity="warn" 
                 :closable="false" 
                 class="confirmation-message"
                 size="small"
@@ -594,53 +532,11 @@ defineExpose({
             </Message>
 
             <!-- Becas aplicadas -->
-            <div v-if="becasAplicadas.length || becasEstadoConMontos.length" class="benefits-section">
+            <div v-if="becasAplicadas.length" class="benefits-section">
                 <h3 class="benefits-section-title">
                     <Award class="w-6 h-6" />
                     Becas Aplicadas
                 </h3>
-
-                <!-- Becas del Estado Aplicadas -->
-                <div v-if="becasEstadoConMontos.length" class="benefits-subsection">
-                    <h4 class="subsection-title">
-                        <Award class="w-5 h-5 text-purple-600" />
-                        Beneficios del Estado
-                    </h4>
-                    <div class="benefits-grid">
-                        <div
-                            v-for="becaEstado in becasEstadoConMontos"
-                            :key="`estado-${becaEstado.beca.id}`"
-                            class="benefit-card benefit-card-estado"
-                        >
-                            <div class="benefit-header">
-                                <div class="benefit-icon">
-                                    <CheckCircle class="w-5 h-5 text-purple-600" />
-                                </div>
-                                <div class="benefit-info">
-                                    <h4 class="benefit-title">{{ becaEstado.beca.nombre || 'Beca del Estado' }}</h4>
-                                    <p class="benefit-type">{{ becaEstado.beca.tipo_descuento || 'Descuento' }}</p>
-                                </div>
-                            </div>
-                            <div class="benefit-details">
-                                <div class="benefit-discount">
-                                    <span class="discount-label">Descuento:</span>
-                                    <span class="discount-value">
-                                        {{ becaEstado.beca.tipo_descuento === 'porcentaje'
-                                            ? `${becaEstado.descuento_aplicado}%`
-                                            : formatCurrency(becaEstado.beca.descuento_monto || 0) }}
-                                    </span>
-                                </div>
-                                <div class="benefit-applied">
-                                    <span class="applied-label">Aplicado:</span>
-                                    <span class="applied-value">{{ formatCurrency(becaEstado.monto_descuento) }}</span>
-                                </div>
-                            </div>
-                            <div v-if="becaEstado.beca.descripcion" class="benefit-description">
-                                <p class="description-text">{{ becaEstado.beca.descripcion }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Becas Internas Aplicadas -->
                 <div v-if="becasAplicadas.length" class="benefits-subsection">
@@ -757,11 +653,67 @@ defineExpose({
 }
 
 .summary-item.discount {
-    @apply border-red-200 bg-red-50;
+    background-color: #FEE2E2;
+    border-color: #FCA5A5;
 }
 
 .summary-item.final {
     @apply border-green-200 bg-green-50;
+}
+
+/* Card de Arancel Original - versión suave del naranja de la tabla (#FF6B35) */
+.summary-item.first-column-card:not(.matricula-card) {
+    background-color: #FFF5F0;
+    border-color: #FFE5D9;
+}
+
+/* Card de Matrícula - versión suave del morado de la tabla (#8d01b3) */
+.summary-item.matricula-card {
+    background-color: #F5F0FF;
+    border-color: #E8D9FF;
+}
+
+/* Centrar verticalmente el contenido de las cards de descuento y final en desktop */
+@media (min-width: 768px) {
+    :deep(.summary-item.discount .p-card-body),
+    :deep(.summary-item.final .p-card-body) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+    }
+
+    :deep(.summary-item.discount .p-card-content),
+    :deep(.summary-item.final .p-card-content) {
+        width: 100%;
+    }
+}
+
+.summary-item.matricula-card {
+    @apply border-purple-200 bg-purple-50;
+}
+
+/* Estilos para cards de la primera columna - solo en desktop */
+@media (min-width: 768px) {
+    :deep(.summary-item.first-column-card .p-card-body) {
+        padding: 0.25rem 0.5rem;
+    }
+
+    :deep(.summary-item.first-column-card .p-card-content) {
+        padding: 0.25rem 0;
+    }
+
+    .first-column-content {
+        @apply py-0;
+    }
+
+    .first-column-label {
+        @apply text-xs mb-0.5;
+    }
+
+    .first-column-value {
+        @apply text-lg;
+    }
 }
 
 .table-container {
@@ -783,7 +735,7 @@ defineExpose({
     @apply border-b border-gray-200 transition-colors;
 }
 
-.results-table tbody tr:hover:not(.section-header-row):not(.base-row) {
+.results-table tbody tr:hover:not(.section-header-row):not(.base-row):not(.matricula-row) {
     @apply bg-gray-50;
 }
 
@@ -794,6 +746,16 @@ defineExpose({
 }
 
 .table-row.base-row .table-cell {
+    color: #ffffff;
+}
+
+.table-row.matricula-row {
+    background-color: var(--uniacc-purple);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.table-row.matricula-row .table-cell {
     color: #ffffff;
 }
 
@@ -838,6 +800,14 @@ defineExpose({
 
 .table-row.info-row {
     @apply bg-gray-50;
+}
+
+.table-row.estado-info-row {
+    @apply bg-purple-50;
+}
+
+.table-row.cae-info-row {
+    @apply bg-orange-50;
 }
 
 .table-cell {
@@ -969,6 +939,46 @@ defineExpose({
 
 .confirmation-message {
     @apply mt-4;
+}
+
+.anticipado-message {
+    @apply mt-6;
+}
+
+.anticipado-message-content {
+    @apply flex flex-col;
+}
+
+.anticipado-message-title {
+    @apply mb-2;
+    font-size: 0.9375rem;
+}
+
+.anticipado-message-list {
+    @apply list-disc pl-6 mt-2 space-y-2;
+}
+
+.anticipado-message-list li {
+    @apply text-sm;
+    line-height: 1.6;
+}
+
+.anticipado-message-list li b {
+    font-weight: 600;
+}
+
+.anticipado-message-list .subtitle-item {
+    @apply mb-1;
+}
+
+.anticipado-sublist {
+    @apply list-disc pl-5 mt-1 space-y-1;
+    font-size: 0.875rem;
+}
+
+.anticipado-sublist li {
+    @apply text-xs;
+    line-height: 1.5;
 }
 
 .subtotal-estado-row {

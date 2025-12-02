@@ -16,6 +16,9 @@ export interface BecasUniacc {
   nem_minimo: number | null
   requiere_paes: boolean
   paes_minimo: number | null
+  requiere_ranking: boolean | null
+  ranking_minimo: number | null
+  requiere_beca_estado: boolean | null
   requiere_region_especifica: boolean
   region_excluida: string | null
   requiere_genero: 'Masculino' | 'Femenino' | null
@@ -121,6 +124,7 @@ export function useBecas() {
       const { data, error: supabaseError } = await supabase
         .from('becas_estado')
         .select('*')
+        .eq('activa', true)
         .order('id', { ascending: true })
 
         console.log('COMPOSABLE - becasEstado cargadas:', data)
@@ -161,7 +165,25 @@ export function useBecas() {
       }
     }
 
-    // 3. Verificar región
+    // 3. Verificar ranking
+    if (beca.requiere_ranking && beca.ranking_minimo) {
+      if (!formData.ranking || formData.ranking < beca.ranking_minimo) {
+        elegible = false
+        razon = `Requiere ranking mínimo ${beca.ranking_minimo}`
+      }
+    }
+
+    // 4. Verificar beca estado
+    if (beca.requiere_beca_estado !== null && beca.requiere_beca_estado !== undefined) {
+      if (formData.usaBecasEstado !== beca.requiere_beca_estado) {
+        elegible = false
+        razon = beca.requiere_beca_estado 
+          ? 'Requiere tener beca del estado' 
+          : 'No aplica si tiene beca del estado'
+      }
+    }
+
+    // 5. Verificar región
     if (beca.requiere_region_especifica && beca.region_excluida) {
       if (formData.regionResidencia === beca.region_excluida) {
         elegible = false
@@ -169,7 +191,7 @@ export function useBecas() {
       }
     }
 
-    // 4. Verificar género
+    // 6. Verificar género
     if (beca.requiere_genero) {
       if (formData.genero !== beca.requiere_genero) {
         elegible = false
@@ -177,7 +199,7 @@ export function useBecas() {
       }
     }
 
-    // 5. Verificar carrera
+    // 7. Verificar carrera
     if (beca.carreras_aplicables && beca.carreras_aplicables.length > 0) {
       if (!formData.carrera || !beca.carreras_aplicables.includes(formData.carrera)) {
         elegible = false
@@ -185,7 +207,7 @@ export function useBecas() {
       }
     }
 
-    // 6. Verificar programas excluidos
+    // 8. Verificar programas excluidos
     if (beca.programas_excluidos && beca.programas_excluidos.length > 0) {
       if (formData.tipoPrograma && beca.programas_excluidos.includes(formData.tipoPrograma)) {
         elegible = false
@@ -193,7 +215,7 @@ export function useBecas() {
       }
     }
 
-    // 7. Verificar años de egreso
+    // 9. Verificar años de egreso
     if (beca.max_anos_egreso) {
       const anoActual = new Date().getFullYear()
       const anoEgreso = formData.añoEgreso ? parseInt(formData.añoEgreso) : null
@@ -203,7 +225,7 @@ export function useBecas() {
       }
     }
 
-    // 8. Verificar años PAES
+    // 10. Verificar años PAES
     if (beca.max_anos_paes) {
       const anoActual = new Date().getFullYear()
       // Para PAES, usamos el año de egreso como proxy ya que no tenemos año específico de PAES
@@ -214,7 +236,7 @@ export function useBecas() {
       }
     }
 
-    // 9. Verificar vigencia
+    // 11. Verificar vigencia
     const hoy = new Date()
     const vigenciaDesde = new Date(beca.vigencia_desde)
     const vigenciaHasta = beca.vigencia_hasta ? new Date(beca.vigencia_hasta) : null
@@ -229,13 +251,13 @@ export function useBecas() {
       razon = `Beca vencida desde ${vigenciaHasta.toLocaleDateString()}`
     }
 
-    // 10. Verificar modalidad
+    // 12. Verificar modalidad
     if (beca.modalidades_aplicables && beca.modalidades_aplicables.length > 0) {
       // Por ahora asumimos que todas las modalidades son válidas
       // En el futuro se podría agregar selección de modalidad
     }
 
-    // 11. Verificar cupos
+    // 13. Verificar cupos
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`

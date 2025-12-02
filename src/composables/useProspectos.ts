@@ -17,6 +17,17 @@ export function useProspectos() {
     loading.value = true
     error.value = null
     try {
+      // Extraer región y país del campo paisPasaporte si existe
+      // El formato es "REGION-PAIS" (ej: "LA-AR")
+      let regionPais: string | null = null
+      let pais: string | null = null
+      
+      if (form.paisPasaporte) {
+        const [region, countryCode] = form.paisPasaporte.split('-')
+        regionPais = region || null
+        pais = countryCode || null
+      }
+
       const payload: ProspectoInsert = {
         // Básicos
         nombre: form.nombre,
@@ -26,6 +37,8 @@ export function useProspectos() {
         genero: form.genero ? (form.genero as ProspectoInsert['genero']) : null,
         rut: form.tipoIdentificacion === 'rut' ? (form.identificacion || null) : null,
         pasaporte: form.tipoIdentificacion === 'pasaporte' ? (form.identificacion || null) : null,
+        region_pais: regionPais,
+        pais: pais,
 
         // Académicos
         curso: form.nivelEducativo || 'No especificado',

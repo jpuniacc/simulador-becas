@@ -84,6 +84,7 @@ export type Database = {
           max_anos_egreso: number | null
           max_anos_paes: number | null
           modalidades_aplicables: Json
+          nacionalidad_requerida: string | null
           nem_minimo: number | null
           nivel_aplicable: string | null
           nombre: string
@@ -91,11 +92,16 @@ export type Database = {
           prioridad: number | null
           proceso_evaluacion: string | null
           programas_excluidos: Json | null
+          ranking_minimo: number | null
           region_excluida: string | null
+          region_requerida: string | null
+          requiere_beca_estado: boolean | null
           requiere_documentacion: Json | null
           requiere_genero: string | null
+          requiere_nacionalidad: boolean | null
           requiere_nem: boolean | null
           requiere_paes: boolean | null
+          requiere_ranking: boolean | null
           requiere_region_especifica: boolean | null
           tipo_descuento: string | null
           updated_at: string | null
@@ -120,6 +126,7 @@ export type Database = {
           max_anos_egreso?: number | null
           max_anos_paes?: number | null
           modalidades_aplicables: Json
+          nacionalidad_requerida?: string | null
           nem_minimo?: number | null
           nivel_aplicable?: string | null
           nombre: string
@@ -127,11 +134,16 @@ export type Database = {
           prioridad?: number | null
           proceso_evaluacion?: string | null
           programas_excluidos?: Json | null
+          ranking_minimo?: number | null
           region_excluida?: string | null
+          region_requerida?: string | null
+          requiere_beca_estado?: boolean | null
           requiere_documentacion?: Json | null
           requiere_genero?: string | null
+          requiere_nacionalidad?: boolean | null
           requiere_nem?: boolean | null
           requiere_paes?: boolean | null
+          requiere_ranking?: boolean | null
           requiere_region_especifica?: boolean | null
           tipo_descuento?: string | null
           updated_at?: string | null
@@ -156,6 +168,7 @@ export type Database = {
           max_anos_egreso?: number | null
           max_anos_paes?: number | null
           modalidades_aplicables?: Json
+          nacionalidad_requerida?: string | null
           nem_minimo?: number | null
           nivel_aplicable?: string | null
           nombre?: string
@@ -163,11 +176,16 @@ export type Database = {
           prioridad?: number | null
           proceso_evaluacion?: string | null
           programas_excluidos?: Json | null
+          ranking_minimo?: number | null
           region_excluida?: string | null
+          region_requerida?: string | null
+          requiere_beca_estado?: boolean | null
           requiere_documentacion?: Json | null
           requiere_genero?: string | null
+          requiere_nacionalidad?: boolean | null
           requiere_nem?: boolean | null
           requiere_paes?: boolean | null
+          requiere_ranking?: boolean | null
           requiere_region_especifica?: boolean | null
           tipo_descuento?: string | null
           updated_at?: string | null
@@ -231,7 +249,6 @@ export type Database = {
         Row: {
           anio: number
           arancel: number
-          arancel_referencia_cae: number | null
           descripcion_programa: string
           duracion_programa: string
           id: number
@@ -241,11 +258,11 @@ export type Database = {
           nivel_academico: string | null
           nombre_programa: string
           requisitos_ingreso: string
+          version_simulador: number | null
         }
         Insert: {
           anio: number
           arancel: number
-          arancel_referencia_cae?: number | null
           descripcion_programa: string
           duracion_programa: string
           id?: number
@@ -255,11 +272,11 @@ export type Database = {
           nivel_academico?: string | null
           nombre_programa: string
           requisitos_ingreso: string
+          version_simulador?: number | null
         }
         Update: {
           anio?: number
           arancel?: number
-          arancel_referencia_cae?: number | null
           descripcion_programa?: string
           duracion_programa?: string
           id?: number
@@ -269,6 +286,7 @@ export type Database = {
           nivel_academico?: string | null
           nombre_programa?: string
           requisitos_ingreso?: string
+          version_simulador?: number | null
         }
         Relationships: []
       }
@@ -541,6 +559,459 @@ export type Database = {
         }
         Relationships: []
       }
+      descuento_modo_pago: {
+        Row: {
+          activa: boolean | null
+          dscto_arancel: number | null
+          id: string
+          nombre: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          dscto_arancel?: number | null
+          id?: string
+          nombre?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          dscto_arancel?: number | null
+          id?: string
+          nombre?: string | null
+        }
+        Relationships: []
+      }
+      descuento_pago_anticipado: {
+        Row: {
+          activa: boolean | null
+          dscto_arancel: number | null
+          dscto_matricula: number | null
+          fecha_inicio: string | null
+          fecha_termino: string | null
+          id: string
+          nombre: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          dscto_arancel?: number | null
+          dscto_matricula?: number | null
+          fecha_inicio?: string | null
+          fecha_termino?: string | null
+          id?: string
+          nombre?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          dscto_arancel?: number | null
+          dscto_matricula?: number | null
+          fecha_inicio?: string | null
+          fecha_termino?: string | null
+          id?: string
+          nombre?: string | null
+        }
+        Relationships: []
+      }
+      mnp_mt_alumno: {
+        Row: {
+          ano: number | null
+          ano_mat: number | null
+          anopestud: number | null
+          codcarpr: string
+          codcli: string
+          codpestud: string | null
+          codsede: string | null
+          estacad: string | null
+          jornada: string | null
+          periodo: number | null
+          periodo_mat: number | null
+          periodos: number | null
+          rut: string | null
+          sync_state: string | null
+          tipositu: number | null
+        }
+        Insert: {
+          ano?: number | null
+          ano_mat?: number | null
+          anopestud?: number | null
+          codcarpr: string
+          codcli: string
+          codpestud?: string | null
+          codsede?: string | null
+          estacad?: string | null
+          jornada?: string | null
+          periodo?: number | null
+          periodo_mat?: number | null
+          periodos?: number | null
+          rut?: string | null
+          sync_state?: string | null
+          tipositu?: number | null
+        }
+        Update: {
+          ano?: number | null
+          ano_mat?: number | null
+          anopestud?: number | null
+          codcarpr?: string
+          codcli?: string
+          codpestud?: string | null
+          codsede?: string | null
+          estacad?: string | null
+          jornada?: string | null
+          periodo?: number | null
+          periodo_mat?: number | null
+          periodos?: number | null
+          rut?: string | null
+          sync_state?: string | null
+          tipositu?: number | null
+        }
+        Relationships: []
+      }
+      mnp_mt_arancel: {
+        Row: {
+          ano: number | null
+          anofin: number | null
+          anoini: number | null
+          catalumno: number | null
+          codcarr: string | null
+          fecinivig: string | null
+          fectervig: string | null
+          jornada: string | null
+          matricula: number | null
+          monto: number | null
+          periodo: number | null
+          sync_state: string | null
+        }
+        Insert: {
+          ano?: number | null
+          anofin?: number | null
+          anoini?: number | null
+          catalumno?: number | null
+          codcarr?: string | null
+          fecinivig?: string | null
+          fectervig?: string | null
+          jornada?: string | null
+          matricula?: number | null
+          monto?: number | null
+          periodo?: number | null
+          sync_state?: string | null
+        }
+        Update: {
+          ano?: number | null
+          anofin?: number | null
+          anoini?: number | null
+          catalumno?: number | null
+          codcarr?: string | null
+          fecinivig?: string | null
+          fectervig?: string | null
+          jornada?: string | null
+          matricula?: number | null
+          monto?: number | null
+          periodo?: number | null
+          sync_state?: string | null
+        }
+        Relationships: []
+      }
+      mnp_mt_beneficio: {
+        Row: {
+          anos_duracion: number | null
+          aplicable: number | null
+          aplical: string | null
+          codben: number
+          descripcion: string | null
+          montomax: number | null
+          origen_beneficio: string | null
+          porcmax: number | null
+          prioridad: number | null
+          sync_state: string | null
+          tipo: string | null
+        }
+        Insert: {
+          anos_duracion?: number | null
+          aplicable?: number | null
+          aplical?: string | null
+          codben: number
+          descripcion?: string | null
+          montomax?: number | null
+          origen_beneficio?: string | null
+          porcmax?: number | null
+          prioridad?: number | null
+          sync_state?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          anos_duracion?: number | null
+          aplicable?: number | null
+          aplical?: string | null
+          codben?: number
+          descripcion?: string | null
+          montomax?: number | null
+          origen_beneficio?: string | null
+          porcmax?: number | null
+          prioridad?: number | null
+          sync_state?: string | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      mnp_mt_carrer: {
+        Row: {
+          codcarr: string
+          modalidad: number | null
+          nombre_c: string | null
+          nombre_l: string | null
+          sync_state: string | null
+          tipocarr: number | null
+          tipomat: number | null
+        }
+        Insert: {
+          codcarr: string
+          modalidad?: number | null
+          nombre_c?: string | null
+          nombre_l?: string | null
+          sync_state?: string | null
+          tipocarr?: number | null
+          tipomat?: number | null
+        }
+        Update: {
+          codcarr?: string
+          modalidad?: number | null
+          nombre_c?: string | null
+          nombre_l?: string | null
+          sync_state?: string | null
+          tipocarr?: number | null
+          tipomat?: number | null
+        }
+        Relationships: []
+      }
+      mnp_mt_catalumno: {
+        Row: {
+          activo: string | null
+          codcat: number
+          descripcion: string | null
+          periodos: number | null
+          sync_state: string | null
+        }
+        Insert: {
+          activo?: string | null
+          codcat: number
+          descripcion?: string | null
+          periodos?: number | null
+          sync_state?: string | null
+        }
+        Update: {
+          activo?: string | null
+          codcat?: number
+          descripcion?: string | null
+          periodos?: number | null
+          sync_state?: string | null
+        }
+        Relationships: []
+      }
+      mnp_mt_client: {
+        Row: {
+          categoria: number | null
+          celularact: string | null
+          ciudadact: string | null
+          codapod: string | null
+          codaval: string | null
+          codcli: string
+          codestcivil: string | null
+          comuna: string | null
+          dig: string | null
+          diractual: string | null
+          fecnac: string | null
+          fonoact: string | null
+          mail: string | null
+          mail_inst: string | null
+          materno: string | null
+          nacionalidad: string | null
+          nombre: string | null
+          paterno: string | null
+          sexo: string | null
+          sync_state: string | null
+        }
+        Insert: {
+          categoria?: number | null
+          celularact?: string | null
+          ciudadact?: string | null
+          codapod?: string | null
+          codaval?: string | null
+          codcli: string
+          codestcivil?: string | null
+          comuna?: string | null
+          dig?: string | null
+          diractual?: string | null
+          fecnac?: string | null
+          fonoact?: string | null
+          mail?: string | null
+          mail_inst?: string | null
+          materno?: string | null
+          nacionalidad?: string | null
+          nombre?: string | null
+          paterno?: string | null
+          sexo?: string | null
+          sync_state?: string | null
+        }
+        Update: {
+          categoria?: number | null
+          celularact?: string | null
+          ciudadact?: string | null
+          codapod?: string | null
+          codaval?: string | null
+          codcli?: string
+          codestcivil?: string | null
+          comuna?: string | null
+          dig?: string | null
+          diractual?: string | null
+          fecnac?: string | null
+          fonoact?: string | null
+          mail?: string | null
+          mail_inst?: string | null
+          materno?: string | null
+          nacionalidad?: string | null
+          nombre?: string | null
+          paterno?: string | null
+          sexo?: string | null
+          sync_state?: string | null
+        }
+        Relationships: []
+      }
+      mnp_mt_posben: {
+        Row: {
+          ano: number
+          aplicable: number | null
+          aprobado: string | null
+          codben: number
+          codcarr: string | null
+          codcli: string
+          estado: number | null
+          monto: number | null
+          monto_apr: number | null
+          orden: number | null
+          periodo: number
+          porc_apr: number | null
+          sync_state: string | null
+        }
+        Insert: {
+          ano: number
+          aplicable?: number | null
+          aprobado?: string | null
+          codben: number
+          codcarr?: string | null
+          codcli: string
+          estado?: number | null
+          monto?: number | null
+          monto_apr?: number | null
+          orden?: number | null
+          periodo: number
+          porc_apr?: number | null
+          sync_state?: string | null
+        }
+        Update: {
+          ano?: number
+          aplicable?: number | null
+          aprobado?: string | null
+          codben?: number
+          codcarr?: string | null
+          codcli?: string
+          estado?: number | null
+          monto?: number | null
+          monto_apr?: number | null
+          orden?: number | null
+          periodo?: number
+          porc_apr?: number | null
+          sync_state?: string | null
+        }
+        Relationships: []
+      }
+      mnp_mt_tipocarr: {
+        Row: {
+          descripcion: string | null
+          periodos: number | null
+          sync_state: string | null
+          tipocarr: number
+        }
+        Insert: {
+          descripcion?: string | null
+          periodos?: number | null
+          sync_state?: string | null
+          tipocarr: number
+        }
+        Update: {
+          descripcion?: string | null
+          periodos?: number | null
+          sync_state?: string | null
+          tipocarr?: number
+        }
+        Relationships: []
+      }
+      mnp_mt_tipomat: {
+        Row: {
+          ano_mat: number | null
+          descripcion: string | null
+          periodo_mat: number | null
+          periodos: number | null
+          periodosanuales: number | null
+          sync_state: string | null
+          tipomat: number
+        }
+        Insert: {
+          ano_mat?: number | null
+          descripcion?: string | null
+          periodo_mat?: number | null
+          periodos?: number | null
+          periodosanuales?: number | null
+          sync_state?: string | null
+          tipomat: number
+        }
+        Update: {
+          ano_mat?: number | null
+          descripcion?: string | null
+          periodo_mat?: number | null
+          periodos?: number | null
+          periodosanuales?: number | null
+          sync_state?: string | null
+          tipomat?: number
+        }
+        Relationships: []
+      }
+      mnp_ra_modalidad: {
+        Row: {
+          codigo: number
+          descripcion: string | null
+          sync_state: string | null
+        }
+        Insert: {
+          codigo: number
+          descripcion?: string | null
+          sync_state?: string | null
+        }
+        Update: {
+          codigo?: number
+          descripcion?: string | null
+          sync_state?: string | null
+        }
+        Relationships: []
+      }
+      mnp_ra_pestud: {
+        Row: {
+          codcarr: string | null
+          codpestud: string
+          duracion: number | null
+          nompestud: string | null
+        }
+        Insert: {
+          codcarr?: string | null
+          codpestud: string
+          duracion?: number | null
+          nompestud?: string | null
+        }
+        Update: {
+          codcarr?: string | null
+          codpestud?: string
+          duracion?: number | null
+          nompestud?: string | null
+        }
+        Relationships: []
+      }
       nacionalidades: {
         Row: {
           activa: boolean | null
@@ -600,10 +1071,12 @@ export type Database = {
           nem: number | null
           nombre: string
           paes: boolean | null
+          pais: string | null
           pasaporte: string | null
           rango_ingreso: string | null
           ranking: number | null
           region: string | null
+          region_pais: string | null
           rut: string | null
           telefono: string | null
           updated_at: string | null
@@ -627,10 +1100,12 @@ export type Database = {
           nem?: number | null
           nombre: string
           paes?: boolean | null
+          pais?: string | null
           pasaporte?: string | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
+          region_pais?: string | null
           rut?: string | null
           telefono?: string | null
           updated_at?: string | null
@@ -654,10 +1129,12 @@ export type Database = {
           nem?: number | null
           nombre?: string
           paes?: boolean | null
+          pais?: string | null
           pasaporte?: string | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
+          region_pais?: string | null
           rut?: string | null
           telefono?: string | null
           updated_at?: string | null
@@ -844,6 +1321,41 @@ export type Database = {
           porcentaje_maximo: number
           razon_elegibilidad: string
           tipo_beneficio: string
+        }[]
+      }
+      obtiene_apertura_periodo: {
+        Args: { p_tipomat: number }
+        Returns: {
+          ano_apertura: number
+          periodo_apertura: number
+          periodos_apertura: number
+        }[]
+      }
+      obtiene_arancel_carrera: {
+        Args: { p_codcarr: string; p_rut: string }
+        Returns: {
+          arancel_base: number
+          matricula_base: number
+          message: string
+          status: number
+        }[]
+      }
+      obtiene_carreras: {
+        Args: { p_rut: string }
+        Returns: {
+          codcarr: string
+          nombre: string
+        }[]
+      }
+      obtiene_datos_matricula: {
+        Args: { p_codcarr: string; p_rut: string }
+        Returns: {
+          ano_actual: number
+          ano_ingreso: number
+          periodo_actual: number
+          periodo_ingreso: number
+          periodos_actual: number
+          tipomat: number
         }[]
       }
       puede_simular: { Args: { prospecto_uuid: string }; Returns: boolean }

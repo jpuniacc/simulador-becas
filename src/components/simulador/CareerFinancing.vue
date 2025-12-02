@@ -4,7 +4,9 @@ import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import FloatLabel from 'primevue/floatlabel'
 import ToggleSwitch from 'primevue/toggleswitch'
+import ToggleButton from 'primevue/togglebutton'
 import Dropdown from 'primevue/dropdown'
+import SelectButton from 'primevue/selectbutton'
 import Tag from 'primevue/tag'
 import OverlayPanel from 'primevue/overlaypanel'
 import { GraduationCap, TrendingUp, CheckCircle, Info } from 'lucide-vue-next'
@@ -79,10 +81,28 @@ const carrerasSugeridas = ['Danza', 'Arquitectura', 'Ingeniería Comercial']
 const financingTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const financingIconRef = ref<HTMLElement | null>(null)
 
+const opcionesPAES = [
+    { label: 'No', value: false },
+    { label: 'Sí', value: true },
+]
+
+const opcionesFinanciamiento = [
+    { label: 'No', value: false },
+    { label: 'Sí', value: true },
+]
+
+// Estado para controlar si piensa usar financiamiento del estado
+const piensaUsarFinanciamiento = ref(false)
+
 // Computed para carreras filtradas
 const carrerasFiltradas = computed(() => {
     if (!searchTerm.value || !searchTerm.value.trim()) return carrerasVigentes.value
     return buscarCarreras(searchTerm.value)
+})
+
+// Computed para verificar si es egresado
+const isEgresado = computed(() => {
+    return props.formData?.nivelEducativo === 'Egresado'
 })
 
 // Computed para verificar si se debe mostrar el select de deciles
@@ -110,7 +130,7 @@ const selectedDecilValue = computed({
 // Computed para verificar si el formulario es válido
 const isFormValid = computed(() => {
     const hasCarrera = !!formData.value.carrera && formData.value.carreraId > 0
-    
+
     // Si rindió PAES, los campos de PAES son obligatorios
     if (formData.value.rendioPAES) {
         const hasLenguaje = formData.value.paes?.lenguaje !== null && formData.value.paes?.lenguaje !== undefined
@@ -119,12 +139,12 @@ const isFormValid = computed(() => {
             return false
         }
     }
-    
+
     // Si selecciona alguna opción de financiamiento, debe seleccionar decil
     if (showDecilSelection.value) {
         return hasCarrera && formData.value.decil !== null && formData.value.decil !== undefined
     }
-    
+
     return hasCarrera
 })
 
@@ -273,13 +293,22 @@ watch(() => formData.value.rendioPAES, (newValue) => {
     }
 })
 
+// Watcher para limpiar opciones de financiamiento si cambia piensaUsarFinanciamiento
+watch(() => piensaUsarFinanciamiento.value, (newValue) => {
+    if (!newValue) {
+        formData.value.planeaUsarCAE = false
+        formData.value.usaBecasEstado = false
+        formData.value.decil = null
+    }
+})
+
 // Método para manejar cambios en financiamiento
 const handleFinancingChange = () => {
     // Si deselecciona ambas opciones, limpiar decil
     if (!formData.value.planeaUsarCAE && !formData.value.usaBecasEstado) {
         formData.value.decil = null
     }
-    
+
     // Emitir datos actualizados
     emit('update:form-data', formData.value)
     emit('validation-change', isFormValid.value)
@@ -288,7 +317,7 @@ const handleFinancingChange = () => {
 // Watcher para actualizar cuando cambien las props
 watch(() => props.formData, (newData) => {
     if (newData) {
-        const hasChanges = 
+        const hasChanges =
             formData.value.carrera !== (newData.carrera || '') ||
             formData.value.carreraId !== (newData.carreraId || 0) ||
             formData.value.tipoPrograma !== (newData.tipoPrograma || 'Regular') ||
@@ -369,36 +398,23 @@ onUnmounted(() => {
 
                         <!-- Dropdown de carreras -->
                         <div class="form-field">
-                            
+
                             <div class="relative carrera-dropdown" ref="dropdownRef">
-                                <InputText
-                                    id="carrera"
-                                    v-model="searchTerm"
-                                    type="text"
-                                    placeholder="Busca tu carrera..."
-                                    class="form-input pr-10"
-                                    @focus="showDropdown = true; calculateDropdownPosition()"
-                                    @input="handleSearch"
-                                    autocomplete="off"
-                                    autocorrect="off"
-                                />
+                                <InputText id="carrera" v-model="searchTerm" type="text"
+                                    placeholder="Busca tu carrera..." class="form-input pr-10"
+                                    @focus="showDropdown = true; calculateDropdownPosition()" @input="handleSearch"
+                                    autocomplete="off" autocorrect="off" />
                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                     <i class="pi pi-chevron-down text-gray-400"></i>
                                 </div>
 
                                 <!-- Dropdown de carreras -->
-                                <div
-                                    v-if="showDropdown"
+                                <div v-if="showDropdown"
                                     class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                                    :style="dropdownStyle"
-                                    data-dropdown-content
-                                >
-                                    <div
-                                        v-for="carrera in carrerasFiltradas"
-                                        :key="carrera.id"
+                                    :style="dropdownStyle" data-dropdown-content>
+                                    <div v-for="carrera in carrerasFiltradas" :key="carrera.id"
                                         class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                                        @click="selectCarrera(carrera)"
-                                    >
+                                        @click="selectCarrera(carrera)">
                                         <div class="font-medium text-gray-900">{{ carrera.nombre_programa }}</div>
                                         <div class="text-sm text-gray-500">{{ carrera.nivel_academico }}</div>
                                         <div class="text-xs text-blue-600 mt-1">{{ carrera.duracion_programa }}</div>
@@ -410,46 +426,35 @@ onUnmounted(() => {
                             </p>
                             <div class="career-suggestions">
                                 <span class="suggestions-label">Ejemplos:</span>
-                                <Tag
-                                    v-for="carrera in carrerasSugeridas"
-                                    :key="carrera"
-                                    :value="carrera"
-                                    severity="success"
-                                    class="suggestion-tag"
-                                    @click="seleccionarCarreraSugerida(carrera)"
-                                />
+                                <Tag v-for="carrera in carrerasSugeridas" :key="carrera" :value="carrera"
+                                    severity="success" class="suggestion-tag"
+                                    @click="seleccionarCarreraSugerida(carrera)" />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- ToggleSwitch para PAES -->
-                <div class="form-field paes-field">
+                <!-- ToggleSwitch para PAES (solo para egresados) -->
+                <div v-if="isEgresado" class="form-field paes-field">
                     <label for="rendioPAES" class="form-label">
                         ¿Rendiste la PAES?
                     </label>
-                    <ToggleSwitch
-                        id="rendioPAES"
-                        v-model="formData.rendioPAES"
-                        class="paes-toggle"
-                    />
+                    <!-- <ToggleSwitch id="rendioPAES" v-model="formData.rendioPAES" class="paes-toggle" /> -->
+                    <SelectButton :options="opcionesPAES" v-model="formData.rendioPAES" optionLabel="label"
+                        optionValue="value" class="paes-select-button"/>
                     <span v-if="formData.rendioPAES" class="text-sm text-gray-500 mt-2 mb-0 block">
                         Ingresa tus puntajes PAES en los campos a continuación
                     </span>
                 </div>
 
+                
+
                 <!-- Comprensión Lectora (solo si rindió PAES) -->
                 <div v-if="formData.rendioPAES" class="form-field">
                     <FloatLabel>
-                        <InputNumber 
-                            id="lenguaje" 
-                            v-model="lenguajeValue" 
-                            :min="150" 
-                            :max="1000" 
-                            :useGrouping="false"
+                        <InputNumber id="lenguaje" v-model="lenguajeValue" :min="150" :max="1000" :useGrouping="false"
                             class="form-input"
-                            :class="{ 'p-invalid': formData.rendioPAES && (formData.paes?.lenguaje === null || formData.paes?.lenguaje === undefined) }"
-                        />
+                            :class="{ 'p-invalid': formData.rendioPAES && (formData.paes?.lenguaje === null || formData.paes?.lenguaje === undefined) }" />
                         <label for="lenguaje">Comprensión Lectora *</label>
                     </FloatLabel>
                 </div>
@@ -457,30 +462,30 @@ onUnmounted(() => {
                 <!-- Matemática 1 (solo si rindió PAES) -->
                 <div v-if="formData.rendioPAES" class="form-field">
                     <FloatLabel>
-                        <InputNumber 
-                            id="matematica" 
-                            v-model="matematicaValue" 
-                            :min="150" 
-                            :max="1000" 
-                            :useGrouping="false"
-                            class="form-input"
-                            :class="{ 'p-invalid': formData.rendioPAES && (formData.paes?.matematica === null || formData.paes?.matematica === undefined) }"
-                        />
+                        <InputNumber id="matematica" v-model="matematicaValue" :min="150" :max="1000"
+                            :useGrouping="false" class="form-input"
+                            :class="{ 'p-invalid': formData.rendioPAES && (formData.paes?.matematica === null || formData.paes?.matematica === undefined) }" />
                         <label for="matematica">Matemática 1 *</label>
                     </FloatLabel>
                 </div>
 
-                <!-- Opciones de financiamiento -->
-                <div class="form-field financing-options-field">
-                    <h4 class="section-title">
+                <!-- Pregunta sobre financiamiento del estado -->
+                <div class="form-field financiamiento-field">
+                    <label for="piensaUsarFinanciamiento" class="form-label">
+                        ¿Piensas usar financiamiento del Estado?
+                    </label>
+                    <SelectButton :options="opcionesFinanciamiento" v-model="piensaUsarFinanciamiento" optionLabel="label"
+                        optionValue="value" class="paes-select-button"/>
+                </div>
+
+                <!-- Opciones de financiamiento (solo si piensa usar financiamiento del estado) -->
+                <div v-if="piensaUsarFinanciamiento" class="form-field financing-options-field">
+                    <h4 class="text-md text-gray-500 mt-2 mb-2 block">
                         ¿Qué tipo de financiamiento planeas utilizar?
                         <span ref="financingIconRef" class="inline-flex ml-2">
-                            <Info 
-                                class="w-4 h-4 text-gray-500 cursor-help hover:text-gray-700" 
-                                @click.stop="showFinancingTooltip"
-                                @mouseenter="showFinancingTooltip"
-                                @mouseleave="hideFinancingTooltip"
-                            />
+                            <Info class="w-3 h-3 text-gray-500 cursor-help hover:text-gray-700"
+                                @click.stop="showFinancingTooltip" @mouseenter="showFinancingTooltip"
+                                @mouseleave="hideFinancingTooltip" />
                         </span>
                     </h4>
                     <OverlayPanel ref="financingTooltipRef" class="custom-tooltip-panel">
@@ -491,7 +496,8 @@ onUnmounted(() => {
                             </div>
                             <div>
                                 <h4 class="tooltip-title">CAE:</h4>
-                                <p class="tooltip-description">Un crédito pensado para estudiantes. Sólo se paga después de titular y con ingresos.</p>
+                                <p class="tooltip-description">Un crédito pensado para estudiantes. Sólo se paga después
+                                    de titular y con ingresos.</p>
                             </div>
                         </div>
                     </OverlayPanel>
@@ -499,12 +505,8 @@ onUnmounted(() => {
                         <!-- CAE -->
                         <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE }">
                             <label class="option-label">
-                                <input
-                                    v-model="formData.planeaUsarCAE"
-                                    type="checkbox"
-                                    @change="handleFinancingChange"
-                                    class="option-checkbox"
-                                />
+                                <input v-model="formData.planeaUsarCAE" type="checkbox" @change="handleFinancingChange"
+                                    class="option-checkbox" />
                                 <div class="option-content">
                                     <div class="option-icon">
                                         <TrendingUp class="w-6 h-6" />
@@ -520,12 +522,8 @@ onUnmounted(() => {
                         <!-- Becas del Estado -->
                         <div class="option-card" :class="{ 'selected': formData.usaBecasEstado }">
                             <label class="option-label">
-                                <input
-                                    v-model="formData.usaBecasEstado"
-                                    type="checkbox"
-                                    @change="handleFinancingChange"
-                                    class="option-checkbox"
-                                />
+                                <input v-model="formData.usaBecasEstado" type="checkbox" @change="handleFinancingChange"
+                                    class="option-checkbox" />
                                 <div class="option-content">
                                     <div class="option-icon">
                                         <CheckCircle class="w-6 h-6" />
@@ -544,22 +542,13 @@ onUnmounted(() => {
                 <div v-if="showDecilSelection" class="form-field">
                     <label for="decil" class="form-label decil-label">
                         Tramo de Renta Mensual *
-                        <i 
-                            v-tooltip="'Toma el total de ingresos y dividelos por la cantidad de personas que viven en él'"
-                            class="pi pi-question-circle decil-icon"
-                        ></i>
+                        <i v-tooltip="'Toma el total de ingresos y dividelos por la cantidad de personas que viven en él'"
+                            class="pi pi-question-circle decil-icon"></i>
                     </label>
-                    <Dropdown
-                        id="decil"
-                        v-model="selectedDecilValue"
-                        :options="decilesOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Selecciona rango"
-                        class="form-input w-full"
+                    <Dropdown id="decil" v-model="selectedDecilValue" :options="decilesOptions" optionLabel="label"
+                        optionValue="value" placeholder="Selecciona rango" class="form-input w-full"
                         :class="{ 'p-invalid': showDecilSelection && (formData.decil === null || formData.decil === undefined) }"
-                        :loading="decilesLoading"
-                    />
+                        :loading="decilesLoading" />
                     <small v-if="decilesError" class="p-error">{{ decilesError }}</small>
                 </div>
             </div>
@@ -575,6 +564,10 @@ onUnmounted(() => {
 }
 
 .paes-field {
+    @apply col-span-1 md:col-span-2;
+}
+
+.financiamiento-field {
     @apply col-span-1 md:col-span-2;
 }
 
@@ -607,6 +600,8 @@ onUnmounted(() => {
 :deep(.paes-toggle) {
     @apply scale-125;
 }
+
+
 
 /* Estilos para opciones de financiamiento */
 .financing-options {

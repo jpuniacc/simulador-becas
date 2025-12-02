@@ -448,6 +448,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
         await carrerasStore.cargarCarreras()
       }
       if (becasStore.becas.length === 0) {
+        console.log('🚀 simulate - Cargando becas')
         await becasStore.cargarBecas()
       }
       
@@ -466,12 +467,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
       calculoBecas.value = becasStore.calcularBecas(formData.value)
 
       // Calcular becas del estado elegibles
-      console.log('🚀 simulate - Calculando becas del estado elegibles')
-      becasStore.calcularBecasElegiblesEstado(formData.value)
-      console.log('🚀 simulate - Becas del estado calculadas:', {
-        total: becasStore.becasElegiblesEstado.length,
-        aplicadas: becasStore.becasElegiblesEstado.filter(b => b.elegible).length
-      })
+      // becasStore.calcularBecasElegiblesEstado(formData.value) // No se calcula becas del estado en la simulación
 
       // Recrear simulación con datos actuales
       simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)

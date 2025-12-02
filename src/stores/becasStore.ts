@@ -20,6 +20,9 @@ export interface BecasUniacc {
   requiere_region_especifica: boolean
   region_excluida: string | null
   requiere_genero: 'Masculino' | 'Femenino' | null
+  requiere_nacionalidad: boolean
+  nacionalidad_requerida: string | null
+  region_requerida: string | null
   carreras_aplicables: string[] | null
   programas_excluidos: string[] | null
   max_anos_egreso: number | null
@@ -210,23 +213,40 @@ export const useBecasStore = defineStore('becas', () => {
     if (beca.nombre.toLowerCase().includes('apoyo regional') || beca.nombre.toLowerCase().includes('regional')) {
       // Obtener el region_id del colegio seleccionado (13 = Región Metropolitana)
       const regionId = formData.regionId || 13 // Por defecto RM si no está definida
-
-      console.log('🔍 Verificando Beca Apoyo Regional:')
-      console.log('  - Becas nombre:', beca.nombre)
-      console.log('  - formData.regionId:', formData.regionId)
-      console.log('  - regionId usado:', regionId)
-      console.log('  - ¿Es región 13?', regionId === 13)
-
       // Si el colegio está en Región Metropolitana (region_id = 13), no aplica la beca regional
       if (regionId === 13) {
         elegible = false
         razon = 'Beca Apoyo Regional solo aplica para estudiantes de regiones (fuera de RM)'
-        console.log('  ❌ NO elegible - Región Metropolitana')
       } else {
         // Si está fuera de RM, es elegible automáticamente
         elegible = true
         razon = `Elegible por residir en región ${regionId} (fuera de Región Metropolitana)`
-        console.log('  ✅ ELEGIBLE - Fuera de Región Metropolitana')
+      }
+    }
+
+    // 4. Verificar nacionalidad
+    if (beca.requiere_nacionalidad) {
+      
+      // Verificar que el usuario tenga pasaporte
+      if (formData.tipoIdentificacion !== 'pasaporte' || !formData.paisPasaporte) {
+        elegible = false
+        razon = `Requiere nacionalidad ${beca.nacionalidad_requerida ?? beca.region_requerida} (pasaporte requerido)`
+      } else {
+        // Extraer región y país del formato "REGION-PAIS" (ej: "LA-AR", "CB-HT")
+        const [regionPasaporte, paisPasaporte] = formData.paisPasaporte.split('-')
+        const regionRequerida = beca.nacionalidad_requerida.split('-')[0]
+        const paisRequerido = beca.nacionalidad_requerida.split('-')[1]
+
+        if (regionRequerida === regionPasaporte) {
+          elegible = true
+          razon = `Elegible por pasaporte región ${regionPasaporte}`
+        } else if (paisRequerido === paisPasaporte) {
+          elegible = true
+          razon = `Elegible por pasaporte país ${paisPasaporte}`
+        } else {
+          elegible = false
+          razon = `No cumple con la nacionalidad requerida`
+        }
       }
     }
 
@@ -319,24 +339,30 @@ export const useBecasStore = defineStore('becas', () => {
   }
 
   // Calcular becas elegibles para un estudiante
+  // Retorna solo la beca elegible con la prioridad más baja (menor número)
   const calcularBecasElegibles = (formData: FormData): BecasElegibles[] => {
-    return becas.value.map(beca => verificarElegibilidad(beca, formData))
+    // Obtener todas las becas con su estado de elegibilidad
+    const todasLasBecasElegibles = becas.value.map(beca => verificarElegibilidad(beca, formData))
+
+    console.log('STORE - todasLasBecasElegibles:', todasLasBecasElegibles)
+    
+    // Filtrar solo las elegibles
+    const becasElegibles = todasLasBecasElegibles.filter(b => b.elegible)
+    
+    // Si no hay becas elegibles, retornar array vacío
+    if (becasElegibles.length === 0) {
+      return []
+    }
+    
+    // Ordenar por prioridad (menor número = mayor prioridad)
+    becasElegibles.sort((a, b) => a.beca.prioridad - b.beca.prioridad)
+    
+    // Retornar solo la beca con la prioridad más baja (primera del array ordenado)
+    return [becasElegibles[0]]
   }
 
   // Verificar elegibilidad de una beca del estado específica
   const verificarElegibilidadEstado = (beca: BecasEstado, formData: FormData): BecasElegiblesEstado => {
-    console.log('🔍 verificarElegibilidadEstado - Inicio:', {
-      becaNombre: beca.nombre,
-      becaId: beca.id,
-      usaBecasEstado: formData.usaBecasEstado,
-      formData: {
-        nem: formData.nem,
-        rendioPAES: formData.rendioPAES,
-        paes: formData.paes,
-        decil: formData.decil
-      }
-    })
-
     let elegible = true
     let razon = ''
     let descuento_aplicado = 0
@@ -344,7 +370,6 @@ export const useBecasStore = defineStore('becas', () => {
 
     // Verificar que el usuario haya marcado que usa becas del estado
     if (!formData.usaBecasEstado) {
-      console.log('❌ verificarElegibilidadEstado - No usa becas del estado')
       elegible = false
       razon = 'El estudiante no indicó que usa becas del estado'
       return {
@@ -390,14 +415,6 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    console.log('✅ verificarElegibilidadEstado - Resultado:', {
-      becaNombre: beca.nombre,
-      elegible,
-      razon,
-      descuento_aplicado,
-      monto_descuento
-    })
-
     return {
       beca,
       elegible,
@@ -409,31 +426,10 @@ export const useBecasStore = defineStore('becas', () => {
 
   // Calcular becas del estado elegibles para un estudiante
   const calcularBecasElegiblesEstado = (formData: FormData): BecasElegiblesEstado[] => {
-    console.log('📊 calcularBecasElegiblesEstado - Inicio:', {
-      totalBecasEstado: becasEstado.value.length,
-      usaBecasEstado: formData.usaBecasEstado,
-      formData: {
-        nem: formData.nem,
-        rendioPAES: formData.rendioPAES,
-        paes: formData.paes,
-        decil: formData.decil
-      }
-    })
 
     const elegibles = becasEstado.value.map(beca => verificarElegibilidadEstado(beca, formData))
     becasElegiblesEstado.value = elegibles
-    
     const aplicadas = elegibles.filter(b => b.elegible)
-    console.log('📊 calcularBecasElegiblesEstado - Resultado:', {
-      totalElegibles: elegibles.length,
-      totalAplicadas: aplicadas.length,
-      aplicadas: aplicadas.map(b => ({
-        nombre: b.beca.nombre,
-        elegible: b.elegible,
-        razon: b.razon
-      }))
-    })
-
     return elegibles
   }
 
@@ -502,6 +498,7 @@ export const useBecasStore = defineStore('becas', () => {
   }
 
   // Calcular becas completas para un estudiante
+  // Solo calcula becas internas, no considera becas del estado
   const calcularBecas = (formData: FormData, arancelBase?: number): CalculoBecas => {
     // Si no se proporciona arancel, obtenerlo de la carrera seleccionada
     let arancelCalculado = arancelBase || 0
@@ -510,43 +507,12 @@ export const useBecasStore = defineStore('becas', () => {
       arancelCalculado = carrerasStore.obtenerArancelCarrera(formData.carrera)
     }
 
-    // Primero calcular y aplicar becas del estado si el usuario las usa
-    let arancelDespuesEstado = arancelCalculado
-    console.log('💰 calcularBecas - Verificando becas del estado:', {
-      usaBecasEstado: formData.usaBecasEstado,
-      totalBecasEstado: becasEstado.value.length,
-      arancelCalculado
-    })
-
-    if (formData.usaBecasEstado && becasEstado.value.length > 0) {
-      const becasEstadoElegibles = calcularBecasElegiblesEstado(formData)
-      const becasEstadoAplicadas = becasEstadoElegibles.filter(b => b.elegible)
-      console.log('💰 calcularBecas - Becas del estado aplicadas:', {
-        total: becasEstadoAplicadas.length,
-        becas: becasEstadoAplicadas.map(b => ({
-          nombre: b.beca.nombre,
-          monto_descuento: b.monto_descuento,
-          descuento_aplicado: b.descuento_aplicado
-        }))
-      })
-      
-      // Aplicar descuentos de becas del estado
-      for (const becaEstado of becasEstadoAplicadas) {
-        let montoDescuento = 0
-        if (becaEstado.beca.tipo_descuento === 'porcentaje' && becaEstado.descuento_aplicado) {
-          montoDescuento = (arancelDespuesEstado * becaEstado.descuento_aplicado) / 100
-        } else if (becaEstado.beca.tipo_descuento === 'monto_fijo' && becaEstado.monto_descuento) {
-          montoDescuento = becaEstado.monto_descuento
-        }
-        arancelDespuesEstado -= montoDescuento
-      }
-    }
-
-    // Calcular becas internas sobre el arancel después de aplicar becas del estado
+    // Calcular becas internas directamente sobre el arancel base
+    // No se consideran becas del estado en el cálculo
     const becasElegibles = calcularBecasElegibles(formData)
-    const resultado = aplicarPrelacion(becasElegibles, arancelDespuesEstado)
+    const resultado = aplicarPrelacion(becasElegibles, arancelCalculado)
     
-    // Ajustar el arancel_base al original para mantener consistencia
+    // Asegurar que el arancel_base sea el original
     return {
       ...resultado,
       arancel_base: arancelCalculado

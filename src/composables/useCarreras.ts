@@ -26,6 +26,7 @@ export function useCarreras() {
       const { data, error: supabaseError } = await supabase
         .from('carreras_uniacc')
         .select('*')
+        .eq('version_simulador', 1)
         .order('nombre_programa')
 
       if (supabaseError) {
