@@ -249,6 +249,7 @@ export type Database = {
         Row: {
           anio: number
           arancel: number
+          area: string | null
           descripcion_programa: string
           duracion_programa: string
           id: number
@@ -263,6 +264,7 @@ export type Database = {
         Insert: {
           anio: number
           arancel: number
+          area?: string | null
           descripcion_programa: string
           duracion_programa: string
           id?: number
@@ -277,6 +279,7 @@ export type Database = {
         Update: {
           anio?: number
           arancel?: number
+          area?: string | null
           descripcion_programa?: string
           duracion_programa?: string
           id?: number
@@ -1055,9 +1058,11 @@ export type Database = {
         Row: {
           año_egreso: number | null
           apellido: string
+          area_interes: string | null
           becas_estado: boolean | null
           cae: boolean | null
           carrera: number | null
+          carreratitulo: string | null
           colegio: string | null
           comprension_lectora: number | null
           comuna: string | null
@@ -1068,8 +1073,10 @@ export type Database = {
           genero: string | null
           id: string
           matematica1: number | null
+          modalidadpreferencia: string | null
           nem: number | null
           nombre: string
+          objetivo: Json | null
           paes: boolean | null
           pais: string | null
           pasaporte: string | null
@@ -1078,15 +1085,18 @@ export type Database = {
           region: string | null
           region_pais: string | null
           rut: string | null
+          segmentacion: string | null
           telefono: string | null
           updated_at: string | null
         }
         Insert: {
           año_egreso?: number | null
           apellido: string
+          area_interes?: string | null
           becas_estado?: boolean | null
           cae?: boolean | null
           carrera?: number | null
+          carreratitulo?: string | null
           colegio?: string | null
           comprension_lectora?: number | null
           comuna?: string | null
@@ -1097,8 +1107,10 @@ export type Database = {
           genero?: string | null
           id?: string
           matematica1?: number | null
+          modalidadpreferencia?: string | null
           nem?: number | null
           nombre: string
+          objetivo?: Json | null
           paes?: boolean | null
           pais?: string | null
           pasaporte?: string | null
@@ -1107,15 +1119,18 @@ export type Database = {
           region?: string | null
           region_pais?: string | null
           rut?: string | null
+          segmentacion?: string | null
           telefono?: string | null
           updated_at?: string | null
         }
         Update: {
           año_egreso?: number | null
           apellido?: string
+          area_interes?: string | null
           becas_estado?: boolean | null
           cae?: boolean | null
           carrera?: number | null
+          carreratitulo?: string | null
           colegio?: string | null
           comprension_lectora?: number | null
           comuna?: string | null
@@ -1126,8 +1141,10 @@ export type Database = {
           genero?: string | null
           id?: string
           matematica1?: number | null
+          modalidadpreferencia?: string | null
           nem?: number | null
           nombre?: string
+          objetivo?: Json | null
           paes?: boolean | null
           pais?: string | null
           pasaporte?: string | null
@@ -1136,6 +1153,7 @@ export type Database = {
           region?: string | null
           region_pais?: string | null
           rut?: string | null
+          segmentacion?: string | null
           telefono?: string | null
           updated_at?: string | null
         }

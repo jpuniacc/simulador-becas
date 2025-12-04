@@ -43,6 +43,12 @@ export interface FormData {
     matematica2: number | null
     terceraAsignatura: 'matematica2' | 'ciencias' | 'historia' | null
   }
+
+  // Datos Postgrado
+  carreraTitulo: string,
+  area: string, 
+  modalidadPreferencia: 'Presencial' | 'Online' | 'Semipresencial' | null,
+  objetivo: ('mejorar_habilidades' | 'cambiar_carrera' | 'mejorar_empleo' | 'otro')[],
 }
 
 export interface SimulationResults {

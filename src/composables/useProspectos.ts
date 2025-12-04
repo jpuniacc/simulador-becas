@@ -10,7 +10,7 @@ export function useProspectos() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const insertarProspecto = async (form: FormData): Promise<ProspectoRow | null> => {
+  const insertarProspecto = async (form: FormData, segmentacion?: string): Promise<ProspectoRow | null> => {
     console.log('**********DATOS PROSPECTO***************')
     console.log(form);
     console.log('**********************************')
@@ -59,7 +59,16 @@ export function useProspectos() {
         decil: form.decil != null ? String(form.decil) : null,
         rango_ingreso: form.ingresoMensual,
         cae: form.planeaUsarCAE ?? null,
-        becas_estado: form.usaBecasEstado ?? null
+        becas_estado: form.usaBecasEstado ?? null,
+
+        // Postgrado
+        carreratitulo: form.carreraTitulo || null,
+        area_interes: form.area || null,
+        modalidadpreferencia: form.modalidadPreferencia || null,
+        objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
+
+        // Segmentación
+        segmentacion: segmentacion || null
       }
 
       const { data, error: insertError } = await supabase

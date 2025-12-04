@@ -14,6 +14,24 @@ const router = createRouter({
       }
     },
     {
+      path: '/elige-tu-camino',
+      name: 'elige-tu-camino',
+      component: () => import('../views/Segmentation.vue'),
+      meta: {
+        title: 'Elige tu camino - UNIACC',
+        description: 'Elige tu camino hacia la universidad en UNIACC'
+      }
+    },
+    {
+      path: '/postgrado',
+      name: 'postgrado',
+      component: () => import('../views/PostgradoView.vue'),
+      meta: {
+        title: 'Postgrado - UNIACC',
+        description: 'Postgrado en UNIACC'
+      }
+    },
+    {
       path: '/simulador',
       name: 'simulador',
       component: () => import('../views/Simulador2View.vue'),

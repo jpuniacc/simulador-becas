@@ -3,12 +3,11 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import FloatLabel from 'primevue/floatlabel'
-import ToggleSwitch from 'primevue/toggleswitch'
-import ToggleButton from 'primevue/togglebutton'
 import Dropdown from 'primevue/dropdown'
 import SelectButton from 'primevue/selectbutton'
 import Tag from 'primevue/tag'
 import OverlayPanel from 'primevue/overlaypanel'
+import Message from 'primevue/message'
 import { GraduationCap, TrendingUp, CheckCircle, Info } from 'lucide-vue-next'
 import { useCarreras, type Carrera } from '@/composables/useCarreras'
 import { useDeciles, type Decil } from '@/composables/useDeciles'
@@ -81,6 +80,19 @@ const carrerasSugeridas = ['Danza', 'Arquitectura', 'Ingeniería Comercial']
 const financingTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const financingIconRef = ref<HTMLElement | null>(null)
 
+// Estado para controlar cuándo mostrar errores
+const submitted = ref(false)
+const touched = ref({
+    carrera: false,
+    paesLenguaje: false,
+    paesMatematica: false,
+    financiamiento: false,
+    decil: false
+})
+
+// Computed para verificar si es egresado
+const isEgresadoOr4to = computed(() => props.formData?.nivelEducativo === 'Egresado' || props.formData?.nivelEducativo === '4to Medio')
+
 const opcionesPAES = [
     { label: 'No', value: false },
     { label: 'Sí', value: true },
@@ -107,7 +119,7 @@ const isEgresado = computed(() => {
 
 // Computed para verificar si se debe mostrar el select de deciles
 const showDecilSelection = computed(() => {
-    return formData.value.planeaUsarCAE || formData.value.usaBecasEstado
+    return piensaUsarFinanciamiento.value
 })
 
 // Computed para opciones del dropdown de deciles
@@ -136,6 +148,14 @@ const isFormValid = computed(() => {
         const hasLenguaje = formData.value.paes?.lenguaje !== null && formData.value.paes?.lenguaje !== undefined
         const hasMatematica = formData.value.paes?.matematica !== null && formData.value.paes?.matematica !== undefined
         if (!hasCarrera || !hasLenguaje || !hasMatematica) {
+            return false
+        }
+    }
+
+    // Si piensa usar financiamiento del estado, debe seleccionar al menos una opción
+    if (piensaUsarFinanciamiento.value) {
+        const hasFinancingOption = formData.value.planeaUsarCAE || formData.value.usaBecasEstado
+        if (!hasFinancingOption) {
             return false
         }
     }
@@ -191,6 +211,7 @@ const selectCarrera = (carrera: Carrera) => {
     formData.value.tipoPrograma = 'Regular' // Por defecto, se puede ajustar según necesidad
     searchTerm.value = carrera.nombre_programa
     showDropdown.value = false
+    touched.value.carrera = true
 }
 
 const calculateDropdownPosition = () => {
@@ -304,6 +325,7 @@ watch(() => piensaUsarFinanciamiento.value, (newValue) => {
 
 // Método para manejar cambios en financiamiento
 const handleFinancingChange = () => {
+    touched.value.financiamiento = true
     // Si deselecciona ambas opciones, limpiar decil
     if (!formData.value.planeaUsarCAE && !formData.value.usaBecasEstado) {
         formData.value.decil = null
@@ -355,9 +377,47 @@ watch(() => props.formData, (newData) => {
     }
 }, { deep: true })
 
+// Función para marcar el formulario como submitted (cuando se intenta avanzar)
+const markAsSubmitted = () => {
+    submitted.value = true
+    // Marcar todos los campos como touched
+    Object.keys(touched.value).forEach(key => {
+        touched.value[key as keyof typeof touched.value] = true
+    })
+}
+
+// Función para obtener los campos faltantes
+const getMissingFields = (): string[] => {
+    const missing: string[] = []
+    
+    if (!formData.value.carrera?.trim() || formData.value.carreraId === 0) {
+        missing.push('Carrera')
+    }
+    if (formData.value.rendioPAES) {
+        if (formData.value.paes?.lenguaje === null || formData.value.paes?.lenguaje === undefined) {
+            missing.push('Comprensión Lectora (PAES)')
+        }
+        if (formData.value.paes?.matematica === null || formData.value.paes?.matematica === undefined) {
+            missing.push('Matemática 1 (PAES)')
+        }
+    }
+    // Si piensa usar financiamiento del estado, debe seleccionar al menos una opción
+    if (piensaUsarFinanciamiento.value && !formData.value.planeaUsarCAE && !formData.value.usaBecasEstado) {
+        missing.push('Opciones de Financiamiento')
+    }
+    // Si tiene alguna opción de financiamiento seleccionada, debe tener decil
+    if ((formData.value.planeaUsarCAE || formData.value.usaBecasEstado) && (formData.value.decil === null || formData.value.decil === undefined)) {
+        missing.push('Tramo de Renta Mensual (Decil)')
+    }
+    
+    return missing
+}
+
 // Exponer el estado de validación al componente padre
 defineExpose({
-    isFormValid
+    isFormValid,
+    markAsSubmitted,
+    getMissingFields
 })
 
 // Lifecycle
@@ -402,7 +462,10 @@ onUnmounted(() => {
                             <div class="relative carrera-dropdown" ref="dropdownRef">
                                 <InputText id="carrera" v-model="searchTerm" type="text"
                                     placeholder="Busca tu carrera..." class="form-input pr-10"
-                                    @focus="showDropdown = true; calculateDropdownPosition()" @input="handleSearch"
+                                    :class="{ 'p-invalid': (submitted || touched.carrera) && (!formData.carrera || formData.carreraId === 0) }"
+                                    @focus="showDropdown = true; calculateDropdownPosition(); touched.carrera = true" 
+                                    @input="handleSearch"
+                                    @blur="touched.carrera = true"
                                     autocomplete="off" autocorrect="off" />
                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                     <i class="pi pi-chevron-down text-gray-400"></i>
@@ -439,7 +502,6 @@ onUnmounted(() => {
                     <label for="rendioPAES" class="form-label">
                         ¿Rendiste la PAES?
                     </label>
-                    <!-- <ToggleSwitch id="rendioPAES" v-model="formData.rendioPAES" class="paes-toggle" /> -->
                     <SelectButton :options="opcionesPAES" v-model="formData.rendioPAES" optionLabel="label"
                         optionValue="value" class="paes-select-button"/>
                     <span v-if="formData.rendioPAES" class="text-sm text-gray-500 mt-2 mb-0 block">
@@ -454,7 +516,8 @@ onUnmounted(() => {
                     <FloatLabel>
                         <InputNumber id="lenguaje" v-model="lenguajeValue" :min="150" :max="1000" :useGrouping="false"
                             class="form-input"
-                            :class="{ 'p-invalid': formData.rendioPAES && (formData.paes?.lenguaje === null || formData.paes?.lenguaje === undefined) }" />
+                            :class="{ 'p-invalid': (submitted || touched.paesLenguaje) && formData.rendioPAES && (formData.paes?.lenguaje === null || formData.paes?.lenguaje === undefined) }"
+                            @blur="touched.paesLenguaje = true" />
                         <label for="lenguaje">Comprensión Lectora *</label>
                     </FloatLabel>
                 </div>
@@ -464,13 +527,14 @@ onUnmounted(() => {
                     <FloatLabel>
                         <InputNumber id="matematica" v-model="matematicaValue" :min="150" :max="1000"
                             :useGrouping="false" class="form-input"
-                            :class="{ 'p-invalid': formData.rendioPAES && (formData.paes?.matematica === null || formData.paes?.matematica === undefined) }" />
+                            :class="{ 'p-invalid': (submitted || touched.paesMatematica) && formData.rendioPAES && (formData.paes?.matematica === null || formData.paes?.matematica === undefined) }"
+                            @blur="touched.paesMatematica = true" />
                         <label for="matematica">Matemática 1 *</label>
                     </FloatLabel>
                 </div>
 
                 <!-- Pregunta sobre financiamiento del estado -->
-                <div class="form-field financiamiento-field">
+                <div v-if="isEgresadoOr4to" class="form-field financiamiento-field">
                     <label for="piensaUsarFinanciamiento" class="form-label">
                         ¿Piensas usar financiamiento del Estado?
                     </label>
@@ -501,9 +565,14 @@ onUnmounted(() => {
                             </div>
                         </div>
                     </OverlayPanel>
+                    <div v-if="(submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado" class="mb-2">
+                        <Message severity="error" variant="simple" size="small">
+                            Debes seleccionar al menos una opción de financiamiento
+                        </Message>
+                    </div>
                     <div class="options-grid">
                         <!-- CAE -->
-                        <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE }">
+                        <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE, 'error-border': (submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado }">
                             <label class="option-label">
                                 <input v-model="formData.planeaUsarCAE" type="checkbox" @change="handleFinancingChange"
                                     class="option-checkbox" />
@@ -520,7 +589,7 @@ onUnmounted(() => {
                         </div>
 
                         <!-- Becas del Estado -->
-                        <div class="option-card" :class="{ 'selected': formData.usaBecasEstado }">
+                        <div class="option-card" :class="{ 'selected': formData.usaBecasEstado, 'error-border': (submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado }">
                             <label class="option-label">
                                 <input v-model="formData.usaBecasEstado" type="checkbox" @change="handleFinancingChange"
                                     class="option-checkbox" />
@@ -547,8 +616,9 @@ onUnmounted(() => {
                     </label>
                     <Dropdown id="decil" v-model="selectedDecilValue" :options="decilesOptions" optionLabel="label"
                         optionValue="value" placeholder="Selecciona rango" class="form-input w-full"
-                        :class="{ 'p-invalid': showDecilSelection && (formData.decil === null || formData.decil === undefined) }"
-                        :loading="decilesLoading" />
+                        :class="{ 'p-invalid': (submitted || touched.decil) && showDecilSelection && (formData.decil === null || formData.decil === undefined) }"
+                        :loading="decilesLoading"
+                        @blur="touched.decil = true" />
                     <small v-if="decilesError" class="p-error">{{ decilesError }}</small>
                 </div>
             </div>
@@ -638,6 +708,10 @@ onUnmounted(() => {
 
 .option-card.selected {
     @apply border-blue-500 bg-blue-50;
+}
+
+.option-card.error-border {
+    @apply border-red-500;
 }
 
 .option-label {

@@ -91,7 +91,9 @@
 
 
 /* Estilos para el botón seleccionado */
-.nivel-educativo-select [data-p="checked"] {
+.nivel-educativo-select [data-p="checked"],
+.paes-select-button [data-p="checked"],
+.modalidad-select [data-p="checked"] {
   background-color: var(--p-button-primary-background) !important;
   color: #ffffff !important;
   box-shadow: none !important;
@@ -99,31 +101,7 @@
   transition: none !important;
   border: none !important;
   outline: none !important;
-  box-shadow: none !important;
-  border-radius: 8px !important;
-  transition: none !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  border-radius: 8px !important;
 }
-
-.paes-select-button [data-p="checked"] {
-  background-color: var(--p-button-primary-background) !important;
-  color: #ffffff !important;
-  box-shadow: none !important;
-  transition: none !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  border-radius: 8px !important;
-  transition: none !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  border-radius: 8px !important;
-}
-
 
 /* Aplicar variables globales */
 body {
@@ -294,4 +272,12 @@ body {
   select {
     font-size: 16px !important;
   }
+}
+
+/* Estilos personalizados para Toast de PrimeVue - Lista de campos faltantes */
+.p-toast-message-error .p-toast-detail {
+  font-size: 0.875rem;
+  white-space: pre-line;
+  line-height: 1.5;
+  margin-top: 0.25rem;
 }

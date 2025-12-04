@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { onMounted } from 'vue'
+import Toast from 'primevue/toast'
 
 // Lifecycle
 onMounted(() => {
@@ -19,6 +20,8 @@ onMounted(() => {
   <div id="app" class="app">
     <!-- Router View -->
     <RouterView />
+    <!-- Toast de PrimeVue -->
+    <Toast />
   </div>
 </template>
 

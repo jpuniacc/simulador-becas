@@ -9,6 +9,8 @@ import SelectButton from 'primevue/selectbutton'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
+import Checkbox from 'primevue/checkbox'
+import OverlayPanel from 'primevue/overlaypanel'
 import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
 import type { FormData } from '@/types/simulador'
 import type { Region, Comuna, Colegio } from '@/composables/useColegios'
@@ -19,6 +21,7 @@ import { formatRUT, cleanRUT } from '@/utils/formatters'
 // Props
 interface Props {
     formData?: Partial<FormData>
+    modo?: 'primera_carrera' | 'especializacion'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -31,7 +34,8 @@ const props = withDefaults(defineProps<Props>(), {
         regionResidencia: '',
         comunaResidencia: '',
         colegio: ''
-    })
+    }),
+    modo: 'primera_carrera'
 })
 
 // Emits
@@ -109,6 +113,10 @@ const selectedRegion = ref<Region | null>(null)
 const selectedComuna = ref<Comuna | null>(null)
 const selectedColegio = ref<Colegio | null>(null)
 
+// Refs para el OverlayPanel de información de extranjero
+const extranjeroInfoPanelRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const extranjeroInfoIconRef = ref<HTMLElement | null>(null)
+
 // Estado local del formulario
 const formData = ref<Partial<FormData>>({
     nombre: props.formData?.nombre || '',
@@ -138,6 +146,18 @@ const mostrarRUT = computed(() => {
 
 const mostrarPasaporte = computed(() => {
     return formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte'
+})
+
+// Computed para el checkbox de extranjero
+const esExtranjero = computed({
+    get: () => formData.value.tieneRUT === false,
+    set: (value: boolean) => {
+        if (value) {
+            cambiarAPasaporte()
+        } else {
+            volverARUT()
+        }
+    }
 })
 
 // Computed para manejar valores null en año de egreso
@@ -212,6 +232,19 @@ const volverARUT = () => {
     formData.value.identificacion = '' // Limpiar el campo al cambiar
     formData.value.paisPasaporte = '' // Limpiar el país al cambiar
     rutError.value = null // Limpiar error de RUT
+}
+
+// Funciones para mostrar/ocultar el OverlayPanel de información de extranjero
+const showExtranjeroInfo = (event: MouseEvent) => {
+    if (extranjeroInfoIconRef.value && extranjeroInfoPanelRef.value) {
+        extranjeroInfoPanelRef.value.toggle(event, extranjeroInfoIconRef.value)
+    }
+}
+
+const hideExtranjeroInfo = () => {
+    if (extranjeroInfoPanelRef.value) {
+        extranjeroInfoPanelRef.value.hide()
+    }
 }
 
 // Manejar input de RUT con formateo automático
@@ -294,15 +327,18 @@ watch(() => formData.value.telefono, (newPhone) => {
 
 // Computed para verificar si el formulario es válido
 const isFormValid = computed(() => {
+    const isEspecializacion = props.modo === 'especializacion'
+    
     const hasRequiredFields = 
         formData.value.nombre?.trim() !== '' &&
         formData.value.apellido?.trim() !== '' &&
         formData.value.email?.trim() !== '' &&
         formData.value.telefono?.trim() !== '' &&
         formData.value.identificacion?.trim() !== '' &&
-        formData.value.nivelEducativo !== '' &&
-        // Colegio solo es requerido si NO usa pasaporte
-        (mostrarPasaporte.value || formData.value.colegio?.trim() !== '') &&
+        // Nivel educativo solo es requerido si NO es especialización
+        (isEspecializacion || formData.value.nivelEducativo !== '') &&
+        // Colegio solo es requerido si NO usa pasaporte Y NO es especialización
+        (isEspecializacion || mostrarPasaporte.value || formData.value.colegio?.trim() !== '') &&
         // Si es pasaporte, el país es requerido
         (mostrarRUT.value || (mostrarPasaporte.value && formData.value.paisPasaporte?.trim() !== ''))
     
@@ -428,7 +464,9 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 <template>
     <div class="step1-container">
         <div class="form-guide">
-            <p class="guide-text">Cuéntanos un poco sobre ti y tus estudios</p>
+            <p class="guide-text">
+                Cuéntanos un poco sobre ti{{ props.modo !== 'especializacion' ? ' y tus estudios' : '' }}
+            </p>
         </div>
         <form class="personal-form" @submit.prevent>
             <div class="form-grid">
@@ -561,30 +599,23 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                         >
                             {{ rutError || 'RUT no es válido' }}
                         </Message>
-                        <small 
-                            v-if="mostrarRUT && !rutError && (!formData.identificacion || validateRUT(formData.identificacion))" 
-                            class="text-gray-500 text-xs cursor-pointer hover:text-blue-600 underline"
-                            @click="cambiarAPasaporte"
-                        >
-                            Puedes utilizar un pasaporte
-                        </small>
                     </div>
                 </div>
 
-                <!-- Campo Pasaporte (solo si tieneRUT es false y tipoIdentificacion es pasaporte) -->
-                <div v-if="mostrarPasaporte" class="form-field">
+                <!-- Campo Pasaporte (solo si tieneRUT es false y tipoIdentificacion es pasaporte y NO es especialización) -->
+                <div v-if="mostrarPasaporte && props.modo !== 'especializacion'" class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
                             <InputText 
                                 id="identificacion" 
                                 v-model="formData.identificacion" 
                                 type="text"
-                                placeholder="Ingresa tu número de pasaporte"
+                                placeholder="Rut provisorio/Pasaporte"
                                 class="form-input"
                                 :invalid="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')"
                                 @blur="touched.identificacion = true"
                             />
-                            <label for="identificacion">Pasaporte *</label>
+                            <label for="identificacion">Identificación *</label>
                         </FloatLabel>
                         <Message 
                             v-if="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')" 
@@ -592,20 +623,42 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             variant="simple" 
                             size="small"
                         >
-                            Pasaporte es requerido
+                            Identificación es requerida
                         </Message>
-                        <small 
-                            v-if="mostrarPasaporte" 
-                            class="text-gray-500 text-xs cursor-pointer hover:text-blue-600 underline"
-                            @click="volverARUT"
-                        >
-                            Usar RUT
-                        </small>
                     </div>
                 </div>
 
-                <!-- Campo País (solo si tipoIdentificacion es pasaporte) -->
-                <div v-if="mostrarPasaporte" class="form-field">
+                 <!-- Checkbox ¿Eres extranjero? (solo para primera carrera) -->
+                 <div v-if="props.modo !== 'especializacion'" class="form-field">
+                    <div class="flex items-end gap-2">
+                        <Checkbox 
+                            id="esExtranjero" 
+                            v-model="esExtranjero" 
+                            :binary="true"
+                        />
+                        <label 
+                            for="esExtranjero" 
+                            class="text-gray-500 text-sm cursor-pointer"
+                            @click="esExtranjero = !esExtranjero"
+                        >
+                            ¿Eres extranjero?
+                        </label>
+                        <i 
+                            ref="extranjeroInfoIconRef"
+                            class="pi pi-info-circle text-gray-500 text-xs cursor-help hover:text-gray-700"
+                            @mouseenter="showExtranjeroInfo"
+                            @mouseleave="hideExtranjeroInfo"
+                        ></i>
+                    </div>
+                    <OverlayPanel ref="extranjeroInfoPanelRef" class="custom-tooltip-panel">
+                        <div class="custom-tooltip">
+                            <p>Tenemos beneficios asociados a país de origen</p>
+                        </div>
+                    </OverlayPanel>
+                </div>
+
+                <!-- Campo País (solo si tipoIdentificacion es pasaporte y NO es especialización) -->
+                <div v-if="mostrarPasaporte && props.modo !== 'especializacion'" class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
                             <Select 
@@ -643,7 +696,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                     </div>
                                 </template>
                             </Select>
-                            <label for="paisPasaporte">País de Origen del Pasaporte *</label>
+                            <label for="paisPasaporte">País de Origen *</label>
                         </FloatLabel>
                         <Message 
                             v-if="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')" 
@@ -656,8 +709,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </div>
                 </div>
 
-                <!-- Campo Nivel Educativo -->
-                <div class="form-field nivel-educativo-field">
+               
+
+                <!-- Campo Nivel Educativo (solo para primera carrera) -->
+                <div v-if="props.modo === 'primera_carrera'" class="form-field nivel-educativo-field">
                     <div class="flex flex-col gap-1">
                         <label for="nivelEducativo" class="nivel-educativo-label">
                             Nivel Educativo *
@@ -713,8 +768,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- Campo Selección de Colegio (solo si NO usa pasaporte) -->
-                <div v-if="mostrarRUT" class="form-field colegio-field">
+                <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera) -->
+                <div v-if="mostrarRUT && props.modo === 'primera_carrera'" class="form-field colegio-field">
                     <div class="flex flex-col gap-1">
                         <label for="colegio" class="colegio-label">
                             Colegio *
@@ -861,7 +916,22 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
   border-color: blue !important;
 }
 
+/* Estilos para tooltips personalizados */
+:deep(.custom-tooltip-panel) {
+    @apply max-w-xs;
+    padding: 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
 
+.custom-tooltip {
+    @apply max-w-xs;
+    padding: 0.75rem;
+}
+
+.custom-tooltip p {
+    @apply text-sm text-gray-700;
+    margin: 0;
+}
 
 /* Responsive */
 @media (max-width: 768px) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import Stepper from 'primevue/stepper';
 import StepList from 'primevue/steplist';
 import StepPanels from 'primevue/steppanels';
@@ -45,9 +46,16 @@ const careerFinancingRef = ref<InstanceType<typeof CareerFinancing> | null>(null
 // Referencia al componente de resultados
 const resultsRef = ref<InstanceType<typeof Results> | null>(null);
 
+// Toast de PrimeVue
+const toast = useToast();
+
 // Estado de validación del formulario
 const isStep1Valid = ref(false);
 const isStep2Valid = ref(false);
+
+// Estado para bloquear los botones después de mostrar un toast
+const isStep1ButtonBlocked = ref(false);
+const isStep2ButtonBlocked = ref(false);
 
 // Handler para actualizar formData desde el componente hijo
 const handleFormDataUpdate = (data: Partial<FormData>) => {
@@ -64,6 +72,76 @@ const handleValidationChange = (isValid: boolean) => {
 const handleValidationChangeStep2 = (isValid: boolean) => {
     isStep2Valid.value = isValid;
 };
+
+// Función para recopilar campos faltantes del paso 1
+const getMissingFieldsStep1 = (): string[] => {
+    const missing: string[] = []
+    
+    if (!formData.value.nombre?.trim()) missing.push('Nombre')
+    if (!formData.value.apellido?.trim()) missing.push('Apellido')
+    if (!formData.value.email?.trim()) missing.push('Email')
+    if (!formData.value.telefono?.trim() || formData.value.telefono.replace(/[^0-9]/g, '').length !== 8) {
+        missing.push('Teléfono')
+    }
+    if (!formData.value.identificacion?.trim()) {
+        missing.push(formData.value.tieneRUT === false ? 'Identificación (Pasaporte)' : 'RUT')
+    }
+    if (!formData.value.nivelEducativo) {
+        missing.push('Nivel Educativo')
+    }
+    if (!formData.value.colegio?.trim() && formData.value.tieneRUT !== false) {
+        missing.push('Colegio')
+    }
+    if (formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte' && !formData.value.paisPasaporte?.trim()) {
+        missing.push('País de Origen')
+    }
+    
+    return missing
+}
+
+// Función para recopilar campos faltantes del paso 2
+const getMissingFieldsStep2 = (): string[] => {
+    const missing: string[] = []
+    
+    if (!formData.value.carrera?.trim() || formData.value.carreraId === 0) {
+        missing.push('Carrera')
+    }
+    if (formData.value.rendioPAES) {
+        if (formData.value.paes?.lenguaje === null || formData.value.paes?.lenguaje === undefined) {
+            missing.push('Comprensión Lectora (PAES)')
+        }
+        if (formData.value.paes?.matematica === null || formData.value.paes?.matematica === undefined) {
+            missing.push('Matemática 1 (PAES)')
+        }
+    }
+    // Si tiene alguna opción de financiamiento seleccionada, debe tener decil
+    if ((formData.value.planeaUsarCAE || formData.value.usaBecasEstado) && (formData.value.decil === null || formData.value.decil === undefined)) {
+        missing.push('Tramo de Renta Mensual (Decil)')
+    }
+    
+    return missing
+}
+
+// Función helper para generar el texto con bullets de campos faltantes
+const formatMissingFieldsAsBullets = (missingFields: string[]): string => {
+    if (missingFields.length === 0) return ''
+    return missingFields.map(field => `• ${field}`).join('\n')
+}
+
+// Función helper para bloquear un botón por 3 segundos
+const blockButton = (step: 1 | 2, duration: number = 3000) => {
+    if (step === 1) {
+        isStep1ButtonBlocked.value = true
+        setTimeout(() => {
+            isStep1ButtonBlocked.value = false
+        }, duration)
+    } else {
+        isStep2ButtonBlocked.value = true
+        setTimeout(() => {
+            isStep2ButtonBlocked.value = false
+        }, duration)
+    }
+}
 
 // Handler para avanzar al paso 3 y ejecutar simulación
 const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
@@ -122,18 +200,35 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                                 @update:form-data="handleFormDataUpdate" @validation-change="handleValidationChange" />
                         </div>
                         <div class="flex pt-6 justify-end">
-                            <div class="m-4 button-wrapper" @mousedown="() => {
-                                if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
-                                    personalDataRef.markAsSubmitted()
-                                }
-                                // Esperar un tick para que se actualicen los errores antes de verificar validación
-                                nextTick(() => {
-                                    if (isStep1Valid) {
-                                        activateCallback('2')
+                            <div 
+                                class="m-4 button-wrapper" 
+                                :class="{ 'button-blocked': isStep1ButtonBlocked }"
+                                @mousedown="() => {
+                                    if (isStep1ButtonBlocked) return
+                                    
+                                    if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
+                                        personalDataRef.markAsSubmitted()
                                     }
-                                })
-                            }">
-                                <Button label="Siguiente" icon="pi pi-arrow-right" :disabled="!isStep1Valid" />
+                                    // Esperar un tick para que se actualicen los errores antes de verificar validación
+                                    nextTick(() => {
+                                        if (isStep1Valid) {
+                                            activateCallback('2')
+                                        } else {
+                                            const missingFields = getMissingFieldsStep1()
+                                            if (missingFields.length > 0) {
+                                                toast.add({
+                                                    severity: 'error',
+                                                    summary: 'Campos requeridos',
+                                                    detail: formatMissingFieldsAsBullets(missingFields),
+                                                    life: 3000
+                                                })
+                                                blockButton(1, 3000)
+                                            }
+                                        }
+                                    })
+                                }"
+                            >
+                                <Button label="Siguiente" icon="pi pi-arrow-right" :disabled="!isStep1Valid || isStep1ButtonBlocked" />
                             </div>
                         </div>
                     </StepPanel>
@@ -146,8 +241,53 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                         <div class="flex pt-6 justify-between">
                             <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"
                                 @click="activateCallback('1')" />
-                            <Button label="Ver resultados" icon="pi pi-arrow-right" class="m-4" iconPos="right"
-                                :disabled="!isStep2Valid" @click="() => handleNextToStep3(activateCallback)" />
+                            <div 
+                                class="m-4 button-wrapper" 
+                                :class="{ 'button-blocked': isStep2ButtonBlocked }"
+                                @mousedown="() => {
+                                    if (isStep2ButtonBlocked) return
+                                    
+                                    if (careerFinancingRef && 'markAsSubmitted' in careerFinancingRef && typeof careerFinancingRef.markAsSubmitted === 'function') {
+                                        careerFinancingRef.markAsSubmitted()
+                                    }
+                                    // Esperar un tick para que se actualicen los errores antes de verificar validación
+                                    nextTick(() => {
+                                        if (isStep2Valid) {
+                                            handleNextToStep3(activateCallback)
+                                        } else {
+                                            // Intentar obtener los campos faltantes del componente hijo si está disponible
+                                            let missingFields: string[] = []
+                                            if (careerFinancingRef && 'getMissingFields' in careerFinancingRef && typeof careerFinancingRef.getMissingFields === 'function') {
+                                                missingFields = careerFinancingRef.getMissingFields()
+                                            } else {
+                                                // Fallback a la función local si el componente hijo no está disponible
+                                                missingFields = getMissingFieldsStep2()
+                                            }
+                                            
+                                            if (missingFields.length > 0) {
+                                                toast.add({
+                                                    severity: 'error',
+                                                    summary: 'Campos requeridos',
+                                                    detail: formatMissingFieldsAsBullets(missingFields),
+                                                    life: 3000
+                                                })
+                                                blockButton(2, 3000)
+                                            } else {
+                                                toast.add({
+                                                    severity: 'error',
+                                                    summary: 'Formulario incompleto',
+                                                    detail: 'Por favor completa todos los campos requeridos antes de continuar',
+                                                    life: 3000
+                                                })
+                                                blockButton(2, 3000)
+                                            }
+                                        }
+                                    })
+                                }"
+                            >
+                                <Button label="Ver resultados" icon="pi pi-arrow-right" iconPos="right"
+                                    :disabled="!isStep2Valid" />
+                            </div>
                         </div>
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="3">
@@ -243,5 +383,11 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 
 .button-wrapper :deep(.p-button:disabled) {
     pointer-events: none;
+}
+
+.button-blocked {
+    pointer-events: none;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 </style>

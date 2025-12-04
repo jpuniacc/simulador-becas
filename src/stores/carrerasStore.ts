@@ -40,7 +40,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
   })
 
   // Acciones
-  const cargarCarreras = async () => {
+  const cargarCarreras = async (versionSimulador: number = 1) => {
     try {
       loading.value = true
       error.value = null
@@ -48,7 +48,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
       const { data, error: supabaseError } = await supabase
         .from('carreras_uniacc')
         .select('*')
-        .eq('version_simulador', 1)
+        .eq('version_simulador', versionSimulador)
         .order('nombre_programa')
 
       if (supabaseError) {
