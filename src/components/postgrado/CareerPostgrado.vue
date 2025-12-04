@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
     formData: () => ({
         carreraTitulo: '',
         area: '',
-        modalidadPreferencia: null as FormData['modalidadPreferencia'],
+        modalidadPreferencia: [] as FormData['modalidadPreferencia'],
         objetivo: [] as FormData['objetivo']
     })
 })
@@ -31,7 +31,8 @@ const emit = defineEmits<{
 // Opciones de modalidad
 const opcionesModalidad = [
     { label: 'Online', value: 'Online' },
-    { label: 'Semipresencial', value: 'Semipresencial' }
+    { label: 'Semipresencial', value: 'Semipresencial' },
+    { label: 'Presencial', value: 'Presencial' }
 ]
 
 // Opciones de área de interés
@@ -55,7 +56,7 @@ const opcionesObjetivo: Array<{ label: string; value: 'mejorar_habilidades' | 'c
 const formData = ref<Partial<FormData>>({
     carreraTitulo: props.formData?.carreraTitulo || '',
     area: props.formData?.area || '',
-    modalidadPreferencia: props.formData?.modalidadPreferencia || null,
+    modalidadPreferencia: props.formData?.modalidadPreferencia || [],
     objetivo: props.formData?.objetivo || []
 })
 
@@ -74,7 +75,7 @@ const isFormValid = computed(() => {
     const hasRequiredFields = 
         formData.value.carreraTitulo?.trim() !== '' &&
         formData.value.area?.trim() !== '' &&
-        formData.value.modalidadPreferencia !== null &&
+        (formData.value.modalidadPreferencia && formData.value.modalidadPreferencia.length > 0) &&
         (formData.value.objetivo && formData.value.objetivo.length > 0)
     
     return hasRequiredFields
@@ -120,7 +121,7 @@ watch(() => props.formData, (newData) => {
         const hasChanges = 
             formData.value.carreraTitulo !== (newData.carreraTitulo || '') ||
             formData.value.area !== (newData.area || '') ||
-            formData.value.modalidadPreferencia !== (newData.modalidadPreferencia || null) ||
+            JSON.stringify(formData.value.modalidadPreferencia || []) !== JSON.stringify(newData.modalidadPreferencia || []) ||
             objetivoChanged
 
         if (hasChanges) {
@@ -128,7 +129,7 @@ watch(() => props.formData, (newData) => {
             formData.value = {
                 carreraTitulo: newData.carreraTitulo || '',
                 area: newData.area || '',
-                modalidadPreferencia: newData.modalidadPreferencia || null,
+                modalidadPreferencia: newData.modalidadPreferencia || [],
                 objetivo: newData.objetivo || []
             }
             // Resetear el flag después de un pequeño delay
@@ -211,10 +212,11 @@ watch(() => props.formData, (newData) => {
                             optionLabel="label" 
                             optionValue="value"
                             class="modalidad-select"
+                            multiple
                             @change="touched.modalidadPreferencia = true"
                         />
                         <Message 
-                            v-if="(submitted || touched.modalidadPreferencia) && formData.modalidadPreferencia === null" 
+                            v-if="(submitted || touched.modalidadPreferencia) && (!formData.modalidadPreferencia || formData.modalidadPreferencia.length === 0)" 
                             severity="error" 
                             variant="simple" 
                             size="small"

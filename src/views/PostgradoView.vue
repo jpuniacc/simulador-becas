@@ -18,7 +18,7 @@ const formData = ref<Partial<FormData>>({
     // Datos de postgrado
     carreraTitulo: '',
     area: '',
-    modalidadPreferencia: null,
+    modalidadPreferencia: [],
     objetivo: [],
     // Datos personales
     nombre: '',
@@ -210,7 +210,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                             </div>
                             <ResultsPostgrado 
                                 :area="formData.area || ''"
-                                :modalidad-preferencia="formData.modalidadPreferencia || null"
+                                :modalidad-preferencia="formData.modalidadPreferencia && formData.modalidadPreferencia.length > 0 ? formData.modalidadPreferencia : null"
                             />
                         </div>
                         <div class="pt-6">

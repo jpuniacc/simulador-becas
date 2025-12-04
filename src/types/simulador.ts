@@ -47,7 +47,7 @@ export interface FormData {
   // Datos Postgrado
   carreraTitulo: string,
   area: string, 
-  modalidadPreferencia: 'Presencial' | 'Online' | 'Semipresencial' | null,
+  modalidadPreferencia: ('Presencial' | 'Online' | 'Semipresencial')[],
   objetivo: ('mejorar_habilidades' | 'cambiar_carrera' | 'mejorar_empleo' | 'otro')[],
 }
 

@@ -15,7 +15,7 @@ import type { Carrera } from '@/stores/carrerasStore'
 // Props
 interface Props {
     area?: string
-    modalidadPreferencia?: 'Presencial' | 'Online' | 'Semipresencial' | null
+    modalidadPreferencia?: ('Presencial' | 'Online' | 'Semipresencial')[] | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -49,13 +49,16 @@ const calcularPuntaje = (carrera: Carrera): number => {
         puntaje += 1
     }
     
-    // +1 punto si coincide con la modalidad preferida
-    if (props.modalidadPreferencia && carrera.modalidad_programa) {
-        const modalidadCarrera = carrera.modalidad_programa.trim()
-        const modalidadPreferida = props.modalidadPreferencia.trim()
+    // +1 punto si coincide con alguna de las modalidades preferidas
+    if (props.modalidadPreferencia && props.modalidadPreferencia.length > 0 && carrera.modalidad_programa) {
+        const modalidadCarrera = carrera.modalidad_programa.trim().toLowerCase()
         
-        // Comparación case-insensitive
-        if (modalidadCarrera.toLowerCase() === modalidadPreferida.toLowerCase()) {
+        // Verificar si alguna de las modalidades preferidas coincide
+        const coincide = props.modalidadPreferencia.some(modalidad => 
+            modalidad.trim().toLowerCase() === modalidadCarrera
+        )
+        
+        if (coincide) {
             puntaje += 1
         }
     }

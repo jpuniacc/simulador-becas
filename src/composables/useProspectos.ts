@@ -64,7 +64,7 @@ export function useProspectos() {
         // Postgrado
         carreratitulo: form.carreraTitulo || null,
         area_interes: form.area || null,
-        modalidadpreferencia: form.modalidadPreferencia || null,
+        modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
 
         // Segmentación

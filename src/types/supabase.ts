@@ -1073,7 +1073,7 @@ export type Database = {
           genero: string | null
           id: string
           matematica1: number | null
-          modalidadpreferencia: string | null
+          modalidadpreferencia: Json | null
           nem: number | null
           nombre: string
           objetivo: Json | null
@@ -1107,7 +1107,7 @@ export type Database = {
           genero?: string | null
           id?: string
           matematica1?: number | null
-          modalidadpreferencia?: string | null
+          modalidadpreferencia?: Json | null
           nem?: number | null
           nombre: string
           objetivo?: Json | null
@@ -1141,7 +1141,7 @@ export type Database = {
           genero?: string | null
           id?: string
           matematica1?: number | null
-          modalidadpreferencia?: string | null
+          modalidadpreferencia?: Json | null
           nem?: number | null
           nombre?: string
           objetivo?: Json | null

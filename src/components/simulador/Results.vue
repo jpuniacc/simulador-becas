@@ -97,6 +97,11 @@ const arancelMasMatricula = computed(() => {
     return arancelFinalReal.value + matricula
 })
 
+// Computed para el valor mensual (dividido por 10)
+const valorMensual = computed(() => {
+    return Math.round(arancelMasMatricula.value / 10)
+})
+
 // Porcentaje total de descuento aplicado sobre el arancel base
 const descuentoPorcentualTotal = computed(() => {
     if (!calculoBecas.value) return 0
@@ -454,9 +459,15 @@ defineExpose({
                     <template #content>
                         <div class="text-center">
                             <div class="text-sm text-gray-600 mb-2 font-semibold">Total Final a Pagar</div>
-                            <div class="text-2xl font-bold text-green-600">
-                                {{ formatCurrency(arancelMasMatricula) }}
+                            <div class="text-2xl font-bold text-green-600 mb-2">
+                                {{ formatCurrency(valorMensual) }} / mes*
                             </div>
+                            <div class="text-xs text-gray-500 valor-anual mb-1">
+                                <em>* considerando 10 cuotas</em>
+                            </div>
+                            <!-- <div class="text-xs text-gray-500 valor-anual">
+                                Valor anual: {{ formatCurrency(arancelMasMatricula) }}
+                            </div> -->
                         </div>
                     </template>
                 </Card>
@@ -659,6 +670,12 @@ defineExpose({
 
 .summary-item.final {
     @apply border-green-200 bg-green-50;
+}
+
+/* Estilos para el valor anual en la card final */
+.summary-item.final .valor-anual {
+    opacity: 0.7;
+    font-weight: 400;
 }
 
 /* Card de Arancel Original - versión suave del naranja de la tabla (#FF6B35) */

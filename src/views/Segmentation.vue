@@ -33,7 +33,7 @@ const options: SegmentOption[] = [
   },
   {
     id: 'especializacion',
-    title: 'Advance?',
+    title: 'Advance',
     subtitle: 'Profundiza tus conocimientos y avanza en tu carrera. Perfecto si ya tienes una formación previa y quieres especializarte.',
     bullets: [
       'Profesionales con título técnico o profesional',
