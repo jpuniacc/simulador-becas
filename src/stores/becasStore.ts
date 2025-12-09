@@ -234,8 +234,8 @@ export const useBecasStore = defineStore('becas', () => {
       } else {
         // Extraer región y país del formato "REGION-PAIS" (ej: "LA-AR", "CB-HT")
         const [regionPasaporte, paisPasaporte] = formData.paisPasaporte.split('-')
-        const regionRequerida = beca.nacionalidad_requerida.split('-')[0]
-        const paisRequerido = beca.nacionalidad_requerida.split('-')[1]
+        const regionRequerida = beca.region_requerida
+        const paisRequerido = beca.nacionalidad_requerida
 
         if (regionRequerida === regionPasaporte) {
           elegible = true
@@ -342,6 +342,7 @@ export const useBecasStore = defineStore('becas', () => {
   // Retorna solo la beca elegible con la prioridad más baja (menor número)
   const calcularBecasElegibles = (formData: FormData): BecasElegibles[] => {
     // Obtener todas las becas con su estado de elegibilidad
+    console.log ('becasStore', becas.value)
     const todasLasBecasElegibles = becas.value.map(beca => verificarElegibilidad(beca, formData))
 
     console.log('STORE - todasLasBecasElegibles:', todasLasBecasElegibles)

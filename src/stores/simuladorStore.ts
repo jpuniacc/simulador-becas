@@ -155,35 +155,25 @@ export const useSimuladorStore = defineStore('simulador', () => {
   })
 
   const canSimulate = computed(() => {
-    const required = {
-      nombre: formData.value.nombre,
-      apellido: formData.value.apellido,
-      email: formData.value.email,
-      nivelEducativo: formData.value.nivelEducativo,
-      colegio: formData.value.colegio,
-      carrera: formData.value.carrera
-    }
+    // Validaciones mínimas necesarias (el resto está validado en los formularios)
+    const nombre = formData.value.nombre?.trim()
+    const email = formData.value.email?.trim()
+    const telefono = formData.value.telefono?.trim()
+    const carrera = formData.value.carrera?.trim()
 
-    console.log('Validación de simulación:', required)
-    console.log('formData completo:', formData.value)
+    // Validación básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const isEmailValid = email && emailRegex.test(email)
 
-    const isValid = !!(required.nombre &&
-           required.apellido &&
-           required.email &&
-           required.nivelEducativo &&
-           required.colegio &&
-           required.carrera)
-
-    console.log('canSimulate resultado:', isValid)
-    console.log('Valores individuales:', {
-      nombre: !!required.nombre,
-      apellido: !!required.apellido,
-      email: !!required.email,
-      nivelEducativo: !!required.nivelEducativo,
-      colegio: !!required.colegio,
-      carrera: !!required.carrera
-    })
-    return isValid
+    return !!(
+      nombre &&
+      nombre.length >= 2 &&
+      isEmailValid &&
+      telefono &&
+      telefono.length >= 8 &&
+      carrera &&
+      carrera.length > 0
+    )
   })
 
   const decilCalculado = computed(() => {

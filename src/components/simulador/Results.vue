@@ -4,13 +4,15 @@ import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
+import OverlayPanel from 'primevue/overlaypanel'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
 import { Award, CheckCircle, FileText, Download } from 'lucide-vue-next'
-import html2pdf from 'html2pdf.js'
+import { toPng } from 'html-to-image'
+import { jsPDF } from 'jspdf'
 import Button from 'primevue/button'
 
 // Props
@@ -31,6 +33,9 @@ const error = ref<string | null>(null)
 const pdfContentRef = ref<HTMLElement | null>(null)
 const isGeneratingPDF = ref(false)
 const windowWidth = ref(window.innerWidth)
+const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const selectedBeca = ref<any>(null)
+let hideTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Computed para colspan responsive
 // En desktop: Concepto + Tipo + Descuento = 3 columnas
@@ -144,7 +149,7 @@ const handleSimulate = async () => {
 
         await simuladorStore.simulate()
 
-        const prospectoGuardado = await insertarProspecto(simuladorStore.formData as FormData)
+        const prospectoGuardado = await insertarProspecto(simuladorStore.formData as FormData, 'pregrado')
         if (!prospectoGuardado && prospectoError.value) {
             console.warn('No se pudo guardar el prospecto:', prospectoError.value)
         }
@@ -170,39 +175,161 @@ const handleExportPDF = async () => {
         // Esperar un momento para que el DOM se actualice
         await new Promise(resolve => setTimeout(resolve, 100))
 
-        // Configuración para html2pdf.js
-        const options = {
-            margin: [10, 10, 10, 10],
-            filename: 'simulacion-uniacc.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 2,
-                useCORS: true,
-                logging: false,
+        // Crear PDF con jsPDF
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+        })
+
+        // Configuración de dimensiones
+        const imgWidth = 210 // Ancho A4 en mm
+        const margin = 10 // Margen en mm
+        
+        // Función auxiliar para añadir elemento al PDF
+        const addElementToPDF = async (element: HTMLElement | null) => {
+            if (!element) return
+            
+            const elementDataUrl = await toPng(element, {
                 backgroundColor: '#ffffff',
-                letterRendering: true
-            },
-            jsPDF: { 
-                unit: 'mm', 
-                format: 'a4', 
-                orientation: 'portrait' as const,
-                compress: true
-            },
-            pagebreak: { 
-                mode: ['avoid-all', 'css', 'legacy'],
-                before: '.page-break-before',
-                after: '.page-break-after',
-                avoid: ['.no-break', 'table', 'tr']
+                quality: 1,
+                pixelRatio: 2,
+                cacheBust: true,
+                style: {
+                    transform: 'scale(1)',
+                    transformOrigin: 'top left'
+                }
+            })
+            
+            const elementWidth = element.offsetWidth
+            const elementHeight = element.offsetHeight
+            const scaledImgHeight = (elementHeight * (imgWidth - (margin * 2))) / elementWidth
+            
+            pdf.addImage(elementDataUrl, 'PNG', margin, margin, imgWidth - (margin * 2), scaledImgHeight)
+        }
+        
+        // PÁGINA 1: Información de carrera + Tabla de resumen
+        const careerCard = pdfContentRef.value.querySelector('.career-card') as HTMLElement
+        await addElementToPDF(careerCard)
+        
+        const summaryCard = pdfContentRef.value.querySelector('.summary-card') as HTMLElement
+        await addElementToPDF(summaryCard)
+        
+        // PÁGINA 2: Resumen financiero + Mensajes
+        pdf.addPage()
+        
+        // Resumen financiero (grid de 3 columnas)
+        const allDivs = pdfContentRef.value.querySelectorAll('div')
+        let financialSummary: HTMLElement | null = null
+        for (const div of Array.from(allDivs)) {
+            if (div.classList.contains('grid') && div.classList.contains('grid-cols-1')) {
+                const hasSummaryCards = div.querySelector('.summary-item') !== null
+                if (hasSummaryCards) {
+                    financialSummary = div as HTMLElement
+                    break
+                }
             }
         }
+        await addElementToPDF(financialSummary)
+        
+        // Mensajes
+        await addElementToPDF(pdfContentRef.value.querySelector('.contact-message') as HTMLElement)
+        await addElementToPDF(pdfContentRef.value.querySelector('.anticipado-message') as HTMLElement)
+        await addElementToPDF(pdfContentRef.value.querySelector('.confirmation-message') as HTMLElement)
+        
+        // PÁGINA 3: Becas aplicadas
+        const benefitsSection = pdfContentRef.value.querySelector('.benefits-section') as HTMLElement
+        if (benefitsSection) {
+            pdf.addPage()
+            await addElementToPDF(benefitsSection)
+        }
 
-        // Generar PDF directamente desde HTML
-        await html2pdf().set(options).from(pdfContentRef.value).save()
+        // Guardar PDF
+        pdf.save('simulacion-uniacc.pdf')
     } catch (e) {
         console.error('No se pudo generar el PDF:', e)
     } finally {
         // Restaurar el botón después de la generación
         isGeneratingPDF.value = false
+    }
+}
+
+// Método para mostrar overlay panel con descripción de beca en hover
+const showBecaInfo = (event: Event, beca: any) => {
+    // Cancelar cualquier timeout pendiente
+    if (hideTimeout) {
+        clearTimeout(hideTimeout)
+        hideTimeout = null
+    }
+    selectedBeca.value = beca
+    overlayPanel.value?.show(event)
+}
+
+// Método para ocultar overlay panel
+const hideBecaInfo = () => {
+    // Pequeño delay para permitir movimiento del mouse al overlay
+    hideTimeout = setTimeout(() => {
+        overlayPanel.value?.hide()
+        hideTimeout = null
+    }, 150)
+}
+
+// Método para toggle overlay panel (para mobile)
+const toggleBecaInfo = (event: Event, beca: any) => {
+    event.preventDefault()
+    event.stopPropagation()
+    // Cancelar cualquier timeout pendiente
+    if (hideTimeout) {
+        clearTimeout(hideTimeout)
+        hideTimeout = null
+    }
+    
+    // Si es la misma beca, hacer toggle (cerrar si está abierto, abrir si está cerrado)
+    if (selectedBeca.value?.beca.id === beca.beca.id) {
+        // Si ya está seleccionada, cerrar
+        overlayPanel.value?.hide()
+        selectedBeca.value = null
+    } else {
+        // Abrir el panel con la nueva beca
+        selectedBeca.value = beca
+        overlayPanel.value?.show(event)
+    }
+}
+
+// Método para mantener el overlay visible cuando el mouse está sobre él
+const keepBecaInfoVisible = () => {
+    if (hideTimeout) {
+        clearTimeout(hideTimeout)
+        hideTimeout = null
+    }
+}
+
+// Método para obtener el texto del badge del proceso de evaluación
+const getProcesoEvaluacionBadge = (proceso: string): string => {
+    switch (proceso) {
+        case 'Evaluacion':
+            return 'Requiere evaluación'
+        case 'Postulacion':
+            return 'Requiere postulación'
+        case 'Automatico':
+            return 'Beneficio automático'
+        default:
+            return ''
+    }
+}
+
+// Método para obtener la clase del badge según el proceso
+const getProcesoEvaluacionBadgeClass = (proceso: string): string => {
+    switch (proceso) {
+        case 'Evaluacion':
+            return 'beca-badge-evaluacion'
+        case 'Postulacion':
+            return 'beca-badge-postulacion'
+        case 'Automatico':
+            return 'beca-badge-automatico'
+        default:
+            return ''
     }
 }
 
@@ -330,8 +457,16 @@ defineExpose({
                                         class="table-row benefit-row interno-row">
                                         <td class="table-cell">
                                             <div class="benefit-name">
-                                                <i class="pi pi-star mr-2 text-blue-600"></i>
-                                                {{ beca.beca.nombre }}
+                                                <i class="pi pi-star mr-2 text-blue-600 text-sm"></i>
+                                                <span class="text-sm">{{ beca.beca.nombre }}</span>
+                                                <i 
+                                                    v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)" 
+                                                    class="pi pi-info-circle ml-2 text-gray-500 cursor-help hover:text-blue-600 transition-colors text-xs"
+                                                    @mouseenter="showBecaInfo($event, beca)"
+                                                    @mouseleave="hideBecaInfo"
+                                                    @click="toggleBecaInfo($event, beca)"
+                                                    :aria-label="`Información sobre ${beca.beca.nombre}`"
+                                                ></i>
                                             </div>
                                         </td>
                                         <td class="table-cell text-center desktop-only">
@@ -615,6 +750,43 @@ defineExpose({
                 outlined
             />
         </div>
+
+        <!-- Overlay Panel para mostrar descripción de beca -->
+        <OverlayPanel ref="overlayPanel" class="beca-info-overlay" :dismissable="false" @mouseenter="keepBecaInfoVisible" @mouseleave="hideBecaInfo">
+            <div v-if="selectedBeca" class="beca-info-content">
+                <!-- Header con título y badge -->
+                <div class="beca-info-header">
+                    <h4 class="beca-info-title">{{ selectedBeca.beca.nombre }}</h4>
+                    <span 
+                        v-if="selectedBeca.beca.proceso_evaluacion" 
+                        :class="['beca-info-badge', getProcesoEvaluacionBadgeClass(selectedBeca.beca.proceso_evaluacion)]"
+                    >
+                        {{ getProcesoEvaluacionBadge(selectedBeca.beca.proceso_evaluacion) }}
+                    </span>
+                </div>
+                <div v-if="selectedBeca.beca.descripcion || (selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0)" class="beca-info-divider"></div>
+                
+                <!-- Descripción -->
+                <div v-if="selectedBeca.beca.descripcion" class="beca-info-body">
+                    <div class="beca-info-description-section">
+                        <p class="beca-info-description">
+                            {{ selectedBeca.beca.descripcion }}
+                        </p>
+                    </div>
+                    <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-divider"></div>
+                </div>
+                
+                <!-- Documentación requerida -->
+                <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-footer">
+                    <h5 class="beca-info-subtitle">Documentación Requerida:</h5>
+                    <ul class="beca-info-list">
+                        <li v-for="(doc, index) in selectedBeca.beca.requiere_documentacion" :key="index" class="beca-info-item">
+                            {{ doc }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </OverlayPanel>
     </div>
 </template>
 
@@ -1123,4 +1295,100 @@ defineExpose({
 .export-pdf-button {
     @apply min-w-[200px];
 }
+
+/* Estilos para overlay panel de información de beca */
+.beca-info-overlay {
+    max-width: 320px;
+}
+
+.beca-info-overlay :deep(.p-overlaypanel-content) {
+    padding: 0 !important;
+}
+
+.beca-info-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.beca-info-header {
+    @apply flex items-start justify-between gap-2 px-3 py-2 mb-0;
+}
+
+.beca-info-content > *:not(.beca-info-header):not(.beca-info-divider) {
+    @apply px-3;
+}
+
+.beca-info-content > .beca-info-body,
+.beca-info-content > .beca-info-footer {
+    @apply py-2;
+}
+
+.beca-info-content > .beca-info-divider {
+    @apply mx-3;
+}
+
+.beca-info-title {
+    @apply text-sm font-semibold text-gray-900;
+    flex: 1;
+    margin: 0;
+}
+
+.beca-info-badge {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap;
+    flex-shrink: 0;
+}
+
+.beca-badge-automatico {
+    @apply bg-green-100 text-green-800;
+}
+
+.beca-badge-evaluacion {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.beca-badge-postulacion {
+    @apply bg-blue-100 text-blue-800;
+}
+
+.beca-info-divider {
+    @apply my-2;
+    height: 1px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border: none;
+    width: 100%;
+}
+
+.beca-info-body {
+    @apply flex flex-col;
+}
+
+.beca-info-description-section {
+    @apply mb-0;
+}
+
+.beca-info-description {
+    @apply text-xs text-gray-700 leading-relaxed;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+}
+
+.beca-info-footer {
+    @apply mt-0;
+}
+
+.beca-info-subtitle {
+    @apply text-xs font-semibold text-gray-800 mb-1.5;
+    margin-top: 0;
+}
+
+.beca-info-list {
+    @apply list-disc pl-4 space-y-1;
+    margin: 0;
+}
+
+.beca-info-item {
+    @apply text-xs text-gray-700 leading-relaxed;
+}
+
 </style>

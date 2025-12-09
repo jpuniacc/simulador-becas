@@ -79,6 +79,8 @@ const dropdownStyle = ref<Record<string, string>>({})
 const carrerasSugeridas = ['Danza', 'Arquitectura', 'Ingeniería Comercial']
 const financingTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const financingIconRef = ref<HTMLElement | null>(null)
+const decilTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const decilIconRef = ref<HTMLElement | null>(null)
 
 // Estado para controlar cuándo mostrar errores
 const submitted = ref(false)
@@ -279,6 +281,36 @@ const showFinancingTooltip = (event: MouseEvent) => {
 const hideFinancingTooltip = () => {
     if (financingTooltipRef.value) {
         financingTooltipRef.value.hide()
+    }
+}
+
+const toggleFinancingTooltip = (event: MouseEvent | TouchEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (financingIconRef.value && financingTooltipRef.value) {
+        const target = (event.target as HTMLElement) || financingIconRef.value
+        financingTooltipRef.value.toggle(event as MouseEvent, target)
+    }
+}
+
+const showDecilTooltip = (event: MouseEvent) => {
+    if (decilIconRef.value && decilTooltipRef.value) {
+        decilTooltipRef.value.toggle(event, decilIconRef.value)
+    }
+}
+
+const hideDecilTooltip = () => {
+    if (decilTooltipRef.value) {
+        decilTooltipRef.value.hide()
+    }
+}
+
+const toggleDecilTooltip = (event: MouseEvent | TouchEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (decilIconRef.value && decilTooltipRef.value) {
+        const target = (event.target as HTMLElement) || decilIconRef.value
+        decilTooltipRef.value.toggle(event as MouseEvent, target)
     }
 }
 
@@ -548,7 +580,7 @@ onUnmounted(() => {
                         ¿Qué tipo de financiamiento planeas utilizar?
                         <span ref="financingIconRef" class="inline-flex ml-2">
                             <Info class="w-3 h-3 text-gray-500 cursor-help hover:text-gray-700"
-                                @click.stop="showFinancingTooltip" @mouseenter="showFinancingTooltip"
+                                @click.stop="toggleFinancingTooltip" @mouseenter="showFinancingTooltip"
                                 @mouseleave="hideFinancingTooltip" />
                         </span>
                     </h4>
@@ -611,8 +643,13 @@ onUnmounted(() => {
                 <div v-if="showDecilSelection" class="form-field">
                     <label for="decil" class="form-label decil-label">
                         Tramo de Renta Mensual *
-                        <i v-tooltip="'Toma el total de ingresos y dividelos por la cantidad de personas que viven en él'"
-                            class="pi pi-question-circle decil-icon"></i>
+                        <i 
+                            ref="decilIconRef"
+                            class="pi pi-question-circle decil-icon"
+                            @mouseenter="showDecilTooltip"
+                            @mouseleave="hideDecilTooltip"
+                            @click="toggleDecilTooltip"
+                        ></i>
                     </label>
                     <Dropdown id="decil" v-model="selectedDecilValue" :options="decilesOptions" optionLabel="label"
                         optionValue="value" placeholder="Selecciona rango" class="form-input w-full"
@@ -620,6 +657,11 @@ onUnmounted(() => {
                         :loading="decilesLoading"
                         @blur="touched.decil = true" />
                     <small v-if="decilesError" class="p-error">{{ decilesError }}</small>
+                    <OverlayPanel ref="decilTooltipRef" class="custom-tooltip-panel">
+                        <div class="custom-tooltip">
+                            <p>Toma el total de ingresos y dividelos por la cantidad de personas que viven en él</p>
+                        </div>
+                    </OverlayPanel>
                 </div>
             </div>
         </form>

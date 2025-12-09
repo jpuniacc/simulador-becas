@@ -84,11 +84,19 @@ export function useSimulation(
 
   // Computed
   const canSimulate = computed(() => {
+    console.log('canSimulate computed:', {
+      nombre: formData.nombre,
+      apellido: formData.apellido,
+      email: formData.email,
+      nivelEducativo: formData.nivelEducativo,
+      colegio: formData.colegio,
+      carrera: formData.carrera
+    })
     return formData.nombre &&
            formData.apellido &&
            formData.email &&
            formData.nivelEducativo &&
-           formData.colegio &&
+           (formData.colegio != '' || formData.tipoIdentificacion == 'pasaporte') &&
            formData.carrera
   })
 

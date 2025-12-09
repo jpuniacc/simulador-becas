@@ -117,6 +117,10 @@ const selectedColegio = ref<Colegio | null>(null)
 const extranjeroInfoPanelRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const extranjeroInfoIconRef = ref<HTMLElement | null>(null)
 
+// Refs para el OverlayPanel de información de nivel educativo
+const nivelEducativoInfoPanelRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const nivelEducativoInfoIconRef = ref<HTMLElement | null>(null)
+
 // Estado local del formulario
 const formData = ref<Partial<FormData>>({
     nombre: props.formData?.nombre || '',
@@ -244,6 +248,37 @@ const showExtranjeroInfo = (event: MouseEvent) => {
 const hideExtranjeroInfo = () => {
     if (extranjeroInfoPanelRef.value) {
         extranjeroInfoPanelRef.value.hide()
+    }
+}
+
+const toggleExtranjeroInfo = (event: MouseEvent | TouchEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (extranjeroInfoIconRef.value && extranjeroInfoPanelRef.value) {
+        const target = (event.target as HTMLElement) || extranjeroInfoIconRef.value
+        extranjeroInfoPanelRef.value.toggle(event as MouseEvent, target)
+    }
+}
+
+// Funciones para mostrar/ocultar el OverlayPanel de información de nivel educativo
+const showNivelEducativoInfo = (event: MouseEvent) => {
+    if (nivelEducativoInfoIconRef.value && nivelEducativoInfoPanelRef.value) {
+        nivelEducativoInfoPanelRef.value.toggle(event, nivelEducativoInfoIconRef.value)
+    }
+}
+
+const hideNivelEducativoInfo = () => {
+    if (nivelEducativoInfoPanelRef.value) {
+        nivelEducativoInfoPanelRef.value.hide()
+    }
+}
+
+const toggleNivelEducativoInfo = (event: MouseEvent | TouchEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (nivelEducativoInfoIconRef.value && nivelEducativoInfoPanelRef.value) {
+        const target = (event.target as HTMLElement) || nivelEducativoInfoIconRef.value
+        nivelEducativoInfoPanelRef.value.toggle(event as MouseEvent, target)
     }
 }
 
@@ -648,6 +683,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             class="pi pi-info-circle text-gray-500 text-xs cursor-help hover:text-gray-700"
                             @mouseenter="showExtranjeroInfo"
                             @mouseleave="hideExtranjeroInfo"
+                            @click="toggleExtranjeroInfo"
                         ></i>
                     </div>
                     <OverlayPanel ref="extranjeroInfoPanelRef" class="custom-tooltip-panel">
@@ -717,8 +753,11 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                         <label for="nivelEducativo" class="nivel-educativo-label">
                             Nivel Educativo *
                             <i 
-                                v-tooltip="'Que año de enseñanza media cursas, si eres egresado te pediremos datos adicionales'"
+                                ref="nivelEducativoInfoIconRef"
                                 class="pi pi-question-circle nivel-educativo-icon"
+                                @mouseenter="showNivelEducativoInfo"
+                                @mouseleave="hideNivelEducativoInfo"
+                                @click="toggleNivelEducativoInfo"
                             ></i>
                         </label>
                         <SelectButton 
@@ -739,6 +778,11 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             Nivel educativo es requerido
                         </Message>
                     </div>
+                    <OverlayPanel ref="nivelEducativoInfoPanelRef" class="custom-tooltip-panel">
+                        <div class="custom-tooltip">
+                            <p>Que año de enseñanza media cursas, si eres egresado te pediremos datos adicionales</p>
+                        </div>
+                    </OverlayPanel>
                 </div>
 
                 <!-- Año de Egreso (solo para egresados) -->
@@ -763,7 +807,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div v-if="isEgresado" class="form-field">
                     <FloatLabel>
                         <InputNumber id="nem" v-model="nemValue" :min="1.0" :max="7.0" :step="0.1" :minFractionDigits="1" :maxFractionDigits="1"
-                            :useGrouping="false" class="form-input" />
+                            :useGrouping="false" :showButtons="true" class="form-input" />
                         <label for="nem">NEM (Opcional)</label>
                     </FloatLabel>
                 </div>
