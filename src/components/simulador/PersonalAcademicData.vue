@@ -200,13 +200,233 @@ const rankingValue = computed({
     }
 })
 
-// Computed para manejar valores null en NEM
+// Estado local para el valor del input NEM (string) - mantiene el estado del input sin convertir a número
+const nemInputValue = ref('')
+
+// Flag para prevenir que el watcher interfiera mientras el usuario escribe
+const isUserTyping = ref(false)
+
+// Watcher para sincronizar desde formData al input (solo cuando viene de fuera, no mientras el usuario escribe)
+watch(() => formData.value.nem, (newValue, oldValue) => {
+    // No actualizar si el usuario está escribiendo
+    if (isUserTyping.value) {
+        return
+    }
+    
+    if (newValue !== null && newValue !== undefined) {
+        const formatted = newValue.toFixed(1).replace('.', ',')
+        // Solo actualizar si es diferente y no es un valor parcial que el usuario está escribiendo
+        if (nemInputValue.value !== formatted && !nemInputValue.value.endsWith(',')) {
+            nemInputValue.value = formatted
+        }
+    } else if (nemInputValue.value !== '' && !nemInputValue.value.endsWith(',')) {
+        // Si formData se limpia, limpiar también el input (pero no si el usuario está escribiendo "X,")
+        nemInputValue.value = ''
+    }
+}, { immediate: true })
+
+// Computed para manejar valores null en NEM (como string para la máscara)
 const nemValue = computed({
-    get: () => formData.value.nem ?? null,
-    set: (value: number | null) => {
-        formData.value.nem = value
+    get: () => {
+        return nemInputValue.value
+    },
+    set: (value: string) => {
+        // Actualizar el valor del input local
+        nemInputValue.value = value
+        
+        // Solo convertir a número si el formato está completo (X,X con ambos dígitos)
+        if (!value || value.trim() === '') {
+            formData.value.nem = null
+            return
+        }
+        
+        // Verificar que tenga formato completo X,X (con dígito después de la coma)
+        const parts = value.split(',')
+        if (parts.length === 2 && parts[0] && parts[1] && parts[1].length > 0) {
+            // Convertir string con formato X,X a número
+            const numValue = parseFloat(value.replace(',', '.'))
+            if (!isNaN(numValue)) {
+                // Validar rango 1.0 - 7.0
+                formData.value.nem = Math.max(1.0, Math.min(7.0, numValue))
+            }
+        } else {
+            // Si el formato no está completo (ej: "5," sin segundo dígito), no convertir a número
+            // Mantener formData como está o limpiarlo si estaba vacío
+            if (value === '' || value === ',') {
+                formData.value.nem = null
+            }
+            // Si tiene "X," pero no el segundo dígito, no actualizar formData
+        }
     }
 })
+
+// Función para manejar el input del NEM con máscara personalizada
+const handleNEMInput = (event: Event) => {
+    isUserTyping.value = true
+    const target = event.target as HTMLInputElement
+    let value = target.value
+    
+    // Remover todo excepto dígitos y coma
+    value = value.replace(/[^0-9,]/g, '')
+    
+    // Si está vacío, permitir
+    if (value === '') {
+        nemValue.value = ''
+        return
+    }
+    
+    // Contar comas
+    const comaCount = (value.match(/,/g) || []).length
+    
+    // Si hay más de una coma, mantener solo la primera
+    if (comaCount > 1) {
+        const firstComaIndex = value.indexOf(',')
+        value = value.slice(0, firstComaIndex + 1) + value.slice(firstComaIndex + 1).replace(/,/g, '')
+    }
+    
+    // Dividir por la coma
+    const parts = value.split(',')
+    const beforeComa = parts[0] || ''
+    const afterComa = parts[1] || ''
+    
+    // Limpiar y validar parte antes de la coma (solo dígitos 1-7)
+    let cleanBefore = beforeComa.replace(/[^0-9]/g, '')
+    if (cleanBefore.length > 0) {
+        const firstDigit = parseInt(cleanBefore[0])
+        if (firstDigit >= 1 && firstDigit <= 7) {
+            cleanBefore = cleanBefore[0] // Solo el primer dígito válido
+        } else {
+            cleanBefore = ''
+        }
+    }
+    
+    // Limpiar y validar parte después de la coma (solo dígitos 0-9, máximo 1 dígito)
+    let cleanAfter = afterComa.replace(/[^0-9]/g, '').slice(0, 1)
+    if (cleanAfter.length > 0) {
+        const secondDigit = parseInt(cleanAfter)
+        if (secondDigit < 0 || secondDigit > 9) {
+            cleanAfter = ''
+        }
+    }
+    
+    // Construir el valor final
+    if (cleanBefore && cleanAfter) {
+        value = cleanBefore + ',' + cleanAfter
+    } else if (cleanBefore && value.includes(',')) {
+        value = cleanBefore + ','
+    } else if (cleanBefore) {
+        // Si hay un dígito válido pero no hay coma, agregarla automáticamente
+        value = cleanBefore + ','
+    } else {
+        value = ''
+    }
+    
+    // Actualizar el valor del input directamente sin disparar el setter del computed
+    nemInputValue.value = value
+    target.value = value
+    
+    // Solo actualizar formData si el formato está completo (X,X con segundo dígito)
+    const valueParts = value.split(',')
+    if (valueParts.length === 2 && valueParts[0] && valueParts[1] && valueParts[1].length > 0) {
+        // Formato completo, convertir a número
+        const numValue = parseFloat(value.replace(',', '.'))
+        if (!isNaN(numValue)) {
+            formData.value.nem = Math.max(1.0, Math.min(7.0, numValue))
+        }
+    } else if (value === '' || value.trim() === '') {
+        // Si está vacío, limpiar formData
+        formData.value.nem = null
+    }
+    // Si tiene formato incompleto como "5,", no hacer nada con formData
+    
+    // Resetear el flag después de un pequeño delay
+    setTimeout(() => {
+        isUserTyping.value = false
+    }, 100)
+}
+
+// Función para manejar keydown y prevenir caracteres inválidos
+const handleNEMKeydown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLInputElement
+    const currentValue = target.value
+    
+    // Permitir teclas de control
+    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab' || 
+        event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || 
+        event.key === 'ArrowDown' || event.ctrlKey || event.metaKey || event.key === 'Enter') {
+        return
+    }
+    
+    // Si presiona coma, manejarlo en el input
+    if (event.key === ',' || event.key === '.') {
+        event.preventDefault()
+        const cursorPos = target.selectionStart || 0
+        
+        // Si no hay coma aún y hay un dígito válido antes
+        if (!currentValue.includes(',') && currentValue.length > 0) {
+            const firstDigit = parseInt(currentValue[0])
+            if (firstDigit >= 1 && firstDigit <= 7) {
+                const newValue = currentValue.slice(0, cursorPos) + ',' + currentValue.slice(cursorPos)
+                target.value = newValue
+                nemValue.value = newValue
+                // Mover cursor después de la coma
+                setTimeout(() => {
+                    target.setSelectionRange(cursorPos + 1, cursorPos + 1)
+                }, 0)
+            }
+        }
+        return
+    }
+    
+    // Si es un número
+    if (/[0-9]/.test(event.key)) {
+        const cursorPos = target.selectionStart || 0
+        const hasComa = currentValue.includes(',')
+        const comaPos = currentValue.indexOf(',')
+        
+        // Si el cursor está antes de la coma
+        if (hasComa && cursorPos <= comaPos) {
+            const digit = parseInt(event.key)
+            // Solo permitir 1-7 antes de la coma
+            if (digit >= 1 && digit <= 7) {
+                return // Permitir
+            } else {
+                event.preventDefault()
+            }
+        }
+        // Si el cursor está después de la coma
+        else if (hasComa && cursorPos > comaPos) {
+            const digit = parseInt(event.key)
+            // Solo permitir 0-9 después de la coma
+            if (digit >= 0 && digit <= 9) {
+                // Si ya hay un dígito después de la coma, reemplazarlo
+                if (currentValue.length > comaPos + 1) {
+                    event.preventDefault()
+                    const newValue = currentValue.slice(0, cursorPos) + event.key + currentValue.slice(cursorPos + 1)
+                    target.value = newValue
+                    nemValue.value = newValue
+                    target.setSelectionRange(cursorPos + 1, cursorPos + 1)
+                }
+                return // Permitir
+            } else {
+                event.preventDefault()
+            }
+        }
+        // Si no hay coma aún
+        else {
+            const digit = parseInt(event.key)
+            // Solo permitir 1-7 como primer dígito
+            if (digit >= 1 && digit <= 7) {
+                return // Permitir, el input manejará agregar la coma
+            } else {
+                event.preventDefault()
+            }
+        }
+    } else {
+        // Bloquear cualquier otro carácter
+        event.preventDefault()
+    }
+}
 
 // Estado de errores de validación
 const emailError = ref<string | null>(null)
@@ -834,8 +1054,15 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <!-- NEM (solo para egresados) -->
                 <div v-if="isEgresado" class="form-field">
                     <FloatLabel>
-                        <InputNumber id="nem" v-model="nemValue" :min="1.0" :max="7.0" :step="0.1" :minFractionDigits="1" :maxFractionDigits="1"
-                            :useGrouping="false" :showButtons="true" class="form-input" />
+                        <InputText 
+                            id="nem" 
+                            v-model="nemValue" 
+                            class="form-input"
+                            placeholder="Ej 5,5"
+                            maxlength="3"
+                            @input="handleNEMInput"
+                            @keydown="handleNEMKeydown"
+                        />
                         <label for="nem">NEM (Opcional)</label>
                     </FloatLabel>
                 </div>
