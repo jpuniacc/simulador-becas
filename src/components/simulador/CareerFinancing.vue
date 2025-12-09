@@ -8,7 +8,7 @@ import SelectButton from 'primevue/selectbutton'
 import Tag from 'primevue/tag'
 import OverlayPanel from 'primevue/overlaypanel'
 import Message from 'primevue/message'
-import { GraduationCap, TrendingUp, CheckCircle, Info } from 'lucide-vue-next'
+import { GraduationCap, TrendingUp, CheckCircle } from 'lucide-vue-next'
 import { useCarreras, type Carrera } from '@/composables/useCarreras'
 import { useDeciles, type Decil } from '@/composables/useDeciles'
 import type { FormData } from '@/types/simulador'
@@ -85,26 +85,11 @@ const decilIconRef = ref<HTMLElement | null>(null)
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
 
-onMounted(() => {
-    // Detectar si es móvil basándose en touch support y tamaño de pantalla
+const handleMobileResize = () => {
     const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
     const isSmallScreen = window.innerWidth <= 768
     isMobile.value = hasTouchSupport && isSmallScreen
-    
-    // Escuchar cambios de tamaño de ventana
-    const handleResize = () => {
-        const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-        const isSmallScreen = window.innerWidth <= 768
-        isMobile.value = hasTouchSupport && isSmallScreen
-    }
-    
-    window.addEventListener('resize', handleResize)
-    
-    // Cleanup
-    return () => {
-        window.removeEventListener('resize', handleResize)
-    }
-})
+}
 
 // Estado para controlar cuándo mostrar errores
 const submitted = ref(false)
@@ -614,12 +599,13 @@ onUnmounted(() => {
                 <div v-if="piensaUsarFinanciamiento" class="form-field financing-options-field">
                     <h4 class="text-md text-gray-500 mt-2 mb-2 block">
                         ¿Qué tipo de financiamiento planeas utilizar?
-                        <span ref="financingIconRef" class="inline-flex ml-2">
-                            <Info class="w-3 h-3 text-gray-500 cursor-help hover:text-gray-700"
-                                @click.stop="toggleFinancingTooltip" 
-                                @mouseenter="!isMobile && showFinancingTooltip($event)"
-                                @mouseleave="!isMobile && hideFinancingTooltip()" />
-                        </span>
+                        <i 
+                            ref="financingIconRef"
+                            class="pi pi-info-circle financing-icon ml-2"
+                            @click.stop="toggleFinancingTooltip" 
+                            @mouseenter="!isMobile && showFinancingTooltip($event)"
+                            @mouseleave="!isMobile && hideFinancingTooltip()"
+                        ></i>
                     </h4>
                     <OverlayPanel ref="financingTooltipRef" class="custom-tooltip-panel">
                         <div class="custom-tooltip">
@@ -743,6 +729,20 @@ onUnmounted(() => {
 }
 
 .decil-icon:hover {
+    @apply text-gray-700;
+}
+
+.financing-icon {
+    @apply text-gray-500 cursor-help;
+    font-size: 0.875rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    display: inline-block;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.financing-icon:hover {
     @apply text-gray-700;
 }
 
