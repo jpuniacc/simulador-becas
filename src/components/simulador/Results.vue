@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
@@ -11,8 +11,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
 import { Award, CheckCircle, FileText, Download } from 'lucide-vue-next'
-import { toPng } from 'html-to-image'
-import { jsPDF } from 'jspdf'
+import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
 
 // Props
@@ -175,11 +174,11 @@ const handleSimulate = async () => {
     }
 }
 
-// Método para exportar PDF
+// Método para exportar PDF usando html2pdf.js
 const handleExportPDF = async () => {
     try {
-        if (!pdfContentRef.value) {
-            console.warn('No se encontró el elemento a capturar')
+        if (!calculoBecas.value || !carreraInfo.value) {
+            console.warn('No hay datos para generar el PDF')
             return
         }
 
@@ -187,80 +186,79 @@ const handleExportPDF = async () => {
         isGeneratingPDF.value = true
 
         // Esperar un momento para que el DOM se actualice
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 300))
 
-        // Crear PDF con jsPDF
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            compress: true
-        })
+        // Usar html2pdf.js para generar el PDF desde el contenido HTML
+        if (pdfContentRef.value) {
+            const element = pdfContentRef.value
 
-        // Configuración de dimensiones
-        const imgWidth = 210 // Ancho A4 en mm
-        const margin = 10 // Margen en mm
-        
-        // Función auxiliar para añadir elemento al PDF
-        const addElementToPDF = async (element: HTMLElement | null) => {
-            if (!element) return
+            // Remover temporalmente los Message de PrimeVue del DOM (causan problemas al renderizar el PDF)
+            const toRemove = Array.from(
+                element.querySelectorAll('.contact-message, .anticipado-message, .confirmation-message')
+            ) as HTMLElement[]
             
-            const elementDataUrl = await toPng(element, {
-                backgroundColor: '#ffffff',
-                quality: 1,
-                pixelRatio: 2,
-                cacheBust: true,
-                style: {
-                    transform: 'scale(1)',
-                    transformOrigin: 'top left'
+            // Guardar referencias a los padres y posiciones para restaurar después
+            const elementsData = toRemove.map(el => ({
+                element: el,
+                parent: el.parentNode,
+                nextSibling: el.nextSibling
+            }))
+
+            // Remover elementos del DOM
+            elementsData.forEach(({ element }) => {
+                if (element.parentNode) {
+                    element.parentNode.removeChild(element)
                 }
             })
-            
-            const elementWidth = element.offsetWidth
-            const elementHeight = element.offsetHeight
-            const scaledImgHeight = (elementHeight * (imgWidth - (margin * 2))) / elementWidth
-            
-            pdf.addImage(elementDataUrl, 'PNG', margin, margin, imgWidth - (margin * 2), scaledImgHeight)
-        }
-        
-        // PÁGINA 1: Información de carrera + Tabla de resumen
-        const careerCard = pdfContentRef.value.querySelector('.career-card') as HTMLElement
-        await addElementToPDF(careerCard)
-        
-        const summaryCard = pdfContentRef.value.querySelector('.summary-card') as HTMLElement
-        await addElementToPDF(summaryCard)
-        
-        // PÁGINA 2: Resumen financiero + Mensajes
-        pdf.addPage()
-        
-        // Resumen financiero (grid de 3 columnas)
-        const allDivs = pdfContentRef.value.querySelectorAll('div')
-        let financialSummary: HTMLElement | null = null
-        for (const div of Array.from(allDivs)) {
-            if (div.classList.contains('grid') && div.classList.contains('grid-cols-1')) {
-                const hasSummaryCards = div.querySelector('.summary-item') !== null
-                if (hasSummaryCards) {
-                    financialSummary = div as HTMLElement
-                    break
+
+            // Agregar page break después de la tabla de detalle
+            const summaryCard = element.querySelector('.summary-card') as HTMLElement
+            let pageBreakElement: HTMLElement | null = null
+            if (summaryCard && summaryCard.parentNode) {
+                // Crear un div con la clase que html2pdf.js reconoce para page breaks
+                pageBreakElement = document.createElement('div')
+                pageBreakElement.className = 'html2pdf__page-break'
+                pageBreakElement.style.height = '0'
+                pageBreakElement.style.margin = '0'
+                pageBreakElement.style.padding = '0'
+                // Insertar después del summary-card
+                summaryCard.parentNode.insertBefore(pageBreakElement, summaryCard.nextSibling)
+            }
+
+            // Esperar a que el DOM se actualice completamente
+            await nextTick()
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            try {
+                const opt: any = {
+                    // Márgenes más pequeños para aprovechar la página
+                    margin: [12, 20, 12, 20],
+                    filename: 'simulacion-uniacc.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, logging: false },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 }
+
+                await html2pdf().set(opt).from(element).save()
+            } finally {
+                // Remover el elemento de page break
+                if (pageBreakElement && pageBreakElement.parentNode) {
+                    pageBreakElement.parentNode.removeChild(pageBreakElement)
+                }
+                
+                // Restaurar elementos en su posición original
+                elementsData.forEach(({ element, parent, nextSibling }) => {
+                    if (parent) {
+                        if (nextSibling) {
+                            parent.insertBefore(element, nextSibling)
+                        } else {
+                            parent.appendChild(element)
+                        }
+                    }
+                })
             }
         }
-        await addElementToPDF(financialSummary)
-        
-        // Mensajes
-        await addElementToPDF(pdfContentRef.value.querySelector('.contact-message') as HTMLElement)
-        await addElementToPDF(pdfContentRef.value.querySelector('.anticipado-message') as HTMLElement)
-        await addElementToPDF(pdfContentRef.value.querySelector('.confirmation-message') as HTMLElement)
-        
-        // PÁGINA 3: Becas aplicadas
-        const benefitsSection = pdfContentRef.value.querySelector('.benefits-section') as HTMLElement
-        if (benefitsSection) {
-            pdf.addPage()
-            await addElementToPDF(benefitsSection)
-        }
-
-        // Guardar PDF
-        pdf.save('simulacion-uniacc.pdf')
     } catch (e) {
         console.error('No se pudo generar el PDF:', e)
     } finally {
@@ -434,8 +432,6 @@ defineExpose({
                                         {{ formatCurrency(carreraInfo?.matricula || 0) }}
                                     </td>
                                 </tr>
-
-                                <!-- Bloque informativo de Becas del Estado (solo si usaBecasEstado es true) -->
                                 <template v-if="formData?.usaBecasEstado">
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
@@ -522,8 +518,6 @@ defineExpose({
                                         </td>
                                     </tr>
                                 </template>
-
-                                <!-- Bloque informativo de CAE (solo si planeaUsarCAE es true) -->
                                 <template v-if="formData?.planeaUsarCAE">
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
@@ -570,57 +564,53 @@ defineExpose({
             </Card>
 
             <!-- Resumen financiero -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Primera columna: Arancel Original + Matrícula (apilados verticalmente) -->
-                <div class="flex flex-col gap-4">
-                    <Card class="summary-item first-column-card">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+                <div class="flex flex-col gap-4 h-full">
+                    <Card class="summary-item first-column-card flex-1">
                         <template #content>
-                            <div class="text-center first-column-content">
-                                <div class="text-sm text-gray-600 mb-2 first-column-label font-semibold">Arancel Original</div>
+                            <div class="text-center first-column-content h-full flex flex-col justify-center">
+                                <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Arancel Original</div>
+                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
                                 <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
+                                    {{ formatCurrency(calculoBecas?.arancel_base / 10 || 0) }}
                                 </div>
                             </div>
                         </template>
                     </Card>
-                    <Card class="summary-item matricula-card first-column-card">
+                    <Card class="summary-item matricula-card first-column-card flex-1">
                         <template #content>
-                            <div class="text-center first-column-content">
-                                <div class="text-sm text-gray-600 mb-2 first-column-label font-semibold">Matrícula</div>
+                            <div class="text-center first-column-content h-full flex flex-col justify-center">
+                                <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Matrícula</div>
+                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
                                 <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(carreraInfo?.matricula || 0) }}
+                                    {{ formatCurrency(carreraInfo?.matricula / 10 || 0) }}
                                 </div>
                             </div>
                         </template>
                     </Card>
                 </div>
-
-                <!-- Segunda columna: Descuento Total -->
                 <Card class="summary-item discount">
                     <template #content>
                         <div class="text-center">
-                            <div class="text-sm text-gray-600 mb-2 font-semibold">Descuento Total</div>
+                            <div class="text-sm text-black-700 mb-2 font-bold">Descuento Total</div>
                             <div class="text-2xl font-bold text-red-600">
                                 -{{ formatCurrency(descuentoTotalRealConCae) }}
                             </div>
                         </div>
                     </template>
                 </Card>
-
-                <!-- Tercera columna: Total Final a Pagar -->
                 <Card class="summary-item final">
                     <template #content>
                         <div class="text-center">
-                            <div class="text-sm text-gray-600 mb-2 font-semibold">Total Final a Pagar</div>
+                            <div class="text-sm text-black-700 mb-2 font-bold">Total Final a Pagar</div>
+                            <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
                             <div class="text-2xl font-bold text-green-600 mb-2">
-                                {{ formatCurrency(valorMensual) }} / mes*
+                                {{ formatCurrency(valorMensual) }}
                             </div>
                             <div class="text-xs text-gray-500 valor-anual mb-1">
-                                <em>* considerando 10 cuotas</em>
+                                <div>* Arancel final: {{ formatCurrency(arancelFinalReal) }}</div>
+                                <div>* Matrícula final: {{ formatCurrency(carreraInfo?.matricula || 0) }}</div>
                             </div>
-                            <!-- <div class="text-xs text-gray-500 valor-anual">
-                                Valor anual: {{ formatCurrency(arancelMasMatricula) }}
-                            </div> -->
                         </div>
                     </template>
                 </Card>
@@ -656,7 +646,6 @@ defineExpose({
                         <b>Tenemos descuentos adicionales disponibles.</b>
                     </div>
                     <ul class="anticipado-message-list">
-                        <!-- Subtítulo: Por pago anticipado -->
                         <li v-if="descuentoPagoAnticipadoVigente" class="subtitle-item">
                             <b>Por pago anticipado:</b>
                             <ul class="anticipado-sublist">
@@ -671,7 +660,6 @@ defineExpose({
                                 </li>
                             </ul>
                         </li>
-                        <!-- Subtítulo: Por medio de pago -->
                         <li v-if="descuentosModoPagoActivos.length > 0" class="subtitle-item">
                             <b>Por medio de pago:</b>
                             <ul class="anticipado-sublist">
@@ -902,16 +890,33 @@ defineExpose({
 
 /* Estilos para cards de la primera columna - solo en desktop */
 @media (min-width: 768px) {
+    :deep(.summary-item.first-column-card) {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
     :deep(.summary-item.first-column-card .p-card-body) {
         padding: 0.25rem 0.5rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
     }
 
     :deep(.summary-item.first-column-card .p-card-content) {
         padding: 0.25rem 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
 
     .first-column-content {
         @apply py-0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     .first-column-label {

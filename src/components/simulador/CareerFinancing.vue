@@ -682,7 +682,7 @@ onUnmounted(() => {
                     <small v-if="decilesError" class="p-error">{{ decilesError }}</small>
                     <OverlayPanel ref="decilTooltipRef" class="custom-tooltip-panel">
                         <div class="custom-tooltip">
-                            <p>Toma el total de ingresos y dividelos por la cantidad de personas que viven en él</p>
+                            <p>Toma el total de ingresos de tu hogar y divídelos por la cantidad de personas que viven en él</p>
                         </div>
                     </OverlayPanel>
                 </div>
