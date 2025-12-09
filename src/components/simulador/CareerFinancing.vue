@@ -82,6 +82,30 @@ const financingIconRef = ref<HTMLElement | null>(null)
 const decilTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const decilIconRef = ref<HTMLElement | null>(null)
 
+// Detectar si es un dispositivo móvil
+const isMobile = ref(false)
+
+onMounted(() => {
+    // Detectar si es móvil basándose en touch support y tamaño de pantalla
+    const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const isSmallScreen = window.innerWidth <= 768
+    isMobile.value = hasTouchSupport && isSmallScreen
+    
+    // Escuchar cambios de tamaño de ventana
+    const handleResize = () => {
+        const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+        const isSmallScreen = window.innerWidth <= 768
+        isMobile.value = hasTouchSupport && isSmallScreen
+    }
+    
+    window.addEventListener('resize', handleResize)
+    
+    // Cleanup
+    return () => {
+        window.removeEventListener('resize', handleResize)
+    }
+})
+
 // Estado para controlar cuándo mostrar errores
 const submitted = ref(false)
 const touched = ref({
@@ -273,12 +297,16 @@ const seleccionarCarreraSugerida = async (nombre: string) => {
 }
 
 const showFinancingTooltip = (event: MouseEvent) => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (financingIconRef.value && financingTooltipRef.value) {
         financingTooltipRef.value.toggle(event, financingIconRef.value)
     }
 }
 
 const hideFinancingTooltip = () => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (financingTooltipRef.value) {
         financingTooltipRef.value.hide()
     }
@@ -294,12 +322,16 @@ const toggleFinancingTooltip = (event: MouseEvent | TouchEvent) => {
 }
 
 const showDecilTooltip = (event: MouseEvent) => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (decilIconRef.value && decilTooltipRef.value) {
         decilTooltipRef.value.toggle(event, decilIconRef.value)
     }
 }
 
 const hideDecilTooltip = () => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (decilTooltipRef.value) {
         decilTooltipRef.value.hide()
     }
@@ -459,12 +491,16 @@ onMounted(async () => {
     document.addEventListener('click', handleClickOutside)
     window.addEventListener('resize', calculateDropdownPosition)
     window.addEventListener('scroll', calculateDropdownPosition)
+    // Detectar si es móvil basándose en touch support y tamaño de pantalla
+    handleMobileResize()
+    window.addEventListener('resize', handleMobileResize)
 })
 
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside)
     window.removeEventListener('resize', calculateDropdownPosition)
     window.removeEventListener('scroll', calculateDropdownPosition)
+    window.removeEventListener('resize', handleMobileResize)
 })
 </script>
 
@@ -580,8 +616,9 @@ onUnmounted(() => {
                         ¿Qué tipo de financiamiento planeas utilizar?
                         <span ref="financingIconRef" class="inline-flex ml-2">
                             <Info class="w-3 h-3 text-gray-500 cursor-help hover:text-gray-700"
-                                @click.stop="toggleFinancingTooltip" @mouseenter="showFinancingTooltip"
-                                @mouseleave="hideFinancingTooltip" />
+                                @click.stop="toggleFinancingTooltip" 
+                                @mouseenter="!isMobile && showFinancingTooltip($event)"
+                                @mouseleave="!isMobile && hideFinancingTooltip()" />
                         </span>
                     </h4>
                     <OverlayPanel ref="financingTooltipRef" class="custom-tooltip-panel">
@@ -646,8 +683,8 @@ onUnmounted(() => {
                         <i 
                             ref="decilIconRef"
                             class="pi pi-question-circle decil-icon"
-                            @mouseenter="showDecilTooltip"
-                            @mouseleave="hideDecilTooltip"
+                            @mouseenter="!isMobile && showDecilTooltip($event)"
+                            @mouseleave="!isMobile && hideDecilTooltip()"
                             @click="toggleDecilTooltip"
                         ></i>
                     </label>

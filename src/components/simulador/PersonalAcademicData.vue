@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import InputGroup from 'primevue/inputgroup'
@@ -121,6 +121,26 @@ const extranjeroInfoIconRef = ref<HTMLElement | null>(null)
 const nivelEducativoInfoPanelRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const nivelEducativoInfoIconRef = ref<HTMLElement | null>(null)
 
+// Detectar si es un dispositivo móvil
+const isMobile = ref(false)
+
+const handleMobileResize = () => {
+    const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const isSmallScreen = window.innerWidth <= 768
+    isMobile.value = hasTouchSupport && isSmallScreen
+}
+
+onMounted(() => {
+    // Detectar si es móvil basándose en touch support y tamaño de pantalla
+    handleMobileResize()
+    // Escuchar cambios de tamaño de ventana
+    window.addEventListener('resize', handleMobileResize)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleMobileResize)
+})
+
 // Estado local del formulario
 const formData = ref<Partial<FormData>>({
     nombre: props.formData?.nombre || '',
@@ -240,12 +260,16 @@ const volverARUT = () => {
 
 // Funciones para mostrar/ocultar el OverlayPanel de información de extranjero
 const showExtranjeroInfo = (event: MouseEvent) => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (extranjeroInfoIconRef.value && extranjeroInfoPanelRef.value) {
         extranjeroInfoPanelRef.value.toggle(event, extranjeroInfoIconRef.value)
     }
 }
 
 const hideExtranjeroInfo = () => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (extranjeroInfoPanelRef.value) {
         extranjeroInfoPanelRef.value.hide()
     }
@@ -262,12 +286,16 @@ const toggleExtranjeroInfo = (event: MouseEvent | TouchEvent) => {
 
 // Funciones para mostrar/ocultar el OverlayPanel de información de nivel educativo
 const showNivelEducativoInfo = (event: MouseEvent) => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (nivelEducativoInfoIconRef.value && nivelEducativoInfoPanelRef.value) {
         nivelEducativoInfoPanelRef.value.toggle(event, nivelEducativoInfoIconRef.value)
     }
 }
 
 const hideNivelEducativoInfo = () => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     if (nivelEducativoInfoPanelRef.value) {
         nivelEducativoInfoPanelRef.value.hide()
     }
@@ -681,8 +709,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                         <i 
                             ref="extranjeroInfoIconRef"
                             class="pi pi-info-circle text-gray-500 text-xs cursor-help hover:text-gray-700"
-                            @mouseenter="showExtranjeroInfo"
-                            @mouseleave="hideExtranjeroInfo"
+                            @mouseenter="!isMobile && showExtranjeroInfo($event)"
+                            @mouseleave="!isMobile && hideExtranjeroInfo()"
                             @click="toggleExtranjeroInfo"
                         ></i>
                     </div>
@@ -755,8 +783,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             <i 
                                 ref="nivelEducativoInfoIconRef"
                                 class="pi pi-question-circle nivel-educativo-icon"
-                                @mouseenter="showNivelEducativoInfo"
-                                @mouseleave="hideNivelEducativoInfo"
+                                @mouseenter="!isMobile && showNivelEducativoInfo($event)"
+                                @mouseleave="!isMobile && hideNivelEducativoInfo()"
                                 @click="toggleNivelEducativoInfo"
                             ></i>
                         </label>

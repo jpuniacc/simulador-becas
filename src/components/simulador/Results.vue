@@ -37,6 +37,9 @@ const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const selectedBeca = ref<any>(null)
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
 
+// Detectar si es un dispositivo móvil
+const isMobile = ref(false)
+
 // Computed para colspan responsive
 // En desktop: Concepto + Tipo + Descuento = 3 columnas
 // En mobile: Concepto + Tipo/Descuento = 2 columnas
@@ -49,6 +52,12 @@ const updateWindowWidth = () => {
     windowWidth.value = window.innerWidth
 }
 
+const handleMobileResize = () => {
+    const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const isSmallScreen = window.innerWidth <= 768
+    isMobile.value = hasTouchSupport && isSmallScreen
+}
+
 onMounted(() => {
     console.log('Results mounted - becas aplicadas:', becasAplicadas.value);
     window.addEventListener('resize', updateWindowWidth)
@@ -56,10 +65,15 @@ onMounted(() => {
     // Cargar descuentos de pago anticipado y modo de pago
     descuentosStore.cargarDescuentosPagoAnticipado()
     descuentosStore.cargarDescuentosModoPago()
+    
+    // Detectar si es móvil basándose en touch support y tamaño de pantalla
+    handleMobileResize()
+    window.addEventListener('resize', handleMobileResize)
 })
 
 onUnmounted(() => {
     window.removeEventListener('resize', updateWindowWidth)
+    window.removeEventListener('resize', handleMobileResize)
 })
 
 // Computed
@@ -257,6 +271,8 @@ const handleExportPDF = async () => {
 
 // Método para mostrar overlay panel con descripción de beca en hover
 const showBecaInfo = (event: Event, beca: any) => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     // Cancelar cualquier timeout pendiente
     if (hideTimeout) {
         clearTimeout(hideTimeout)
@@ -268,6 +284,8 @@ const showBecaInfo = (event: Event, beca: any) => {
 
 // Método para ocultar overlay panel
 const hideBecaInfo = () => {
+    // Ignorar en móvil, solo usar click
+    if (isMobile.value) return
     // Pequeño delay para permitir movimiento del mouse al overlay
     hideTimeout = setTimeout(() => {
         overlayPanel.value?.hide()
@@ -462,8 +480,8 @@ defineExpose({
                                                 <i 
                                                     v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)" 
                                                     class="pi pi-info-circle ml-2 text-gray-500 cursor-help hover:text-blue-600 transition-colors text-xs"
-                                                    @mouseenter="showBecaInfo($event, beca)"
-                                                    @mouseleave="hideBecaInfo"
+                                                    @mouseenter="!isMobile && showBecaInfo($event, beca)"
+                                                    @mouseleave="!isMobile && hideBecaInfo()"
                                                     @click="toggleBecaInfo($event, beca)"
                                                     :aria-label="`Información sobre ${beca.beca.nombre}`"
                                                 ></i>
