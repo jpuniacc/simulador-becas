@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      aranceles_cae: {
+        Row: {
+          arancel_anual: number | null
+          arancel_referencia: number | null
+          codigo_carrera: number | null
+          codigo_ies: number | null
+          created_at: string
+          duracion_maxima: number | null
+          id: number
+          id_carrera: number | null
+          jornada: string | null
+          nombre_carrera: string | null
+        }
+        Insert: {
+          arancel_anual?: number | null
+          arancel_referencia?: number | null
+          codigo_carrera?: number | null
+          codigo_ies?: number | null
+          created_at?: string
+          duracion_maxima?: number | null
+          id?: number
+          id_carrera?: number | null
+          jornada?: string | null
+          nombre_carrera?: string | null
+        }
+        Update: {
+          arancel_anual?: number | null
+          arancel_referencia?: number | null
+          codigo_carrera?: number | null
+          codigo_ies?: number | null
+          created_at?: string
+          duracion_maxima?: number | null
+          id?: number
+          id_carrera?: number | null
+          jornada?: string | null
+          nombre_carrera?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foreign_key_carrera_arancel"
+            columns: ["id_carrera"]
+            isOneToOne: false
+            referencedRelation: "carreras_uniacc"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       becas_estado: {
         Row: {
           codigo_beca: string | null
@@ -249,6 +296,7 @@ export type Database = {
         Row: {
           anio: number
           arancel: number
+          arancel_referencia: number | null
           area: string | null
           descripcion_programa: string
           duracion_programa: string
@@ -264,6 +312,7 @@ export type Database = {
         Insert: {
           anio: number
           arancel: number
+          arancel_referencia?: number | null
           area?: string | null
           descripcion_programa: string
           duracion_programa: string
@@ -279,6 +328,7 @@ export type Database = {
         Update: {
           anio?: number
           arancel?: number
+          arancel_referencia?: number | null
           area?: string | null
           descripcion_programa?: string
           duracion_programa?: string

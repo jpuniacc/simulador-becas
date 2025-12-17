@@ -5,6 +5,7 @@ import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 import OverlayPanel from 'primevue/overlaypanel'
+import Drawer from 'primevue/drawer'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
@@ -35,6 +36,7 @@ const windowWidth = ref(window.innerWidth)
 const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const selectedBeca = ref<any>(null)
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
+const showCaeDialog = ref(false)
 
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
@@ -97,15 +99,34 @@ const arancelDespuesBecasInternas = computed(() => {
     return calculoBecas.value.arancel_base - calculoBecas.value.descuento_total
 })
 
-// Computed para descuento total (solo becas internas, no se calculan becas del estado ni CAE)
-const descuentoTotalRealConCae = computed(() => {
-    if (!calculoBecas.value) return 0
-    // Solo incluye descuentos de becas internas
-    return calculoBecas.value.descuento_total
+// Computed para descuento del CAE (el monto máximo que financia el CAE)
+const descuentoCae = computed(() => {
+    if (!formData.value?.planeaUsarCAE || !maximoFinanciamientoCae.value) {
+        return 0
+    }
+    // El descuento del CAE es el máximo financiamiento CAE (el monto que financia el CAE)
+    // Este monto se resta del arancel después de becas internas
+    return maximoFinanciamientoCae.value
 })
 
-// Computed para arancel final (igual al arancel después de becas internas)
+// Computed para descuento total (becas internas + descuento CAE si aplica)
+const descuentoTotalRealConCae = computed(() => {
+    if (!calculoBecas.value) return 0
+    // Incluye descuentos de becas internas + descuento del CAE
+    console.log('DESUENTOS - CAE', descuentoCae.value)
+    console.log('DESUENTOS - TOTAL', calculoBecas.value.descuento_total)
+    return calculoBecas.value.descuento_total + descuentoCae.value
+})
+
+// Computed para arancel final (aplica CAE si corresponde)
 const arancelFinalReal = computed(() => {
+    // Si planea usar CAE y hay máximo financiamiento CAE, restar ese valor del arancel después de becas
+    if (formData.value?.planeaUsarCAE && maximoFinanciamientoCae.value) {
+        // El arancel final es el arancel después de becas menos el máximo financiamiento CAE
+        // Mínimo 0 (si el máximo CAE es mayor al arancel después de becas, el arancel final es 0)
+        return Math.max(0, arancelDespuesBecasInternas.value - maximoFinanciamientoCae.value)
+    }
+    // Si no usa CAE, retornar el arancel después de becas internas
     return arancelDespuesBecasInternas.value
 })
 
@@ -126,6 +147,19 @@ const descuentoPorcentualTotal = computed(() => {
     const base = calculoBecas.value.arancel_base
     if (!base || base <= 0) return 0
     return Math.round((descuentoTotalRealConCae.value / base) * 100)
+})
+
+// Computed para obtener el arancel referencia CAE
+const arancelReferenciaCae = computed(() => {
+    return carreraInfo.value?.arancel_referencia || null
+})
+
+// Computed para calcular el máximo financiamiento CAE aplicable
+// El CAE financia sobre el arancel después de becas internas, pero no puede exceder el arancel_referencia
+const maximoFinanciamientoCae = computed(() => {
+    if (!arancelReferenciaCae.value || arancelReferenciaCae.value <= 0) return null
+    // El máximo financiamiento es el menor entre el arancel_referencia y el arancel después de becas internas
+    return Math.min(arancelReferenciaCae.value, arancelDespuesBecasInternas.value)
 })
 
 // Computed para descuento de pago anticipado vigente
@@ -521,19 +555,51 @@ defineExpose({
                                 <template v-if="formData?.planeaUsarCAE">
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
-                                            Arancel Referencia CAE
+                                            <div class="flex items-center gap-2">
+                                                <span>Arancel Referencia CAE</span>
+                                                <i 
+                                                    class="pi pi-info-circle text-orange-600 cursor-pointer hover:text-orange-800 transition-colors"
+                                                    @click="showCaeDialog = true"
+                                                    title="Información sobre el crédito CAE"
+                                                ></i>
+                                            </div>
                                         </td>
                                         <td class="desktop-only"></td>
                                         <td class="desktop-only"></td>
                                         <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
+                                    <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && descuentoCae > 0" class="table-row cae-row">
+                                        <td class="table-cell font-semibold">
+                                            Máximo Financiamiento CAE
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">CAE</td>
+                                        <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                        <td class="table-cell text-center mobile-only">CAE</td>
+                                        <td class="table-cell text-right font-semibold text-red-600">
+                                            -{{ formatCurrency(descuentoCae) }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && maximoFinanciamientoCae" class="table-row subtotal-row subtotal-cae-row">
+                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
+                                            Después de CAE
+                                        </td>
+                                        <td class="table-cell text-right font-semibold">
+                                            {{ formatCurrency(arancelFinalReal) }}
+                                        </td>
+                                    </tr>
                                     <tr class="table-row info-row cae-info-row">
                                         <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
                                             <div class="flex items-start gap-2">
                                                 <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
                                                 <span>
-                                                    Si firmas el CAE, se aplicará el arancel de referencia definido para tu carrera. El monto exacto se confirmará al momento de la firma.
+                                                    <template v-if="arancelReferenciaCae && arancelReferenciaCae > 0">
+                                                        Si firmas el CAE, el máximo financiamiento aplicable es de {{ formatCurrency(maximoFinanciamientoCae || 0) }}. 
+                                                        El monto exacto se confirmará al momento de la firma.
+                                                    </template>
+                                                    <template v-else>
+                                                        Si firmas el CAE, se aplicará el arancel de referencia definido para tu carrera. El monto exacto se confirmará al momento de la firma.
+                                                    </template>
                                                 </span>
                                             </div>
                                         </td>
@@ -793,6 +859,38 @@ defineExpose({
                 </div>
             </div>
         </OverlayPanel>
+
+        <!-- Drawer para información del CAE -->
+        <Drawer 
+            v-model:visible="showCaeDialog" 
+            position="bottom"
+            :style="{ height: 'auto', maxHeight: '80vh' }"
+            :modal="true"
+        >
+            <template #header>
+                <div class="flex items-center gap-2">
+                    <i class="pi pi-info-circle text-orange-600"></i>
+                    <span class="text-lg font-semibold">Consideraciones para la simulación del crédito CAE</span>
+                </div>
+            </template>
+            <div class="cae-drawer-content p-4">
+                <p class="mb-4">
+                    <strong>El monto financiado anualmente</strong> corresponde al 100% del arancel de referencia vigente a la fecha.
+                </p>
+                <p class="mb-4">
+                    Se ha considerado una <strong>tasa de interés de UF + 2% anual</strong>; un período de <strong>18 meses</strong> a contar del egreso del estudiante, previo al inicio del cobro; y un plazo de <strong>120, 180 o 240 meses</strong> para pagar el total del crédito, según el monto total adeudado.
+                </p>
+                <p class="mb-4">
+                    El <strong>financiamiento total</strong> entregado para tu carrera en esta simulación, se otorga por iguales montos cada año y por el número de años de financiamiento que solicitas, considerando como tope el número de años de duración de la respectiva carrera.
+                </p>
+                <p class="mb-4">
+                    El cálculo considera <strong>meses de 30 días</strong> y el <strong>año de 360 días</strong>.
+                </p>
+                <p class="mb-0 text-sm text-gray-600 italic">
+                    El resultado de este ejercicio constituye una estimación. No debe utilizarse para otros fines que no sean proyectar una cuota aproximada a pagar, considerando los supuestos y parámetros definidos. Atendido lo anterior, la cuota calculada tiene carácter referencial y no genera obligación ni restricción alguna para la Comisión Administradora del Sistema de Créditos para Estudios Superiores ni para los bancos participantes en el sistema.
+                </p>
+            </div>
+        </Drawer>
     </div>
 </template>
 
