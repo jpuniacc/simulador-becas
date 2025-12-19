@@ -1,0 +1,1 @@
+export const MODO_CARRERA_POSTGRADO : 'MULTIPLE' | 'UNICA' = 'MULTIPLE';

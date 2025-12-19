@@ -1116,6 +1116,7 @@ export type Database = {
           colegio: string | null
           comprension_lectora: number | null
           comuna: string | null
+          consentimiento_contacto: boolean | null
           created_at: string | null
           curso: string
           decil: string | null
@@ -1150,6 +1151,7 @@ export type Database = {
           colegio?: string | null
           comprension_lectora?: number | null
           comuna?: string | null
+          consentimiento_contacto?: boolean | null
           created_at?: string | null
           curso: string
           decil?: string | null
@@ -1184,6 +1186,7 @@ export type Database = {
           colegio?: string | null
           comprension_lectora?: number | null
           comuna?: string | null
+          consentimiento_contacto?: boolean | null
           created_at?: string | null
           curso?: string
           decil?: string | null

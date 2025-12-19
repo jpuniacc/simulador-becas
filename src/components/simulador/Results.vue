@@ -6,6 +6,8 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 import OverlayPanel from 'primevue/overlaypanel'
 import Drawer from 'primevue/drawer'
+import Slider from 'primevue/slider'
+import Select from 'primevue/select'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
@@ -37,6 +39,15 @@ const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const selectedBeca = ref<any>(null)
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
 const showCaeDialog = ref(false)
+const numeroCuotas = ref(10)
+const tipoPago = ref<string | null>(null)
+
+// Opciones para el tipo de pago
+const opcionesTipoPago = [
+    { label: 'Cheque', value: 'cheque' },
+    { label: 'Al contado', value: 'contado' },
+    { label: 'Pagaré', value: 'pagare' }
+]
 
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
@@ -66,7 +77,7 @@ onMounted(() => {
     // Cargar descuentos de pago anticipado y modo de pago
     descuentosStore.cargarDescuentosPagoAnticipado()
     descuentosStore.cargarDescuentosModoPago()
-    
+
     // Detectar si es móvil basándose en touch support y tamaño de pantalla
     handleMobileResize()
     window.addEventListener('resize', handleMobileResize)
@@ -136,9 +147,9 @@ const arancelMasMatricula = computed(() => {
     return arancelFinalReal.value + matricula
 })
 
-// Computed para el valor mensual (dividido por 10)
+// Computed para el valor mensual (dividido por numeroCuotas)
 const valorMensual = computed(() => {
-    return Math.round(arancelMasMatricula.value / 10)
+    return Math.round(arancelMasMatricula.value / numeroCuotas.value)
 })
 
 // Porcentaje total de descuento aplicado sobre el arancel base
@@ -230,7 +241,7 @@ const handleExportPDF = async () => {
             const toRemove = Array.from(
                 element.querySelectorAll('.contact-message, .anticipado-message, .confirmation-message')
             ) as HTMLElement[]
-            
+
             // Guardar referencias a los padres y posiciones para restaurar después
             const elementsData = toRemove.map(el => ({
                 element: el,
@@ -280,7 +291,7 @@ const handleExportPDF = async () => {
                 if (pageBreakElement && pageBreakElement.parentNode) {
                     pageBreakElement.parentNode.removeChild(pageBreakElement)
                 }
-                
+
                 // Restaurar elementos en su posición original
                 elementsData.forEach(({ element, parent, nextSibling }) => {
                     if (parent) {
@@ -334,7 +345,7 @@ const toggleBecaInfo = (event: Event, beca: any) => {
         clearTimeout(hideTimeout)
         hideTimeout = null
     }
-    
+
     // Si es la misma beca, hacer toggle (cerrar si está abierto, abrir si está cerrado)
     if (selectedBeca.value?.beca.id === beca.beca.id) {
         // Si ya está seleccionada, cerrar
@@ -507,8 +518,8 @@ defineExpose({
                                             <div class="benefit-name">
                                                 <i class="pi pi-star mr-2 text-blue-600 text-sm"></i>
                                                 <span class="text-sm">{{ beca.beca.nombre }}</span>
-                                                <i 
-                                                    v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)" 
+                                                <i
+                                                    v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)"
                                                     class="pi pi-info-circle ml-2 text-gray-500 cursor-help hover:text-blue-600 transition-colors text-xs"
                                                     @mouseenter="!isMobile && showBecaInfo($event, beca)"
                                                     @mouseleave="!isMobile && hideBecaInfo()"
@@ -557,7 +568,7 @@ defineExpose({
                                         <td class="table-cell section-title">
                                             <div class="flex items-center gap-2">
                                                 <span>Arancel Referencia CAE</span>
-                                                <i 
+                                                <i
                                                     class="pi pi-info-circle text-orange-600 cursor-pointer hover:text-orange-800 transition-colors"
                                                     @click="showCaeDialog = true"
                                                     title="Información sobre el crédito CAE"
@@ -594,7 +605,7 @@ defineExpose({
                                                 <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
                                                 <span>
                                                     <template v-if="arancelReferenciaCae && arancelReferenciaCae > 0">
-                                                        Si firmas el CAE, el máximo financiamiento aplicable es de {{ formatCurrency(maximoFinanciamientoCae || 0) }}. 
+                                                        Si firmas el CAE, el máximo financiamiento aplicable es de {{ formatCurrency(maximoFinanciamientoCae || 0) }}.
                                                         El monto exacto se confirmará al momento de la firma.
                                                     </template>
                                                     <template v-else>
@@ -629,6 +640,45 @@ defineExpose({
                 </template>
             </Card>
 
+            <!-- Simulación de cuotas y medios de pago -->
+            <Card class="payment-simulation-card">
+                <template #title>
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-credit-card"></i>
+                        <span>Simulación de cuotas y medios de pago</span>
+                    </div>
+                </template>
+                <template #content>
+                    <div class="payment-simulation-content">
+                        <div class="payment-control-group">
+                            <label for="numeroCuotas" class="payment-label">Número de cuotas: <span class="slider-value">{{ numeroCuotas }}</span></label>
+
+                            <div class="slider-container">
+                                <Slider
+                                    id="numeroCuotas"
+                                    v-model="numeroCuotas"
+                                    :min="1"
+                                    :max="12"
+                                    class="payment-slider"
+                                />
+                            </div>
+                        </div>
+                        <div class="payment-control-group">
+                            <label for="tipoPago" class="payment-label">Medio de pago</label>
+                            <Select
+                                id="tipoPago"
+                                v-model="tipoPago"
+                                :options="opcionesTipoPago"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Seleccione un medio de pago"
+                                class="payment-select"
+                            />
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
             <!-- Resumen financiero -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
                 <div class="flex flex-col gap-4 h-full">
@@ -636,9 +686,9 @@ defineExpose({
                         <template #content>
                             <div class="text-center first-column-content h-full flex flex-col justify-center">
                                 <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Arancel Original</div>
-                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
+                                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
                                 <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(calculoBecas?.arancel_base / 10 || 0) }}
+                                    {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
                                 </div>
                             </div>
                         </template>
@@ -647,9 +697,9 @@ defineExpose({
                         <template #content>
                             <div class="text-center first-column-content h-full flex flex-col justify-center">
                                 <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Matrícula</div>
-                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
+                                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
                                 <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(carreraInfo?.matricula / 10 || 0) }}
+                                    {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
                                 </div>
                             </div>
                         </template>
@@ -669,7 +719,7 @@ defineExpose({
                     <template #content>
                         <div class="text-center">
                             <div class="text-sm text-black-700 mb-2 font-bold">Total Final a Pagar</div>
-                            <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
+                            <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
                             <div class="text-2xl font-bold text-green-600 mb-2">
                                 {{ formatCurrency(valorMensual) }}
                             </div>
@@ -683,10 +733,10 @@ defineExpose({
             </div>
 
             <!-- Mensaje de contacto con descuento -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="success" 
-                :closable="false" 
+            <Message
+                v-if="descuentoPorcentualTotal > 0"
+                severity="success"
+                :closable="false"
                 class="contact-message"
                 size="large"
             >
@@ -700,10 +750,10 @@ defineExpose({
             </Message>
 
             <!-- Mensaje informativo sobre descuentos adicionales -->
-            <Message 
-                v-if="tieneDescuentosDisponibles" 
-                severity="info" 
-                :closable="false" 
+            <Message
+                v-if="tieneDescuentosDisponibles"
+                severity="info"
+                :closable="false"
                 class="anticipado-message"
                 size="small"
             >
@@ -739,10 +789,10 @@ defineExpose({
             </Message>
 
             <!-- Mensaje informativo sobre confirmación -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="warn" 
-                :closable="false" 
+            <Message
+                v-if="descuentoPorcentualTotal > 0"
+                severity="warn"
+                :closable="false"
                 class="confirmation-message"
                 size="small"
             >
@@ -813,9 +863,9 @@ defineExpose({
 
         <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
         <div v-if="!isLoading && !error && calculoBecas && !isGeneratingPDF" class="export-pdf-section">
-            <Button 
-                label="Exportar PDF" 
-                icon="pi pi-download" 
+            <Button
+                label="Exportar PDF"
+                icon="pi pi-download"
                 @click="handleExportPDF"
                 class="export-pdf-button"
                 severity="secondary"
@@ -829,15 +879,15 @@ defineExpose({
                 <!-- Header con título y badge -->
                 <div class="beca-info-header">
                     <h4 class="beca-info-title">{{ selectedBeca.beca.nombre }}</h4>
-                    <span 
-                        v-if="selectedBeca.beca.proceso_evaluacion" 
+                    <span
+                        v-if="selectedBeca.beca.proceso_evaluacion"
                         :class="['beca-info-badge', getProcesoEvaluacionBadgeClass(selectedBeca.beca.proceso_evaluacion)]"
                     >
                         {{ getProcesoEvaluacionBadge(selectedBeca.beca.proceso_evaluacion) }}
                     </span>
                 </div>
                 <div v-if="selectedBeca.beca.descripcion || (selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0)" class="beca-info-divider"></div>
-                
+
                 <!-- Descripción -->
                 <div v-if="selectedBeca.beca.descripcion" class="beca-info-body">
                     <div class="beca-info-description-section">
@@ -847,7 +897,7 @@ defineExpose({
                     </div>
                     <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-divider"></div>
                 </div>
-                
+
                 <!-- Documentación requerida -->
                 <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-footer">
                     <h5 class="beca-info-subtitle">Documentación Requerida:</h5>
@@ -861,8 +911,8 @@ defineExpose({
         </OverlayPanel>
 
         <!-- Drawer para información del CAE -->
-        <Drawer 
-            v-model:visible="showCaeDialog" 
+        <Drawer
+            v-model:visible="showCaeDialog"
             position="bottom"
             :style="{ height: 'auto', maxHeight: '80vh' }"
             :modal="true"
@@ -1138,33 +1188,33 @@ defineExpose({
     .desktop-only {
         display: none;
     }
-    
+
     .mobile-only {
         display: table-cell;
     }
-    
+
     .table-header,
     .table-cell {
         @apply px-2 py-2 text-xs;
     }
-    
+
     .table-cell.font-bold.text-lg {
         @apply text-base;
     }
-    
+
     .benefit-name {
         @apply text-xs;
     }
-    
+
     .benefit-name i {
         @apply mr-1;
         font-size: 0.75rem;
     }
-    
+
     .section-title {
         @apply text-xs;
     }
-    
+
     .discount-percentage {
         @apply text-xs;
     }
@@ -1510,6 +1560,44 @@ defineExpose({
 
 .beca-info-item {
     @apply text-xs text-gray-700 leading-relaxed;
+}
+
+/* Estilos para simulación de cuotas y medios de pago */
+.payment-simulation-card {
+    @apply mb-6;
+}
+
+.payment-simulation-content {
+    @apply flex flex-col md:flex-row gap-6;
+}
+
+.payment-control-group {
+    @apply flex-1 flex flex-col gap-2;
+}
+
+.payment-label {
+    @apply text-sm font-medium text-gray-600 mb-3;
+    @apply flex items-center gap-2;
+}
+
+.slider-container {
+    @apply w-full;
+}
+
+.payment-slider {
+    @apply w-full;
+}
+
+.slider-value {
+    @apply inline-flex items-center justify-center;
+    @apply min-w-[2.5rem] px-2 py-0.5;
+    @apply text-lg font-bold text-gray-900;
+    @apply bg-gray-100 rounded-md;
+    @apply border border-gray-200;
+}
+
+.payment-select {
+    @apply w-full;
 }
 
 </style>

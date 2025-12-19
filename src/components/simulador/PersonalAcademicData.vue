@@ -5,7 +5,6 @@ import InputNumber from 'primevue/inputnumber'
 import InputGroup from 'primevue/inputgroup'
 import InputGroupAddon from 'primevue/inputgroupaddon'
 import FloatLabel from 'primevue/floatlabel'
-import SelectButton from 'primevue/selectbutton'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
@@ -33,7 +32,8 @@ const props = withDefaults(defineProps<Props>(), {
         nivelEducativo: '' as FormData['nivelEducativo'],
         regionResidencia: '',
         comunaResidencia: '',
-        colegio: ''
+        colegio: '',
+        consentimiento_contacto: false
     }),
     modo: 'primera_carrera'
 })
@@ -46,11 +46,10 @@ const emit = defineEmits<{
 
 // Opciones de nivel educativo
 const opcionesNivelEducativo = [
-    { label: '1° Medio', value: '1ro Medio' },
-    { label: '2° Medio', value: '2do Medio' },
-    { label: '3° Medio', value: '3ro Medio' },
-    { label: '4° Medio', value: '4to Medio' },
-    { label: 'Egresado', value: 'Egresado' }
+    { label: 'Educación media incompleta', value: 'Educación media incompleta' },
+    { label: 'Educación media completa', value: 'Educación media completa' },
+    { label: 'Cursando educación superior', value: 'Cursando educación superior' },
+    { label: 'Educación superior completa', value: 'Educación superior completa' }
 ]
 
 // Países agrupados para el select de pasaporte (solo latinos excepto Chile + Haití)
@@ -157,11 +156,17 @@ const formData = ref<Partial<FormData>>({
     colegio: props.formData?.colegio || '',
     añoEgreso: props.formData?.añoEgreso || '',
     ranking: props.formData?.ranking || null,
-    nem: props.formData?.nem || null
+    nem: props.formData?.nem || null,
+    consentimiento_contacto: props.formData?.consentimiento_contacto || false
 })
 
-// Computed para verificar si es egresado
-const isEgresado = computed(() => formData.value.nivelEducativo === 'Egresado')
+// Computed para verificar si es egresado (completó educación media)
+const isEgresado = computed(() => {
+    const nivel = formData.value.nivelEducativo
+    return nivel === 'Educación media completa' ||
+           nivel === 'Cursando educación superior' ||
+           nivel === 'Educación superior completa'
+})
 
 // Computed para verificar si se debe mostrar RUT o Pasaporte
 const mostrarRUT = computed(() => {
@@ -212,7 +217,7 @@ watch(() => formData.value.nem, (newValue, oldValue) => {
     if (isUserTyping.value) {
         return
     }
-    
+
     if (newValue !== null && newValue !== undefined) {
         const formatted = newValue.toFixed(1).replace('.', ',')
         // Solo actualizar si es diferente y no es un valor parcial que el usuario está escribiendo
@@ -233,13 +238,13 @@ const nemValue = computed({
     set: (value: string) => {
         // Actualizar el valor del input local
         nemInputValue.value = value
-        
+
         // Solo convertir a número si el formato está completo (X,X con ambos dígitos)
         if (!value || value.trim() === '') {
             formData.value.nem = null
             return
         }
-        
+
         // Verificar que tenga formato completo X,X (con dígito después de la coma)
         const parts = value.split(',')
         if (parts.length === 2 && parts[0] && parts[1] && parts[1].length > 0) {
@@ -265,30 +270,30 @@ const handleNEMInput = (event: Event) => {
     isUserTyping.value = true
     const target = event.target as HTMLInputElement
     let value = target.value
-    
+
     // Remover todo excepto dígitos y coma
     value = value.replace(/[^0-9,]/g, '')
-    
+
     // Si está vacío, permitir
     if (value === '') {
         nemValue.value = ''
         return
     }
-    
+
     // Contar comas
     const comaCount = (value.match(/,/g) || []).length
-    
+
     // Si hay más de una coma, mantener solo la primera
     if (comaCount > 1) {
         const firstComaIndex = value.indexOf(',')
         value = value.slice(0, firstComaIndex + 1) + value.slice(firstComaIndex + 1).replace(/,/g, '')
     }
-    
+
     // Dividir por la coma
     const parts = value.split(',')
     const beforeComa = parts[0] || ''
     const afterComa = parts[1] || ''
-    
+
     // Limpiar y validar parte antes de la coma (solo dígitos 1-7)
     let cleanBefore = beforeComa.replace(/[^0-9]/g, '')
     if (cleanBefore.length > 0) {
@@ -299,7 +304,7 @@ const handleNEMInput = (event: Event) => {
             cleanBefore = ''
         }
     }
-    
+
     // Limpiar y validar parte después de la coma (solo dígitos 0-9, máximo 1 dígito)
     let cleanAfter = afterComa.replace(/[^0-9]/g, '').slice(0, 1)
     if (cleanAfter.length > 0) {
@@ -308,7 +313,7 @@ const handleNEMInput = (event: Event) => {
             cleanAfter = ''
         }
     }
-    
+
     // Construir el valor final
     if (cleanBefore && cleanAfter) {
         value = cleanBefore + ',' + cleanAfter
@@ -320,11 +325,11 @@ const handleNEMInput = (event: Event) => {
     } else {
         value = ''
     }
-    
+
     // Actualizar el valor del input directamente sin disparar el setter del computed
     nemInputValue.value = value
     target.value = value
-    
+
     // Solo actualizar formData si el formato está completo (X,X con segundo dígito)
     const valueParts = value.split(',')
     if (valueParts.length === 2 && valueParts[0] && valueParts[1] && valueParts[1].length > 0) {
@@ -338,7 +343,7 @@ const handleNEMInput = (event: Event) => {
         formData.value.nem = null
     }
     // Si tiene formato incompleto como "5,", no hacer nada con formData
-    
+
     // Resetear el flag después de un pequeño delay
     setTimeout(() => {
         isUserTyping.value = false
@@ -349,19 +354,19 @@ const handleNEMInput = (event: Event) => {
 const handleNEMKeydown = (event: KeyboardEvent) => {
     const target = event.target as HTMLInputElement
     const currentValue = target.value
-    
+
     // Permitir teclas de control
-    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab' || 
-        event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || 
+    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab' ||
+        event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' ||
         event.key === 'ArrowDown' || event.ctrlKey || event.metaKey || event.key === 'Enter') {
         return
     }
-    
+
     // Si presiona coma, manejarlo en el input
     if (event.key === ',' || event.key === '.') {
         event.preventDefault()
         const cursorPos = target.selectionStart || 0
-        
+
         // Si no hay coma aún y hay un dígito válido antes
         if (!currentValue.includes(',') && currentValue.length > 0) {
             const firstDigit = parseInt(currentValue[0])
@@ -377,13 +382,13 @@ const handleNEMKeydown = (event: KeyboardEvent) => {
         }
         return
     }
-    
+
     // Si es un número
     if (/[0-9]/.test(event.key)) {
         const cursorPos = target.selectionStart || 0
         const hasComa = currentValue.includes(',')
         const comaPos = currentValue.indexOf(',')
-        
+
         // Si el cursor está antes de la coma
         if (hasComa && cursorPos <= comaPos) {
             const digit = parseInt(event.key)
@@ -545,8 +550,8 @@ const handleRUTInput = (event: Event) => {
 // Manejar keydown de teléfono: prevenir letras y caracteres no numéricos
 const handlePhoneKeydown = (event: KeyboardEvent) => {
     // Permitir teclas de control (backspace, delete, tab, etc.)
-    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab' || 
-        event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || 
+    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab' ||
+        event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' ||
         event.key === 'ArrowDown' || event.ctrlKey || event.metaKey) {
         return
     }
@@ -611,8 +616,8 @@ watch(() => formData.value.telefono, (newPhone) => {
 // Computed para verificar si el formulario es válido
 const isFormValid = computed(() => {
     const isEspecializacion = props.modo === 'especializacion'
-    
-    const hasRequiredFields = 
+
+    const hasRequiredFields =
         formData.value.nombre?.trim() !== '' &&
         formData.value.apellido?.trim() !== '' &&
         formData.value.email?.trim() !== '' &&
@@ -624,14 +629,14 @@ const isFormValid = computed(() => {
         (isEspecializacion || mostrarPasaporte.value || formData.value.colegio?.trim() !== '') &&
         // Si es pasaporte, el país es requerido
         (mostrarRUT.value || (mostrarPasaporte.value && formData.value.paisPasaporte?.trim() !== ''))
-    
+
     const isEmailValid = formData.value.email ? validateEmail(formData.value.email) : false
     // Validar RUT solo si tieneRUT es true, si es pasaporte solo verificar que no esté vacío
-    const isRUTValid = mostrarRUT.value 
+    const isRUTValid = mostrarRUT.value
         ? (formData.value.identificacion ? validateRUT(formData.value.identificacion) : false)
         : (formData.value.identificacion?.trim() !== '') // Para pasaporte solo verificar que no esté vacío
     const isPhoneValid = formData.value.telefono ? formData.value.telefono.replace(/[^0-9]/g, '').length === 8 : false
-    
+
     return hasRequiredFields && isEmailValid && isRUTValid && isPhoneValid && !emailError.value && !rutError.value && !telefonoError.value
 })
 
@@ -649,11 +654,43 @@ const markAsSubmitted = () => {
     })
 }
 
+// Método para procesar RUT desde el componente padre (formateo y validación)
+const processRUT = (rutValue: string) => {
+    if (!rutValue || !rutValue.trim()) return
+
+    // Limpiar y formatear el RUT
+    const clean = cleanRUT(rutValue)
+    if (clean.length >= 8) {
+        const formatted = formatRUT(rutValue)
+        formData.value.identificacion = formatted
+    } else {
+        formData.value.identificacion = rutValue
+    }
+
+    // Marcar como touched para disparar validaciones
+    touched.value.identificacion = true
+
+    // Validar el RUT
+    if (mostrarRUT.value && formData.value.identificacion && formData.value.identificacion.trim() !== '') {
+        if (!validateRUT(formData.value.identificacion)) {
+            rutError.value = 'Por favor ingresa un RUT válido'
+        } else {
+            rutError.value = null
+        }
+    }
+
+    // Emitir el cambio
+    emit('update:form-data', {
+        identificacion: formData.value.identificacion
+    })
+}
+
 // Exponer el estado de validación al componente padre
 defineExpose({
     isFormValid,
     emailError,
-    markAsSubmitted
+    markAsSubmitted,
+    processRUT
 })
 
 // Métodos del modal
@@ -690,7 +727,7 @@ watch(formData, (newData) => {
 watch(() => props.formData, (newData) => {
     if (newData) {
         // Verificar si hay cambios reales antes de actualizar
-        const hasChanges = 
+        const hasChanges =
             formData.value.nombre !== (newData.nombre || '') ||
             formData.value.apellido !== (newData.apellido || '') ||
             formData.value.email !== (newData.email || '') ||
@@ -705,7 +742,8 @@ watch(() => props.formData, (newData) => {
             formData.value.colegio !== (newData.colegio || '') ||
             formData.value.añoEgreso !== (newData.añoEgreso || '') ||
             formData.value.ranking !== (newData.ranking || null) ||
-            formData.value.nem !== (newData.nem || null)
+            formData.value.nem !== (newData.nem || null) ||
+            formData.value.consentimiento_contacto !== (newData.consentimiento_contacto || false)
 
         if (hasChanges) {
             isUpdatingFromProps.value = true
@@ -724,7 +762,8 @@ watch(() => props.formData, (newData) => {
                 colegio: newData.colegio || '',
                 añoEgreso: newData.añoEgreso || '',
                 ranking: newData.ranking || null,
-                nem: newData.nem || null
+                nem: newData.nem || null,
+                consentimiento_contacto: newData.consentimiento_contacto || false
             }
             // Resetear el flag después de un pequeño delay
             setTimeout(() => {
@@ -736,7 +775,8 @@ watch(() => props.formData, (newData) => {
 
 // Watcher para limpiar campos de egresado si cambia el nivel educativo
 watch(() => formData.value.nivelEducativo, (newNivel) => {
-    if (newNivel !== 'Egresado') {
+    const nivelesCompletos = ['Educación media completa', 'Cursando educación superior', 'Educación superior completa']
+    if (!nivelesCompletos.includes(newNivel || '')) {
         formData.value.añoEgreso = ''
         formData.value.ranking = null
         formData.value.nem = null
@@ -757,19 +797,19 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
-                            <InputText 
-                                id="nombre" 
-                                v-model="formData.nombre" 
+                            <InputText
+                                id="nombre"
+                                v-model="formData.nombre"
                                 class="form-input"
                                 :invalid="(submitted || touched.nombre) && (!formData.nombre || formData.nombre.trim() === '')"
                                 @blur="touched.nombre = true"
                             />
                             <label for="nombre">Nombre *</label>
                         </FloatLabel>
-                        <Message 
-                            v-if="(submitted || touched.nombre) && (!formData.nombre || formData.nombre.trim() === '')" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.nombre) && (!formData.nombre || formData.nombre.trim() === '')"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             Nombre es requerido
@@ -781,19 +821,19 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
-                            <InputText 
-                                id="apellido" 
-                                v-model="formData.apellido" 
+                            <InputText
+                                id="apellido"
+                                v-model="formData.apellido"
                                 class="form-input"
                                 :invalid="(submitted || touched.apellido) && (!formData.apellido || formData.apellido.trim() === '')"
                                 @blur="touched.apellido = true"
                             />
                             <label for="apellido">Apellido *</label>
                         </FloatLabel>
-                        <Message 
-                            v-if="(submitted || touched.apellido) && (!formData.apellido || formData.apellido.trim() === '')" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.apellido) && (!formData.apellido || formData.apellido.trim() === '')"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             Apellido es requerido
@@ -805,20 +845,20 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
-                            <InputText 
-                                id="email" 
-                                v-model="formData.email" 
-                                type="email" 
+                            <InputText
+                                id="email"
+                                v-model="formData.email"
+                                type="email"
                                 class="form-input"
                                 :invalid="(submitted || touched.email) && (emailError !== null || (formData.email && !validateEmail(formData.email)))"
                                 @blur="touched.email = true"
                             />
                             <label for="email">Email *</label>
                         </FloatLabel>
-                        <Message 
-                            v-if="(submitted || touched.email) && (emailError || (formData.email && !validateEmail(formData.email)))" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.email) && (emailError || (formData.email && !validateEmail(formData.email)))"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             {{ emailError || 'Email no es válido' }}
@@ -832,10 +872,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                         <InputGroup class="form-input-group">
                             <InputGroupAddon>+569</InputGroupAddon>
                             <FloatLabel>
-                                <InputText 
-                                    id="telefono" 
-                                    v-model="formData.telefono" 
-                                    type="tel" 
+                                <InputText
+                                    id="telefono"
+                                    v-model="formData.telefono"
+                                    type="tel"
                                     class="form-input"
                                     maxlength="8"
                                     :invalid="(submitted || touched.telefono) && (telefonoError !== null || (formData.telefono && formData.telefono.replace(/[^0-9]/g, '').length !== 8))"
@@ -847,10 +887,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                 <label for="telefono">Teléfono *</label>
                             </FloatLabel>
                         </InputGroup>
-                        <Message 
-                            v-if="(submitted || touched.telefono) && (telefonoError || (formData.telefono && formData.telefono.replace(/[^0-9]/g, '').length !== 8))" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.telefono) && (telefonoError || (formData.telefono && formData.telefono.replace(/[^0-9]/g, '').length !== 8))"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             {{ telefonoError || 'El teléfono debe tener 8 dígitos' }}
@@ -862,9 +902,9 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div v-if="mostrarRUT" class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
-                            <InputText 
-                                id="identificacion" 
-                                v-model="formData.identificacion" 
+                            <InputText
+                                id="identificacion"
+                                v-model="formData.identificacion"
                                 type="text"
                                 placeholder="12.345.678-9"
                                 class="form-input"
@@ -874,10 +914,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             />
                             <label for="identificacion">RUT *</label>
                         </FloatLabel>
-                        <Message 
-                            v-if="(submitted || touched.identificacion) && (rutError || (formData.identificacion && !validateRUT(formData.identificacion)))" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.identificacion) && (rutError || (formData.identificacion && !validateRUT(formData.identificacion)))"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             {{ rutError || 'RUT no es válido' }}
@@ -889,9 +929,9 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div v-if="mostrarPasaporte && props.modo !== 'especializacion'" class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
-                            <InputText 
-                                id="identificacion" 
-                                v-model="formData.identificacion" 
+                            <InputText
+                                id="identificacion"
+                                v-model="formData.identificacion"
                                 type="text"
                                 placeholder="Rut provisorio/Pasaporte"
                                 class="form-input"
@@ -900,10 +940,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             />
                             <label for="identificacion">Identificación *</label>
                         </FloatLabel>
-                        <Message 
-                            v-if="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             Identificación es requerida
@@ -914,19 +954,19 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                  <!-- Checkbox ¿Eres extranjero? (solo para primera carrera) -->
                  <div v-if="props.modo !== 'especializacion'" class="form-field">
                     <div class="flex items-end gap-2">
-                        <Checkbox 
-                            id="esExtranjero" 
-                            v-model="esExtranjero" 
+                        <Checkbox
+                            id="esExtranjero"
+                            v-model="esExtranjero"
                             :binary="true"
                         />
-                        <label 
-                            for="esExtranjero" 
+                        <label
+                            for="esExtranjero"
                             class="text-gray-500 text-sm cursor-pointer"
                             @click="esExtranjero = !esExtranjero"
                         >
                             ¿Eres extranjero?
                         </label>
-                        <i 
+                        <i
                             ref="extranjeroInfoIconRef"
                             class="pi pi-info-circle text-gray-500 text-xs cursor-help hover:text-gray-700"
                             @mouseenter="!isMobile && showExtranjeroInfo($event)"
@@ -945,12 +985,12 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <div v-if="mostrarPasaporte && props.modo !== 'especializacion'" class="form-field">
                     <div class="flex flex-col gap-1">
                         <FloatLabel>
-                            <Select 
+                            <Select
                                 id="paisPasaporte"
-                                v-model="formData.paisPasaporte" 
-                                :options="groupedCountries" 
-                                optionLabel="label" 
-                                optionGroupLabel="label" 
+                                v-model="formData.paisPasaporte"
+                                :options="groupedCountries"
+                                optionLabel="label"
+                                optionGroupLabel="label"
                                 optionGroupChildren="items"
                                 optionValue="value"
                                 class="w-full form-input"
@@ -959,22 +999,22 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             >
                                 <template #optiongroup="slotProps">
                                     <div class="flex items-center">
-                                        <img 
-                                            :alt="slotProps.option.label" 
-                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png" 
-                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`" 
-                                            style="width: 18px" 
+                                        <img
+                                            :alt="slotProps.option.label"
+                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png"
+                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`"
+                                            style="width: 18px"
                                         />
                                         <div>{{ slotProps.option.label }}</div>
                                     </div>
                                 </template>
                                 <template #option="slotProps">
                                     <div class="flex items-center">
-                                        <img 
-                                            :alt="slotProps.option.label" 
-                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png" 
-                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`" 
-                                            style="width: 18px" 
+                                        <img
+                                            :alt="slotProps.option.label"
+                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png"
+                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`"
+                                            style="width: 18px"
                                         />
                                         <div>{{ slotProps.option.label }}</div>
                                     </div>
@@ -982,10 +1022,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             </Select>
                             <label for="paisPasaporte">País de Origen *</label>
                         </FloatLabel>
-                        <Message 
-                            v-if="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             País es requerido
@@ -993,14 +1033,14 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </div>
                 </div>
 
-               
+
 
                 <!-- Campo Nivel Educativo (solo para primera carrera) -->
                 <div v-if="props.modo === 'primera_carrera'" class="form-field nivel-educativo-field">
                     <div class="flex flex-col gap-1">
                         <label for="nivelEducativo" class="nivel-educativo-label">
                             Nivel Educativo *
-                            <i 
+                            <i
                                 ref="nivelEducativoInfoIconRef"
                                 class="pi pi-question-circle nivel-educativo-icon"
                                 @mouseenter="!isMobile && showNivelEducativoInfo($event)"
@@ -1008,19 +1048,31 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                 @click="toggleNivelEducativoInfo"
                             ></i>
                         </label>
-                        <SelectButton 
-                            id="nivelEducativo" 
-                            v-model="formData.nivelEducativo"
-                            :options="opcionesNivelEducativo" 
-                            optionLabel="label" 
-                            optionValue="value"
-                            class="nivel-educativo-select"
-                            @change="touched.nivelEducativo = true"
-                        />
-                        <Message 
-                            v-if="(submitted || touched.nivelEducativo) && !formData.nivelEducativo" 
-                            severity="error" 
-                            variant="simple" 
+                        <div class="nivel-educativo-checkboxes">
+                            <div
+                                v-for="opcion in opcionesNivelEducativo"
+                                :key="opcion.value"
+                                class="checkbox-option"
+                            >
+                                <Checkbox
+                                    :id="`nivelEducativo-${opcion.value}`"
+                                    :binary="true"
+                                    :modelValue="formData.nivelEducativo === opcion.value"
+                                    @update:modelValue="(checked) => { formData.nivelEducativo = checked ? (opcion.value as FormData['nivelEducativo']) : ''; touched.nivelEducativo = true; }"
+                                />
+                                <label
+                                    :for="`nivelEducativo-${opcion.value}`"
+                                    class="checkbox-label"
+                                    @click="formData.nivelEducativo = formData.nivelEducativo === opcion.value ? '' : (opcion.value as FormData['nivelEducativo']); touched.nivelEducativo = true"
+                                >
+                                    {{ opcion.label }}
+                                </label>
+                            </div>
+                        </div>
+                        <Message
+                            v-if="(submitted || touched.nivelEducativo) && !formData.nivelEducativo"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             Nivel educativo es requerido
@@ -1028,7 +1080,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </div>
                     <OverlayPanel ref="nivelEducativoInfoPanelRef" class="custom-tooltip-panel">
                         <div class="custom-tooltip">
-                            <p>Que año de enseñanza media cursas, si eres egresado te pediremos datos adicionales</p>
+                            <p>Si corresponde, te solicitaremos datos relacionados a egreso de enseñanza media</p>
                         </div>
                     </OverlayPanel>
                 </div>
@@ -1054,9 +1106,9 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 <!-- NEM (solo para egresados) -->
                 <div v-if="isEgresado" class="form-field">
                     <FloatLabel>
-                        <InputText 
-                            id="nem" 
-                            v-model="nemValue" 
+                        <InputText
+                            id="nem"
+                            v-model="nemValue"
                             class="form-input"
                             placeholder="Ej 5,5"
                             maxlength="3"
@@ -1091,15 +1143,42 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                     class="colegio-change-button colegio-completed" severity="success" text />
                             </div>
                         </div>
-                        <Message 
-                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')" 
-                            severity="error" 
-                            variant="simple" 
+                        <Message
+                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')"
+                            severity="error"
+                            variant="simple"
                             size="small"
                         >
                             Colegio es requerido
                         </Message>
                     </div>
+                </div>
+
+                <!-- Campo Consentimiento de Contacto -->
+                <div class="form-field consentimiento-field">
+                    <label
+                        for="consentimiento_contacto"
+                        class="consentimiento-label"
+                        :class="{ 'consentimiento-checked': formData.consentimiento_contacto }"
+                    >
+                        <Checkbox
+                            id="consentimiento_contacto"
+                            v-model="formData.consentimiento_contacto"
+                            :binary="true"
+                            class="consentimiento-checkbox"
+                        />
+                        <div class="consentimiento-content">
+                            <p class="consentimiento-title">
+                                Acepto que un/a ejecutivo/a de admisión de UNIACC me contacte
+                            </p>
+                            <p class="consentimiento-subtitle">
+                                para orientarme sobre programas y resolver mis dudas, usando los datos que acabo de ingresar
+                            </p>
+                        </div>
+                    </label>
+                    <p class="consentimiento-disclaimer">
+                        * Tus datos se usarán solo con fines de orientación académica.
+                    </p>
                 </div>
             </div>
         </form>
@@ -1118,7 +1197,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
     @apply form-container;
 }
 
-/* Estilos para SelectButton de nivel educativo */
+/* Estilos para checkboxes de nivel educativo */
 .nivel-educativo-field {
     @apply col-span-1 md:col-span-2;
 }
@@ -1126,6 +1205,19 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 .nivel-educativo-label {
     @apply block text-sm font-medium text-gray-700 mb-3;
     @apply flex items-center gap-2;
+}
+
+.nivel-educativo-checkboxes {
+    @apply flex flex-col gap-3 ml-5 mb-2;
+}
+
+.checkbox-option {
+    @apply flex items-center gap-2;
+}
+
+.checkbox-label {
+    @apply text-sm text-gray-700 cursor-pointer;
+    @apply flex-1;
 }
 
 .nivel-educativo-icon {
@@ -1203,17 +1295,6 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 
-/* Sobrescribir colores del SelectButton */
-.p-togglebutton-content {
-  background-color: red !important;
-  color: white;
-}
-
-
-.p-selectbutton .p-button.p-highlight {
-  background-color: red !important;
-  border-color: blue !important;
-}
 
 /* Estilos para tooltips personalizados */
 :deep(.custom-tooltip-panel) {
@@ -1232,6 +1313,67 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
     margin: 0;
 }
 
+/* Estilos para consentimiento de contacto */
+.consentimiento-field {
+    @apply col-span-1 md:col-span-2;
+}
+
+.consentimiento-label {
+    @apply flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors;
+    @apply border-gray-200 hover:bg-gray-50;
+    @apply relative;
+}
+
+.consentimiento-label.consentimiento-checked {
+    border-color: #10b981;
+    background-color: #ecfdf5;
+}
+
+.dark .consentimiento-label.consentimiento-checked {
+    border-color: #059669;
+    background-color: #064e3b;
+}
+
+.consentimiento-checkbox {
+    @apply mt-0.5 flex-shrink-0;
+}
+
+:deep(.consentimiento-checkbox .p-checkbox-box) {
+    @apply border-gray-300;
+}
+
+:deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
+    border-color: #10b981 !important;
+    background-color: #10b981 !important;
+}
+
+.dark :deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
+    border-color: #059669 !important;
+    background-color: #059669 !important;
+}
+
+:deep(.consentimiento-checkbox .p-checkbox-icon) {
+    @apply text-white;
+}
+
+.consentimiento-content {
+    @apply flex-1;
+}
+
+.consentimiento-title {
+    @apply text-sm leading-none font-medium text-gray-900 mb-1.5;
+}
+
+.consentimiento-subtitle {
+    @apply text-sm text-gray-600 font-normal;
+    margin-left: calc(-1.25rem - 0.75rem);
+    padding-left: calc(1.25rem + 0.75rem);
+}
+
+.consentimiento-disclaimer {
+    @apply text-sm text-gray-500 italic mt-2;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .nivel-educativo-field {
@@ -1242,8 +1384,12 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
         @apply col-span-1;
     }
 
-    :deep(.nivel-educativo-select .p-selectbutton) {
-        @apply flex-col;
+    .consentimiento-field {
+        @apply col-span-1;
+    }
+
+    .nivel-educativo-checkboxes {
+        @apply gap-2;
     }
 
     .colegio-selected {
