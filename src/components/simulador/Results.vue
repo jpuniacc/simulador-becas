@@ -13,6 +13,7 @@ import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
+import { ANIO_POSTULACION } from '@/utils/config'
 import { Award, CheckCircle, FileText, Info } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
@@ -674,7 +675,12 @@ defineExpose({
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
                                             <div class="flex items-center gap-2">
-                                                <span>Arancel Referencia CAE</span>
+                                                <span>
+                                                    Arancel Referencia CAE
+                                                    <span v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION">
+                                                        - {{ carreraInfo.anio_arancel_referencia }} *
+                                                    </span>
+                                                </span>
                                                 <i
                                                     class="pi pi-info-circle text-orange-600 cursor-pointer hover:text-orange-800 transition-colors"
                                                     @click="showCaeDialog = true"
@@ -696,6 +702,18 @@ defineExpose({
                                         <td class="table-cell text-center mobile-only">CAE</td>
                                         <td class="table-cell text-right font-semibold text-red-600">
                                             -{{ formatCurrency(descuentoCae) }}
+                                            <span v-if="carreraInfo?.anio_arancel_referencia" class="text-xs text-orange-600 block">(Ref. {{ carreraInfo.anio_arancel_referencia }})</span>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && descuentoCae > 0 && carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION" class="table-row info-row cae-info-row">
+                                        <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
+                                            <div class="flex items-start gap-2">
+                                                <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
+                                                <span>
+                                                    * Los valores mostrados corresponden al <strong>arancel de referencia CAE {{ carreraInfo?.anio_arancel_referencia || '' }}</strong>.
+                                                    El Mineduc publicará los nuevos aranceles de referencia durante el mes de enero {{ ANIO_POSTULACION }}.
+                                                </span>
+                                            </div>
                                         </td>
                                     </tr>
                                     <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && maximoFinanciamientoCae" class="table-row subtotal-row subtotal-cae-row">
@@ -706,7 +724,7 @@ defineExpose({
                                             {{ formatCurrency(arancelFinalReal) }}
                                         </td>
                                     </tr>
-                                    <tr class="table-row info-row cae-info-row">
+                                    <!-- <tr class="table-row info-row cae-info-row">
                                         <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
                                             <div class="flex items-start gap-2">
                                                 <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
@@ -721,7 +739,7 @@ defineExpose({
                                                 </span>
                                             </div>
                                         </td>
-                                    </tr>
+                                    </tr> -->
                                 </template>
 
 
