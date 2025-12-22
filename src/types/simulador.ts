@@ -12,9 +12,10 @@ export interface FormData {
   paisPasaporte: string
   fechaNacimiento: string
   genero: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | ''
+  consentimiento_contacto: boolean
 
   // Datos Académicos
-  nivelEducativo: '1ro Medio' | '2do Medio' | '3ro Medio' | '4to Medio' | 'Egresado' | ''
+  nivelEducativo: 'Educación media incompleta' | 'Educación media completa' | 'Cursando educación superior' | 'Educación superior completa' | ''
   colegio: string
   carrera: string
   carreraId: number
@@ -46,7 +47,7 @@ export interface FormData {
 
   // Datos Postgrado
   carreraTitulo: string,
-  area: string, 
+  area: string,
   modalidadPreferencia: ('Presencial' | 'Online' | 'Semipresencial')[],
   objetivo: ('mejorar_habilidades' | 'cambiar_carrera' | 'mejorar_empleo' | 'otro')[],
 }

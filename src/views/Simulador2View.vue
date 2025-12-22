@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import Stepper from 'primevue/stepper';
 import StepList from 'primevue/steplist';
@@ -37,8 +38,44 @@ const formData = ref<Partial<FormData>>({
     decil: null
 });
 
+// Route para acceder a los query parameters
+const route = useRoute();
+
+// Computed para obtener el RUT desde los query parameters
+const rut = computed(() => {
+    const rutParam = route.query.rut;
+    return rutParam ? String(rutParam) : undefined;
+});
+
 // Referencia al componente de datos personales para acceder a la validación
 const personalDataRef = ref<InstanceType<typeof PersonalAcademicData> | null>(null);
+
+// Función helper para procesar el RUT en el componente hijo
+const processRUTInChild = (rutValue: string) => {
+    nextTick(() => {
+        if (personalDataRef.value && 'processRUT' in personalDataRef.value && typeof personalDataRef.value.processRUT === 'function') {
+            personalDataRef.value.processRUT(rutValue);
+        }
+    });
+};
+
+// Watch para actualizar formData.identificacion cuando el computed cambie
+watch(rut, (newRut) => {
+    if (newRut !== undefined && newRut !== '') {
+        // Actualizar formData
+        formData.value.identificacion = newRut;
+        
+        // Disparar el procesamiento del RUT en el componente hijo (formateo y validación)
+        processRUTInChild(newRut);
+    }
+}, { immediate: true });
+
+// Watch adicional para procesar el RUT cuando el componente hijo esté disponible
+watch(personalDataRef, (ref) => {
+    if (ref && rut.value !== undefined && rut.value !== '') {
+        processRUTInChild(rut.value);
+    }
+});
 
 // Referencia al componente de carrera y financiamiento
 const careerFinancingRef = ref<InstanceType<typeof CareerFinancing> | null>(null);
