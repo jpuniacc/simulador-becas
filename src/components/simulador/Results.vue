@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
@@ -13,7 +13,7 @@ import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
-import { Award, CheckCircle, FileText, Download } from 'lucide-vue-next'
+import { Award, CheckCircle, FileText, Info } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
 
@@ -39,15 +39,31 @@ const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const selectedBeca = ref<any>(null)
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
 const showCaeDialog = ref(false)
+const descuentosInfoPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const descuentosInfoIconRef = ref<HTMLElement | null>(null)
+let descuentosHideTimeout: ReturnType<typeof setTimeout> | null = null
 const numeroCuotas = ref(10)
 const tipoPago = ref<string | null>(null)
 
 // Opciones para el tipo de pago
 const opcionesTipoPago = [
+    { label: 'Seleccione', value: null },
     { label: 'Cheque', value: 'cheque' },
     { label: 'Al contado', value: 'contado' },
     { label: 'Pagaré', value: 'pagare' }
 ]
+
+// Computed para determinar si el slider debe estar deshabilitado
+const isSliderDisabled = computed(() => {
+    return tipoPago.value === 'contado'
+})
+
+// Watcher para cambiar el número de cuotas cuando se selecciona "Al contado"
+watch(tipoPago, (newValue) => {
+    if (newValue === 'contado') {
+        numeroCuotas.value = 1
+    }
+})
 
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
@@ -141,10 +157,60 @@ const arancelFinalReal = computed(() => {
     return arancelDespuesBecasInternas.value
 })
 
-// Computed para arancel final + matrícula
-const arancelMasMatricula = computed(() => {
+// Computed para descuentos de modo de pago que coinciden con el tipo seleccionado
+const descuentoModoPagoAplicable = computed(() => {
+    if (!tipoPago.value) return null
+    // Mapear los valores del select a posibles nombres en los descuentos
+    const tipoPagoMap: Record<string, string[]> = {
+        'cheque': ['cheque'],
+        'contado': ['contado', 'al contado', 'efectivo'],
+        'pagare': ['pagaré', 'pagare', 'pagar']
+    }
+    const posiblesNombres = tipoPagoMap[tipoPago.value] || [tipoPago.value]
+
+    return descuentosModoPagoActivos.value.find(descuento => {
+        const nombreDescuento = descuento.nombre?.toLowerCase() || ''
+        return posiblesNombres.some(nombre => nombreDescuento.includes(nombre.toLowerCase()))
+    }) || null
+})
+
+// Computed para calcular descuento de pago anticipado sobre arancel y matrícula
+const descuentoPagoAnticipadoArancel = computed(() => {
+    if (!descuentoPagoAnticipadoVigente.value?.dscto_arancel) return 0
+    return Math.round(arancelFinalReal.value * (descuentoPagoAnticipadoVigente.value.dscto_arancel / 100))
+})
+
+const descuentoPagoAnticipadoMatricula = computed(() => {
+    if (!descuentoPagoAnticipadoVigente.value?.dscto_matricula) return 0
     const matricula = carreraInfo.value?.matricula || 0
-    return arancelFinalReal.value + matricula
+    return Math.round(matricula * (descuentoPagoAnticipadoVigente.value.dscto_matricula / 100))
+})
+
+// Computed para calcular descuento de modo de pago sobre arancel
+const descuentoModoPagoArancel = computed(() => {
+    if (!descuentoModoPagoAplicable.value?.dscto_arancel) return 0
+    return Math.round(arancelFinalReal.value * (descuentoModoPagoAplicable.value.dscto_arancel / 100))
+})
+
+// Computed para arancel final después de descuentos adicionales
+const arancelFinalConDescuentosAdicionales = computed(() => {
+    let arancel = arancelFinalReal.value
+    // Aplicar descuento de pago anticipado si existe
+    arancel -= descuentoPagoAnticipadoArancel.value
+    // Aplicar descuento de modo de pago si existe
+    arancel -= descuentoModoPagoArancel.value
+    return Math.max(0, arancel)
+})
+
+// Computed para matrícula final después de descuentos adicionales
+const matriculaFinalConDescuentosAdicionales = computed(() => {
+    const matricula = carreraInfo.value?.matricula || 0
+    return Math.max(0, matricula - descuentoPagoAnticipadoMatricula.value)
+})
+
+// Computed para arancel final + matrícula después de todos los descuentos
+const arancelMasMatricula = computed(() => {
+    return arancelFinalConDescuentosAdicionales.value + matriculaFinalConDescuentosAdicionales.value
 })
 
 // Computed para el valor mensual (dividido por numeroCuotas)
@@ -363,6 +429,47 @@ const keepBecaInfoVisible = () => {
     if (hideTimeout) {
         clearTimeout(hideTimeout)
         hideTimeout = null
+    }
+}
+
+// Métodos para mostrar/ocultar overlay de información de descuentos
+const showDescuentosInfo = (event: Event) => {
+    if (isMobile.value) return
+    if (descuentosHideTimeout) {
+        clearTimeout(descuentosHideTimeout)
+        descuentosHideTimeout = null
+    }
+    if (descuentosInfoIconRef.value && descuentosInfoPanel.value) {
+        descuentosInfoPanel.value.show(event, descuentosInfoIconRef.value)
+    }
+}
+
+const hideDescuentosInfo = () => {
+    if (isMobile.value) return
+    descuentosHideTimeout = setTimeout(() => {
+        if (descuentosInfoPanel.value) {
+            descuentosInfoPanel.value.hide()
+        }
+        descuentosHideTimeout = null
+    }, 150)
+}
+
+const toggleDescuentosInfo = (event: Event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (descuentosHideTimeout) {
+        clearTimeout(descuentosHideTimeout)
+        descuentosHideTimeout = null
+    }
+    if (descuentosInfoIconRef.value && descuentosInfoPanel.value) {
+        descuentosInfoPanel.value.toggle(event, descuentosInfoIconRef.value)
+    }
+}
+
+const keepDescuentosInfoVisible = () => {
+    if (descuentosHideTimeout) {
+        clearTimeout(descuentosHideTimeout)
+        descuentosHideTimeout = null
     }
 }
 
@@ -626,9 +733,95 @@ defineExpose({
                                         -{{ formatCurrency(descuentoTotalRealConCae) }}
                                     </td>
                                 </tr>
+                                <!-- Descuentos adicionales por pago anticipado -->
+                                <template v-if="descuentoPagoAnticipadoVigente && (descuentoPagoAnticipadoArancel > 0 || descuentoPagoAnticipadoMatricula > 0)">
+                                    <tr class="table-row section-header-row">
+                                        <td class="table-cell section-title">
+                                            Descuentos Adicionales
+                                        </td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr v-if="descuentoPagoAnticipadoArancel > 0" class="table-row benefit-row">
+                                        <td class="table-cell">
+                                            <div class="benefit-name">
+                                                <i class="pi pi-calendar mr-2 text-green-600 text-sm"></i>
+                                                <span class="text-sm">Descuento por pago anticipado (Arancel)</span>
+                                            </div>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="badge-type">Porcentaje</span>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-right font-semibold text-red-600">
+                                            -{{ formatCurrency(descuentoPagoAnticipadoArancel) }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="descuentoPagoAnticipadoMatricula > 0" class="table-row benefit-row">
+                                        <td class="table-cell">
+                                            <div class="benefit-name">
+                                                <i class="pi pi-calendar mr-2 text-green-600 text-sm"></i>
+                                                <span class="text-sm">Descuento por pago anticipado (Matrícula)</span>
+                                            </div>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="badge-type">Porcentaje</span>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
+                                        </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
+                                        </td>
+                                        <td class="table-cell text-right font-semibold text-red-600">
+                                            -{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <!-- Descuentos adicionales por modo de pago -->
+                                <template v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0">
+                                    <tr v-if="!descuentoPagoAnticipadoVigente || (descuentoPagoAnticipadoArancel === 0 && descuentoPagoAnticipadoMatricula === 0)" class="table-row section-header-row">
+                                        <td class="table-cell section-title">
+                                            Descuentos Adicionales
+                                        </td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr class="table-row benefit-row">
+                                        <td class="table-cell">
+                                            <div class="benefit-name">
+                                                <i class="pi pi-credit-card mr-2 text-blue-600 text-sm"></i>
+                                                <span class="text-sm">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` - ${descuentoModoPagoAplicable.nombre}` : '' }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="badge-type">Porcentaje</span>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="discount-percentage">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="discount-percentage">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-right font-semibold text-red-600">
+                                            -{{ formatCurrency(descuentoModoPagoArancel) }}
+                                        </td>
+                                    </tr>
+                                </template>
+
                                 <tr class="table-row final-row">
                                     <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
-                                        Arancel + Matrícula final a pagar
+                                        Arancel + Matrícula final a pactar
                                     </td>
                                     <td class="table-cell text-right font-bold text-lg text-green-600">
                                         {{ formatCurrency(arancelMasMatricula) }}
@@ -646,6 +839,15 @@ defineExpose({
                     <div class="flex items-center gap-2">
                         <i class="pi pi-credit-card"></i>
                         <span>Simulación de cuotas y medios de pago</span>
+                        <i
+                            v-if="tieneDescuentosDisponibles"
+                            ref="descuentosInfoIconRef"
+                            class="pi pi-info-circle text-gray-500 cursor-help hover:text-blue-600 transition-colors text-sm"
+                            @mouseenter="!isMobile && showDescuentosInfo($event)"
+                            @mouseleave="!isMobile && hideDescuentosInfo()"
+                            @click="toggleDescuentosInfo($event)"
+                            title="Información sobre descuentos adicionales"
+                        ></i>
                     </div>
                 </template>
                 <template #content>
@@ -659,6 +861,7 @@ defineExpose({
                                     v-model="numeroCuotas"
                                     :min="1"
                                     :max="12"
+                                    :disabled="isSliderDisabled"
                                     class="payment-slider"
                                 />
                             </div>
@@ -724,8 +927,8 @@ defineExpose({
                                 {{ formatCurrency(valorMensual) }}
                             </div>
                             <div class="text-xs text-gray-500 valor-anual mb-1">
-                                <div>* Arancel final: {{ formatCurrency(arancelFinalReal) }}</div>
-                                <div>* Matrícula final: {{ formatCurrency(carreraInfo?.matricula || 0) }}</div>
+                                <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
+                                <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
                             </div>
                         </div>
                     </template>
@@ -749,54 +952,21 @@ defineExpose({
                 </div>
             </Message>
 
-            <!-- Mensaje informativo sobre descuentos adicionales -->
-            <Message
-                v-if="tieneDescuentosDisponibles"
-                severity="info"
-                :closable="false"
-                class="anticipado-message"
-                size="small"
-            >
-                <div class="anticipado-message-content">
-                    <div class="anticipado-message-title">
-                        <b>Tenemos descuentos adicionales disponibles.</b>
-                    </div>
-                    <ul class="anticipado-message-list">
-                        <li v-if="descuentoPagoAnticipadoVigente" class="subtitle-item">
-                            <b>Por pago anticipado:</b>
-                            <ul class="anticipado-sublist">
-                                <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
-                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
-                                </li>
-                                <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
-                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
-                                </li>
-                                <li v-if="fechaTerminoFormateada">
-                                    Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
-                                </li>
-                            </ul>
-                        </li>
-                        <li v-if="descuentosModoPagoActivos.length > 0" class="subtitle-item">
-                            <b>Por medio de pago:</b>
-                            <ul class="anticipado-sublist">
-                                <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
-                                    <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-            </Message>
-
             <!-- Mensaje informativo sobre confirmación -->
             <Message
                 v-if="descuentoPorcentualTotal > 0"
-                severity="warn"
+                severity="info"
                 :closable="false"
                 class="confirmation-message"
                 size="small"
             >
-                La simulación es referencial; un asesor te confirma el monto final.
+                <div class="confirmation-message-content">
+                    <Info class="confirmation-message-icon" />
+                    <div class="confirmation-message-text-wrapper">
+                        <div class="confirmation-message-title">Simulación referencial.</div>
+                        <div class="confirmation-message-text">Un asesor revisará tu caso y confirmará el monto final.</div>
+                    </div>
+                </div>
             </Message>
 
             <!-- Becas aplicadas -->
@@ -907,6 +1077,45 @@ defineExpose({
                         </li>
                     </ul>
                 </div>
+            </div>
+        </OverlayPanel>
+
+        <!-- Overlay Panel para mostrar información de descuentos adicionales -->
+        <OverlayPanel
+            ref="descuentosInfoPanel"
+            class="descuentos-info-overlay"
+            :dismissable="false"
+            @mouseenter="keepDescuentosInfoVisible"
+            @mouseleave="hideDescuentosInfo"
+        >
+            <div class="descuentos-info-content">
+                <div class="descuentos-info-title">
+                    <b>Tenemos descuentos adicionales disponibles.</b>
+                </div>
+                <ul class="descuentos-info-list">
+                    <li v-if="descuentoPagoAnticipadoVigente" class="descuentos-info-item">
+                        <b>Por pago anticipado:</b>
+                        <ul class="descuentos-info-sublist">
+                            <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
+                                <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
+                            </li>
+                            <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
+                                <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
+                            </li>
+                            <li v-if="fechaTerminoFormateada">
+                                Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
+                            </li>
+                        </ul>
+                    </li>
+                    <li v-if="descuentosModoPagoActivos.length > 0" class="descuentos-info-item">
+                        <b>Por medio de pago:</b>
+                        <ul class="descuentos-info-sublist">
+                            <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
+                                <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
             </div>
         </OverlayPanel>
 
@@ -1301,6 +1510,29 @@ defineExpose({
     @apply mt-4;
 }
 
+.confirmation-message-content {
+    @apply flex items-start gap-3;
+}
+
+.confirmation-message-icon {
+    @apply flex-shrink-0 mt-0.5;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--p-info-color);
+}
+
+.confirmation-message-text-wrapper {
+    @apply flex flex-col;
+}
+
+.confirmation-message-title {
+    @apply font-semibold mb-1 text-base;
+}
+
+.confirmation-message-text {
+    @apply text-sm leading-relaxed;
+}
+
 .anticipado-message {
     @apply mt-6;
 }
@@ -1598,6 +1830,49 @@ defineExpose({
 
 .payment-select {
     @apply w-full;
+}
+
+/* Estilos para overlay de información de descuentos */
+.descuentos-info-overlay {
+    max-width: 400px;
+}
+
+.descuentos-info-overlay :deep(.p-overlaypanel-content) {
+    padding: 1rem !important;
+}
+
+.descuentos-info-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.descuentos-info-title {
+    @apply mb-3;
+    font-size: 0.9375rem;
+}
+
+.descuentos-info-list {
+    @apply list-disc pl-6 space-y-2;
+    margin: 0;
+}
+
+.descuentos-info-item {
+    @apply text-sm;
+    line-height: 1.6;
+}
+
+.descuentos-info-item b {
+    font-weight: 600;
+}
+
+.descuentos-info-sublist {
+    @apply list-disc pl-5 mt-1 space-y-1;
+    font-size: 0.875rem;
+}
+
+.descuentos-info-sublist li {
+    @apply text-xs;
+    line-height: 1.5;
 }
 
 </style>
