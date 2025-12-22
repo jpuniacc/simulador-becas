@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import InputText from 'primevue/inputtext'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import Autocomplete from 'primevue/autocomplete'
 import InputNumber from 'primevue/inputnumber'
 import FloatLabel from 'primevue/floatlabel'
 import Dropdown from 'primevue/dropdown'
@@ -10,7 +10,7 @@ import OverlayPanel from 'primevue/overlaypanel'
 import Message from 'primevue/message'
 import { GraduationCap, TrendingUp, CheckCircle } from 'lucide-vue-next'
 import { useCarreras, type Carrera } from '@/composables/useCarreras'
-import { useDeciles, type Decil } from '@/composables/useDeciles'
+import { useDeciles } from '@/composables/useDeciles'
 import type { FormData } from '@/types/simulador'
 
 // Props
@@ -37,7 +37,6 @@ const emit = defineEmits<{
 const {
     carrerasVigentes,
     loading: carrerasLoading,
-    error: carrerasError,
     inicializar: inicializarCarreras,
     buscarCarreras
 } = useCarreras()
@@ -70,13 +69,10 @@ const formData = ref<Partial<FormData>>({
     }
 })
 
-// Estado para el dropdown de carreras
+// Estado para el autocomplete de carreras
 const carreraSeleccionada = ref<Carrera | null>(null)
-const searchTerm = ref(props.formData?.carrera || '')
-const showDropdown = ref(false)
-const dropdownRef = ref<HTMLElement | null>(null)
-const dropdownStyle = ref<Record<string, string>>({})
 const carrerasSugeridas = ['Danza', 'Arquitectura', 'Ingeniería Comercial']
+const filteredCarreras = ref<Carrera[]>([])
 const financingTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const financingIconRef = ref<HTMLElement | null>(null)
 const decilTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
@@ -101,8 +97,13 @@ const touched = ref({
     decil: false
 })
 
-// Computed para verificar si es egresado
-const isEgresadoOr4to = computed(() => props.formData?.nivelEducativo === 'Egresado' || props.formData?.nivelEducativo === '4to Medio')
+// Computed para verificar si es egresado o tiene educación media completa
+const isEgresadoOr4to = computed(() => {
+    const nivel = props.formData?.nivelEducativo
+    return nivel === 'Educación media completa' || 
+           nivel === 'Cursando educación superior' || 
+           nivel === 'Educación superior completa'
+})
 
 const opcionesPAES = [
     { label: 'No', value: false },
@@ -117,15 +118,30 @@ const opcionesFinanciamiento = [
 // Estado para controlar si piensa usar financiamiento del estado
 const piensaUsarFinanciamiento = ref(false)
 
-// Computed para carreras filtradas
-const carrerasFiltradas = computed(() => {
-    if (!searchTerm.value || !searchTerm.value.trim()) return carrerasVigentes.value
-    return buscarCarreras(searchTerm.value)
-})
 
-// Computed para verificar si es egresado
+// Función para buscar carreras (usada por Autocomplete)
+const searchCarreras = (event: { query: string }) => {
+    if (!event.query || !event.query.trim()) {
+        filteredCarreras.value = carrerasVigentes.value
+    } else {
+        filteredCarreras.value = buscarCarreras(event.query)
+    }
+}
+
+// Función para manejar el focus del Autocomplete
+const handleAutocompleteFocus = () => {
+    touched.value.carrera = true
+    if (filteredCarreras.value.length === 0) {
+        filteredCarreras.value = carrerasVigentes.value
+    }
+}
+
+// Computed para verificar si es egresado (completó educación media)
 const isEgresado = computed(() => {
-    return props.formData?.nivelEducativo === 'Egresado'
+    const nivel = props.formData?.nivelEducativo
+    return nivel === 'Educación media completa' || 
+           nivel === 'Cursando educación superior' || 
+           nivel === 'Educación superior completa'
 })
 
 // Computed para verificar si se debe mostrar el select de deciles
@@ -220,64 +236,16 @@ const selectCarrera = (carrera: Carrera) => {
     formData.value.carrera = carrera.nombre_programa
     formData.value.carreraId = carrera.id
     formData.value.tipoPrograma = 'Regular' // Por defecto, se puede ajustar según necesidad
-    searchTerm.value = carrera.nombre_programa
-    showDropdown.value = false
     touched.value.carrera = true
 }
 
-const calculateDropdownPosition = () => {
-    if (!dropdownRef.value) return
-
-    const rect = dropdownRef.value.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    const dropdownHeight = 384 // max-h-96 = 24rem = 384px
-
-    // Calcular posición vertical
-    const spaceBelow = viewportHeight - rect.bottom
-    const spaceAbove = rect.top
-
-    let top = rect.bottom + 4 // 4px de margen
-    let maxHeight = dropdownHeight
-
-    // Si no hay suficiente espacio abajo, posicionar arriba
-    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-        top = rect.top - dropdownHeight - 4
-        maxHeight = Math.min(dropdownHeight, spaceAbove - 4)
-    } else {
-        maxHeight = Math.min(dropdownHeight, spaceBelow - 4)
-    }
-
-    dropdownStyle.value = {
-        position: 'fixed',
-        top: `${top}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
-        maxHeight: `${maxHeight}px`,
-        zIndex: '9999'
-    }
-
-}
-
-const handleSearch = (event: Event) => {
-    const target = event.target as HTMLInputElement
-    searchTerm.value = target.value
-    if (!showDropdown.value) {
-        showDropdown.value = true
-    }
-    calculateDropdownPosition()
-}
-
-const seleccionarCarreraSugerida = async (nombre: string) => {
-    searchTerm.value = nombre
-    showDropdown.value = true
-    await nextTick()
-    calculateDropdownPosition()
-    // Hacer focus en el input para que se despliegue el dropdown
-    if (dropdownRef.value) {
-        const input = dropdownRef.value.querySelector('input') as HTMLInputElement
-        if (input) {
-            input.click()
-        }
+const seleccionarCarreraSugerida = (nombre: string) => {
+    // Buscar la carrera en la lista de carreras vigentes
+    const carreraEncontrada = carrerasVigentes.value.find(
+        c => c.nombre_programa.toLowerCase().includes(nombre.toLowerCase())
+    )
+    if (carreraEncontrada) {
+        selectCarrera(carreraEncontrada)
     }
 }
 
@@ -331,13 +299,6 @@ const toggleDecilTooltip = (event: MouseEvent | TouchEvent) => {
     }
 }
 
-// Click outside para cerrar dropdown
-const handleClickOutside = (event: Event) => {
-    const target = event.target as HTMLElement
-    if (!target.closest('.carrera-dropdown') && !target.closest('[data-dropdown-content]')) {
-        showDropdown.value = false
-    }
-}
 
 // Flag para prevenir ciclos infinitos entre watchers
 const isUpdatingFromProps = ref(false)
@@ -418,7 +379,17 @@ watch(() => props.formData, (newData) => {
                     terceraAsignatura: null
                 }
             }
-            searchTerm.value = newData.carrera || ''
+            // Actualizar carrera seleccionada si hay un carreraId válido
+            if (newData.carreraId && newData.carreraId > 0) {
+                const carrera = carrerasVigentes.value.find(c => c.id === newData.carreraId)
+                if (carrera) {
+                    carreraSeleccionada.value = carrera
+                } else {
+                    carreraSeleccionada.value = null
+                }
+            } else {
+                carreraSeleccionada.value = null
+            }
             setTimeout(() => {
                 isUpdatingFromProps.value = false
             }, 0)
@@ -438,7 +409,7 @@ const markAsSubmitted = () => {
 // Función para obtener los campos faltantes
 const getMissingFields = (): string[] => {
     const missing: string[] = []
-    
+
     if (!formData.value.carrera?.trim() || formData.value.carreraId === 0) {
         missing.push('Carrera')
     }
@@ -458,7 +429,7 @@ const getMissingFields = (): string[] => {
     if ((formData.value.planeaUsarCAE || formData.value.usaBecasEstado) && (formData.value.decil === null || formData.value.decil === undefined)) {
         missing.push('Tramo de Renta Mensual (Decil)')
     }
-    
+
     return missing
 }
 
@@ -473,18 +444,22 @@ defineExpose({
 onMounted(async () => {
     await inicializarCarreras()
     await cargarDeciles()
-    document.addEventListener('click', handleClickOutside)
-    window.addEventListener('resize', calculateDropdownPosition)
-    window.addEventListener('scroll', calculateDropdownPosition)
+    // Inicializar las carreras filtradas con todas las carreras vigentes
+    filteredCarreras.value = carrerasVigentes.value
     // Detectar si es móvil basándose en touch support y tamaño de pantalla
     handleMobileResize()
     window.addEventListener('resize', handleMobileResize)
+
+    // Si hay una carrera en las props, buscar y seleccionar
+    if (props.formData?.carreraId && props.formData.carreraId > 0) {
+        const carrera = carrerasVigentes.value.find(c => c.id === props.formData.carreraId)
+        if (carrera) {
+            carreraSeleccionada.value = carrera
+        }
+    }
 })
 
 onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
-    window.removeEventListener('resize', calculateDropdownPosition)
-    window.removeEventListener('scroll', calculateDropdownPosition)
     window.removeEventListener('resize', handleMobileResize)
 })
 </script>
@@ -509,34 +484,33 @@ onUnmounted(() => {
                             </div>
                         </div>
 
-                        <!-- Dropdown de carreras -->
+                        <!-- Autocomplete de carreras -->
                         <div class="form-field">
-
-                            <div class="relative carrera-dropdown" ref="dropdownRef">
-                                <InputText id="carrera" v-model="searchTerm" type="text"
-                                    placeholder="Busca tu carrera..." class="form-input pr-10"
-                                    :class="{ 'p-invalid': (submitted || touched.carrera) && (!formData.carrera || formData.carreraId === 0) }"
-                                    @focus="showDropdown = true; calculateDropdownPosition(); touched.carrera = true" 
-                                    @input="handleSearch"
-                                    @blur="touched.carrera = true"
-                                    autocomplete="off" autocorrect="off" />
-                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                    <i class="pi pi-chevron-down text-gray-400"></i>
-                                </div>
-
-                                <!-- Dropdown de carreras -->
-                                <div v-if="showDropdown"
-                                    class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                                    :style="dropdownStyle" data-dropdown-content>
-                                    <div v-for="carrera in carrerasFiltradas" :key="carrera.id"
-                                        class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                                        @click="selectCarrera(carrera)">
-                                        <div class="font-medium text-gray-900">{{ carrera.nombre_programa }}</div>
-                                        <div class="text-sm text-gray-500">{{ carrera.nivel_academico }}</div>
-                                        <div class="text-xs text-blue-600 mt-1">{{ carrera.duracion_programa }}</div>
+                            <Autocomplete
+                                id="carrera"
+                                v-model="carreraSeleccionada"
+                                :suggestions="filteredCarreras"
+                                @complete="searchCarreras"
+                                optionLabel="nombre_programa"
+                                placeholder="Busca tu carrera..."
+                                class="w-full carrera-autocomplete"
+                                :class="{ 'p-invalid': (submitted || touched.carrera) && (!formData.carrera || formData.carreraId === 0) }"
+                                :loading="carrerasLoading"
+                                @focus="handleAutocompleteFocus"
+                                @blur="touched.carrera = true"
+                                @item-select="(event) => selectCarrera(event.value)"
+                                :dropdown="true"
+                                forceSelection
+                                autocomplete="off"
+                            >
+                                <template #option="slotProps">
+                                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                                        <div class="font-medium text-gray-900">{{ slotProps.option.nombre_programa }}</div>
+                                        <div class="text-sm text-gray-500">{{ slotProps.option.nivel_academico }}</div>
+                                        <div class="text-xs text-blue-600 mt-1">{{ slotProps.option.duracion_programa }}</div>
                                     </div>
-                                </div>
-                            </div>
+                                </template>
+                            </Autocomplete>
                             <p class="text-sm text-gray-500 mt-1">
                                 Busca por nombre de carrera, facultad o área
                             </p>
@@ -562,7 +536,7 @@ onUnmounted(() => {
                     </span>
                 </div>
 
-                
+
 
                 <!-- Comprensión Lectora (solo si rindió PAES) -->
                 <div v-if="formData.rendioPAES" class="form-field">
@@ -599,10 +573,10 @@ onUnmounted(() => {
                 <div v-if="piensaUsarFinanciamiento" class="form-field financing-options-field">
                     <h4 class="text-md text-gray-500 mt-2 mb-2 block">
                         ¿Qué tipo de financiamiento planeas utilizar?
-                        <i 
+                        <i
                             ref="financingIconRef"
                             class="pi pi-info-circle financing-icon ml-2"
-                            @click.stop="toggleFinancingTooltip" 
+                            @click.stop="toggleFinancingTooltip"
                             @mouseenter="!isMobile && showFinancingTooltip($event)"
                             @mouseleave="!isMobile && hideFinancingTooltip()"
                         ></i>
@@ -666,7 +640,7 @@ onUnmounted(() => {
                 <div v-if="showDecilSelection" class="form-field">
                     <label for="decil" class="form-label decil-label">
                         Tramo de Renta Mensual *
-                        <i 
+                        <i
                             ref="decilIconRef"
                             class="pi pi-question-circle decil-icon"
                             @mouseenter="!isMobile && showDecilTooltip($event)"
@@ -842,5 +816,23 @@ onUnmounted(() => {
     @apply text-sm text-gray-700;
     margin: 0;
     line-height: 1.5;
+}
+
+/* Estilos para el Autocomplete de carreras */
+:deep(.carrera-autocomplete) {
+    width: 100%;
+}
+
+:deep(.carrera-autocomplete .p-autocomplete-input) {
+    @apply w-full;
+}
+
+:deep(.carrera-autocomplete .p-autocomplete-panel) {
+    @apply border border-gray-200 rounded-lg shadow-lg;
+    max-height: 15rem;
+}
+
+:deep(.carrera-autocomplete .p-autocomplete-items) {
+    padding: 0;
 }
 </style>

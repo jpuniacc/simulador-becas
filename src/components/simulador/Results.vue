@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 import OverlayPanel from 'primevue/overlaypanel'
+import Drawer from 'primevue/drawer'
+import Slider from 'primevue/slider'
+import Select from 'primevue/select'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
-import { Award, CheckCircle, FileText, Download } from 'lucide-vue-next'
+import { ANIO_POSTULACION } from '@/utils/config'
+import { Award, CheckCircle, FileText, Info } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
 
@@ -35,6 +39,32 @@ const windowWidth = ref(window.innerWidth)
 const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const selectedBeca = ref<any>(null)
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
+const showCaeDialog = ref(false)
+const descuentosInfoPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const descuentosInfoIconRef = ref<HTMLElement | null>(null)
+let descuentosHideTimeout: ReturnType<typeof setTimeout> | null = null
+const numeroCuotas = ref(10)
+const tipoPago = ref<string | null>(null)
+
+// Opciones para el tipo de pago
+const opcionesTipoPago = [
+    { label: 'Seleccione', value: null },
+    { label: 'Cheque', value: 'cheque' },
+    { label: 'Al contado', value: 'contado' },
+    { label: 'Pagaré', value: 'pagare' }
+]
+
+// Computed para determinar si el slider debe estar deshabilitado
+const isSliderDisabled = computed(() => {
+    return tipoPago.value === 'contado'
+})
+
+// Watcher para cambiar el número de cuotas cuando se selecciona "Al contado"
+watch(tipoPago, (newValue) => {
+    if (newValue === 'contado') {
+        numeroCuotas.value = 1
+    }
+})
 
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
@@ -64,7 +94,7 @@ onMounted(() => {
     // Cargar descuentos de pago anticipado y modo de pago
     descuentosStore.cargarDescuentosPagoAnticipado()
     descuentosStore.cargarDescuentosModoPago()
-    
+
     // Detectar si es móvil basándose en touch support y tamaño de pantalla
     handleMobileResize()
     window.addEventListener('resize', handleMobileResize)
@@ -97,27 +127,96 @@ const arancelDespuesBecasInternas = computed(() => {
     return calculoBecas.value.arancel_base - calculoBecas.value.descuento_total
 })
 
-// Computed para descuento total (solo becas internas, no se calculan becas del estado ni CAE)
-const descuentoTotalRealConCae = computed(() => {
-    if (!calculoBecas.value) return 0
-    // Solo incluye descuentos de becas internas
-    return calculoBecas.value.descuento_total
+// Computed para descuento del CAE (el monto máximo que financia el CAE)
+const descuentoCae = computed(() => {
+    if (!formData.value?.planeaUsarCAE || !maximoFinanciamientoCae.value) {
+        return 0
+    }
+    // El descuento del CAE es el máximo financiamiento CAE (el monto que financia el CAE)
+    // Este monto se resta del arancel después de becas internas
+    return maximoFinanciamientoCae.value
 })
 
-// Computed para arancel final (igual al arancel después de becas internas)
+// Computed para descuento total (becas internas + descuento CAE si aplica)
+const descuentoTotalRealConCae = computed(() => {
+    if (!calculoBecas.value) return 0
+    // Incluye descuentos de becas internas + descuento del CAE
+    console.log('DESUENTOS - CAE', descuentoCae.value)
+    console.log('DESUENTOS - TOTAL', calculoBecas.value.descuento_total)
+    return calculoBecas.value.descuento_total + descuentoCae.value
+})
+
+// Computed para arancel final (aplica CAE si corresponde)
 const arancelFinalReal = computed(() => {
+    // Si planea usar CAE y hay máximo financiamiento CAE, restar ese valor del arancel después de becas
+    if (formData.value?.planeaUsarCAE && maximoFinanciamientoCae.value) {
+        // El arancel final es el arancel después de becas menos el máximo financiamiento CAE
+        // Mínimo 0 (si el máximo CAE es mayor al arancel después de becas, el arancel final es 0)
+        return Math.max(0, arancelDespuesBecasInternas.value - maximoFinanciamientoCae.value)
+    }
+    // Si no usa CAE, retornar el arancel después de becas internas
     return arancelDespuesBecasInternas.value
 })
 
-// Computed para arancel final + matrícula
-const arancelMasMatricula = computed(() => {
-    const matricula = carreraInfo.value?.matricula || 0
-    return arancelFinalReal.value + matricula
+// Computed para descuentos de modo de pago que coinciden con el tipo seleccionado
+const descuentoModoPagoAplicable = computed(() => {
+    if (!tipoPago.value) return null
+    // Mapear los valores del select a posibles nombres en los descuentos
+    const tipoPagoMap: Record<string, string[]> = {
+        'cheque': ['cheque'],
+        'contado': ['contado', 'al contado', 'efectivo'],
+        'pagare': ['pagaré', 'pagare', 'pagar']
+    }
+    const posiblesNombres = tipoPagoMap[tipoPago.value] || [tipoPago.value]
+
+    return descuentosModoPagoActivos.value.find(descuento => {
+        const nombreDescuento = descuento.nombre?.toLowerCase() || ''
+        return posiblesNombres.some(nombre => nombreDescuento.includes(nombre.toLowerCase()))
+    }) || null
 })
 
-// Computed para el valor mensual (dividido por 10)
+// Computed para calcular descuento de pago anticipado sobre arancel y matrícula
+const descuentoPagoAnticipadoArancel = computed(() => {
+    if (!descuentoPagoAnticipadoVigente.value?.dscto_arancel) return 0
+    return Math.round(arancelFinalReal.value * (descuentoPagoAnticipadoVigente.value.dscto_arancel / 100))
+})
+
+const descuentoPagoAnticipadoMatricula = computed(() => {
+    if (!descuentoPagoAnticipadoVigente.value?.dscto_matricula) return 0
+    const matricula = carreraInfo.value?.matricula || 0
+    return Math.round(matricula * (descuentoPagoAnticipadoVigente.value.dscto_matricula / 100))
+})
+
+// Computed para calcular descuento de modo de pago sobre arancel
+const descuentoModoPagoArancel = computed(() => {
+    if (!descuentoModoPagoAplicable.value?.dscto_arancel) return 0
+    return Math.round(arancelFinalReal.value * (descuentoModoPagoAplicable.value.dscto_arancel / 100))
+})
+
+// Computed para arancel final después de descuentos adicionales
+const arancelFinalConDescuentosAdicionales = computed(() => {
+    let arancel = arancelFinalReal.value
+    // Aplicar descuento de pago anticipado si existe
+    arancel -= descuentoPagoAnticipadoArancel.value
+    // Aplicar descuento de modo de pago si existe
+    arancel -= descuentoModoPagoArancel.value
+    return Math.max(0, arancel)
+})
+
+// Computed para matrícula final después de descuentos adicionales
+const matriculaFinalConDescuentosAdicionales = computed(() => {
+    const matricula = carreraInfo.value?.matricula || 0
+    return Math.max(0, matricula - descuentoPagoAnticipadoMatricula.value)
+})
+
+// Computed para arancel final + matrícula después de todos los descuentos
+const arancelMasMatricula = computed(() => {
+    return arancelFinalConDescuentosAdicionales.value + matriculaFinalConDescuentosAdicionales.value
+})
+
+// Computed para el valor mensual (dividido por numeroCuotas)
 const valorMensual = computed(() => {
-    return Math.round(arancelMasMatricula.value / 10)
+    return Math.round(arancelMasMatricula.value / numeroCuotas.value)
 })
 
 // Porcentaje total de descuento aplicado sobre el arancel base
@@ -126,6 +225,19 @@ const descuentoPorcentualTotal = computed(() => {
     const base = calculoBecas.value.arancel_base
     if (!base || base <= 0) return 0
     return Math.round((descuentoTotalRealConCae.value / base) * 100)
+})
+
+// Computed para obtener el arancel referencia CAE
+const arancelReferenciaCae = computed(() => {
+    return carreraInfo.value?.arancel_referencia || null
+})
+
+// Computed para calcular el máximo financiamiento CAE aplicable
+// El CAE financia sobre el arancel después de becas internas, pero no puede exceder el arancel_referencia
+const maximoFinanciamientoCae = computed(() => {
+    if (!arancelReferenciaCae.value || arancelReferenciaCae.value <= 0) return null
+    // El máximo financiamiento es el menor entre el arancel_referencia y el arancel después de becas internas
+    return Math.min(arancelReferenciaCae.value, arancelDespuesBecasInternas.value)
 })
 
 // Computed para descuento de pago anticipado vigente
@@ -196,7 +308,7 @@ const handleExportPDF = async () => {
             const toRemove = Array.from(
                 element.querySelectorAll('.contact-message, .anticipado-message, .confirmation-message')
             ) as HTMLElement[]
-            
+
             // Guardar referencias a los padres y posiciones para restaurar después
             const elementsData = toRemove.map(el => ({
                 element: el,
@@ -246,7 +358,7 @@ const handleExportPDF = async () => {
                 if (pageBreakElement && pageBreakElement.parentNode) {
                     pageBreakElement.parentNode.removeChild(pageBreakElement)
                 }
-                
+
                 // Restaurar elementos en su posición original
                 elementsData.forEach(({ element, parent, nextSibling }) => {
                     if (parent) {
@@ -300,7 +412,7 @@ const toggleBecaInfo = (event: Event, beca: any) => {
         clearTimeout(hideTimeout)
         hideTimeout = null
     }
-    
+
     // Si es la misma beca, hacer toggle (cerrar si está abierto, abrir si está cerrado)
     if (selectedBeca.value?.beca.id === beca.beca.id) {
         // Si ya está seleccionada, cerrar
@@ -318,6 +430,47 @@ const keepBecaInfoVisible = () => {
     if (hideTimeout) {
         clearTimeout(hideTimeout)
         hideTimeout = null
+    }
+}
+
+// Métodos para mostrar/ocultar overlay de información de descuentos
+const showDescuentosInfo = (event: Event) => {
+    if (isMobile.value) return
+    if (descuentosHideTimeout) {
+        clearTimeout(descuentosHideTimeout)
+        descuentosHideTimeout = null
+    }
+    if (descuentosInfoIconRef.value && descuentosInfoPanel.value) {
+        descuentosInfoPanel.value.show(event, descuentosInfoIconRef.value)
+    }
+}
+
+const hideDescuentosInfo = () => {
+    if (isMobile.value) return
+    descuentosHideTimeout = setTimeout(() => {
+        if (descuentosInfoPanel.value) {
+            descuentosInfoPanel.value.hide()
+        }
+        descuentosHideTimeout = null
+    }, 150)
+}
+
+const toggleDescuentosInfo = (event: Event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (descuentosHideTimeout) {
+        clearTimeout(descuentosHideTimeout)
+        descuentosHideTimeout = null
+    }
+    if (descuentosInfoIconRef.value && descuentosInfoPanel.value) {
+        descuentosInfoPanel.value.toggle(event, descuentosInfoIconRef.value)
+    }
+}
+
+const keepDescuentosInfoVisible = () => {
+    if (descuentosHideTimeout) {
+        clearTimeout(descuentosHideTimeout)
+        descuentosHideTimeout = null
     }
 }
 
@@ -473,8 +626,8 @@ defineExpose({
                                             <div class="benefit-name">
                                                 <i class="pi pi-star mr-2 text-blue-600 text-sm"></i>
                                                 <span class="text-sm">{{ beca.beca.nombre }}</span>
-                                                <i 
-                                                    v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)" 
+                                                <i
+                                                    v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)"
                                                     class="pi pi-info-circle ml-2 text-gray-500 cursor-help hover:text-blue-600 transition-colors text-xs"
                                                     @mouseenter="!isMobile && showBecaInfo($event, beca)"
                                                     @mouseleave="!isMobile && hideBecaInfo()"
@@ -505,7 +658,7 @@ defineExpose({
                                             </span>
                                             <span v-else class="text-xs text-gray-600">Fijo</span>
                                         </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
+                                        <td class="table-cell text-right font-semibold text-green-600">
                                             -{{ formatCurrency(beca.monto_descuento) }}
                                         </td>
                                     </tr>
@@ -513,7 +666,7 @@ defineExpose({
                                         <td class="table-cell font-semibold" :colspan="subtotalColspan">
                                             Después de Beneficios Internos
                                         </td>
-                                        <td class="table-cell text-right font-semibold">
+                                        <td class="table-cell text-right text-gray-700 font-semibold">
                                             {{ formatCurrency(arancelDespuesBecasInternas) }}
                                         </td>
                                     </tr>
@@ -521,23 +674,72 @@ defineExpose({
                                 <template v-if="formData?.planeaUsarCAE">
                                     <tr class="table-row section-header-row">
                                         <td class="table-cell section-title">
-                                            Arancel Referencia CAE
+                                            <div class="flex items-center gap-2">
+                                                <span>
+                                                    Arancel Referencia CAE
+                                                    <span v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION">
+                                                        - {{ carreraInfo.anio_arancel_referencia }} *
+                                                    </span>
+                                                </span>
+                                                <i
+                                                    class="pi pi-info-circle text-orange-600 cursor-pointer hover:text-orange-800 transition-colors"
+                                                    @click="showCaeDialog = true"
+                                                    title="Información sobre el crédito CAE"
+                                                ></i>
+                                            </div>
                                         </td>
                                         <td class="desktop-only"></td>
                                         <td class="desktop-only"></td>
                                         <td class="mobile-only"></td>
                                         <td></td>
                                     </tr>
-                                    <tr class="table-row info-row cae-info-row">
+                                    <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && descuentoCae > 0" class="table-row cae-row">
+                                        <td class="table-cell font-semibold">
+                                            Máximo Financiamiento CAE
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">CAE</td>
+                                        <td class="table-cell text-center text-gray-500 desktop-only">-</td>
+                                        <td class="table-cell text-center mobile-only">CAE</td>
+                                        <td class="table-cell text-right font-semibold text-green-600">
+                                            -{{ formatCurrency(descuentoCae) }}
+                                            <span v-if="carreraInfo?.anio_arancel_referencia" class="text-xs text-orange-600 block">(Ref. {{ carreraInfo.anio_arancel_referencia }})</span>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && descuentoCae > 0 && carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION" class="table-row info-row cae-info-row">
                                         <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
                                             <div class="flex items-start gap-2">
                                                 <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
                                                 <span>
-                                                    Si firmas el CAE, se aplicará el arancel de referencia definido para tu carrera. El monto exacto se confirmará al momento de la firma.
+                                                    * Los valores mostrados corresponden al <strong>arancel de referencia CAE {{ carreraInfo?.anio_arancel_referencia || '' }}</strong>.
+                                                    El Mineduc publicará los nuevos aranceles de referencia durante el mes de enero {{ ANIO_POSTULACION }}.
                                                 </span>
                                             </div>
                                         </td>
                                     </tr>
+                                    <tr v-if="arancelReferenciaCae && arancelReferenciaCae > 0 && maximoFinanciamientoCae" class="table-row subtotal-row subtotal-cae-row">
+                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
+                                            Después de CAE
+                                        </td>
+                                        <td class="table-cell text-right text-gray-700 font-semibold">
+                                            {{ formatCurrency(arancelFinalReal) }}
+                                        </td>
+                                    </tr>
+                                    <!-- <tr class="table-row info-row cae-info-row">
+                                        <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
+                                            <div class="flex items-start gap-2">
+                                                <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
+                                                <span>
+                                                    <template v-if="arancelReferenciaCae && arancelReferenciaCae > 0">
+                                                        Si firmas el CAE, el máximo financiamiento aplicable es de {{ formatCurrency(maximoFinanciamientoCae || 0) }}.
+                                                        El monto exacto se confirmará al momento de la firma.
+                                                    </template>
+                                                    <template v-else>
+                                                        Si firmas el CAE, se aplicará el arancel de referencia definido para tu carrera. El monto exacto se confirmará al momento de la firma.
+                                                    </template>
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr> -->
                                 </template>
 
 
@@ -545,20 +747,155 @@ defineExpose({
                                     <td class="table-cell font-semibold" :colspan="subtotalColspan">
                                         Total Descuentos Aplicados
                                     </td>
-                                    <td class="table-cell text-right font-bold text-red-600">
+                                    <td class="table-cell text-right font-bold text-green-600">
                                         -{{ formatCurrency(descuentoTotalRealConCae) }}
                                     </td>
                                 </tr>
+                                <!-- Descuentos adicionales por pago anticipado -->
+                                <template v-if="descuentoPagoAnticipadoVigente && (descuentoPagoAnticipadoArancel > 0 || descuentoPagoAnticipadoMatricula > 0)">
+                                    <tr class="table-row section-header-row">
+                                        <td class="table-cell section-title">
+                                            Descuentos Adicionales
+                                        </td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr v-if="descuentoPagoAnticipadoArancel > 0" class="table-row benefit-row">
+                                        <td class="table-cell">
+                                            <div class="benefit-name">
+                                                <i class="pi pi-calendar mr-2 text-green-600 text-sm"></i>
+                                                <span class="text-sm">Descuento por pago anticipado (Arancel)</span>
+                                            </div>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="badge-type">Porcentaje</span>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-right font-semibold text-green-600">
+                                            -{{ formatCurrency(descuentoPagoAnticipadoArancel) }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="descuentoPagoAnticipadoMatricula > 0" class="table-row benefit-row">
+                                        <td class="table-cell">
+                                            <div class="benefit-name">
+                                                <i class="pi pi-calendar mr-2 text-green-600 text-sm"></i>
+                                                <span class="text-sm">Descuento por pago anticipado (Matrícula)</span>
+                                            </div>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="badge-type">Porcentaje</span>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
+                                        </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
+                                        </td>
+                                        <td class="table-cell text-right font-semibold text-green-600">
+                                            -{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <!-- Descuentos adicionales por modo de pago -->
+                                <template v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0">
+                                    <tr v-if="!descuentoPagoAnticipadoVigente || (descuentoPagoAnticipadoArancel === 0 && descuentoPagoAnticipadoMatricula === 0)" class="table-row section-header-row">
+                                        <td class="table-cell section-title">
+                                            Descuentos Adicionales
+                                        </td>
+                                        <td class="desktop-only"></td>
+                                        <td class="desktop-only"></td>
+                                        <td class="mobile-only"></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr class="table-row benefit-row">
+                                        <td class="table-cell">
+                                            <div class="benefit-name">
+                                                <i class="pi pi-credit-card mr-2 text-blue-600 text-sm"></i>
+                                                <span class="text-sm">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` - ${descuentoModoPagoAplicable.nombre}` : '' }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="badge-type">Porcentaje</span>
+                                        </td>
+                                        <td class="table-cell text-center desktop-only">
+                                            <span class="discount-percentage">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-center mobile-only">
+                                            <span class="discount-percentage">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
+                                        </td>
+                                        <td class="table-cell text-right font-semibold text-green-600">
+                                            -{{ formatCurrency(descuentoModoPagoArancel) }}
+                                        </td>
+                                    </tr>
+                                </template>
+
                                 <tr class="table-row final-row">
                                     <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
-                                        Arancel + Matrícula final a pagar
+                                        Arancel + Matrícula final a pactar
                                     </td>
-                                    <td class="table-cell text-right font-bold text-lg text-green-600">
+                                    <td class="table-cell text-right font-bold text-lg text-gray-700">
                                         {{ formatCurrency(arancelMasMatricula) }}
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- Simulación de cuotas y medios de pago -->
+            <Card class="payment-simulation-card">
+                <template #title>
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-credit-card"></i>
+                        <span>Simulación de cuotas y medios de pago</span>
+                        <i
+                            v-if="tieneDescuentosDisponibles"
+                            ref="descuentosInfoIconRef"
+                            class="pi pi-info-circle text-gray-500 cursor-help hover:text-blue-600 transition-colors text-sm"
+                            @mouseenter="!isMobile && showDescuentosInfo($event)"
+                            @mouseleave="!isMobile && hideDescuentosInfo()"
+                            @click="toggleDescuentosInfo($event)"
+                            title="Información sobre descuentos adicionales"
+                        ></i>
+                    </div>
+                </template>
+                <template #content>
+                    <div class="payment-simulation-content">
+                        <div class="payment-control-group">
+                            <label for="numeroCuotas" class="payment-label">Número de cuotas: <span class="slider-value">{{ numeroCuotas }}</span></label>
+
+                            <div class="slider-container">
+                                <Slider
+                                    id="numeroCuotas"
+                                    v-model="numeroCuotas"
+                                    :min="1"
+                                    :max="12"
+                                    :disabled="isSliderDisabled"
+                                    class="payment-slider"
+                                />
+                            </div>
+                        </div>
+                        <div class="payment-control-group">
+                            <label for="tipoPago" class="payment-label">Medio de pago</label>
+                            <Select
+                                id="tipoPago"
+                                v-model="tipoPago"
+                                :options="opcionesTipoPago"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Seleccione un medio de pago"
+                                class="payment-select"
+                            />
+                        </div>
                     </div>
                 </template>
             </Card>
@@ -570,9 +907,9 @@ defineExpose({
                         <template #content>
                             <div class="text-center first-column-content h-full flex flex-col justify-center">
                                 <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Arancel Original</div>
-                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
+                                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
                                 <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(calculoBecas?.arancel_base / 10 || 0) }}
+                                    {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
                                 </div>
                             </div>
                         </template>
@@ -581,9 +918,9 @@ defineExpose({
                         <template #content>
                             <div class="text-center first-column-content h-full flex flex-col justify-center">
                                 <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Matrícula</div>
-                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
+                                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
                                 <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(carreraInfo?.matricula / 10 || 0) }}
+                                    {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
                                 </div>
                             </div>
                         </template>
@@ -603,13 +940,13 @@ defineExpose({
                     <template #content>
                         <div class="text-center">
                             <div class="text-sm text-black-700 mb-2 font-bold">Total Final a Pagar</div>
-                            <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
+                            <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
                             <div class="text-2xl font-bold text-green-600 mb-2">
                                 {{ formatCurrency(valorMensual) }}
                             </div>
                             <div class="text-xs text-gray-500 valor-anual mb-1">
-                                <div>* Arancel final: {{ formatCurrency(arancelFinalReal) }}</div>
-                                <div>* Matrícula final: {{ formatCurrency(carreraInfo?.matricula || 0) }}</div>
+                                <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
+                                <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
                             </div>
                         </div>
                     </template>
@@ -617,10 +954,10 @@ defineExpose({
             </div>
 
             <!-- Mensaje de contacto con descuento -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="success" 
-                :closable="false" 
+            <Message
+                v-if="descuentoPorcentualTotal > 0"
+                severity="success"
+                :closable="false"
                 class="contact-message"
                 size="large"
             >
@@ -633,54 +970,21 @@ defineExpose({
                 </div>
             </Message>
 
-            <!-- Mensaje informativo sobre descuentos adicionales -->
-            <Message 
-                v-if="tieneDescuentosDisponibles" 
-                severity="info" 
-                :closable="false" 
-                class="anticipado-message"
-                size="small"
-            >
-                <div class="anticipado-message-content">
-                    <div class="anticipado-message-title">
-                        <b>Tenemos descuentos adicionales disponibles.</b>
-                    </div>
-                    <ul class="anticipado-message-list">
-                        <li v-if="descuentoPagoAnticipadoVigente" class="subtitle-item">
-                            <b>Por pago anticipado:</b>
-                            <ul class="anticipado-sublist">
-                                <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
-                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
-                                </li>
-                                <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
-                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
-                                </li>
-                                <li v-if="fechaTerminoFormateada">
-                                    Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
-                                </li>
-                            </ul>
-                        </li>
-                        <li v-if="descuentosModoPagoActivos.length > 0" class="subtitle-item">
-                            <b>Por medio de pago:</b>
-                            <ul class="anticipado-sublist">
-                                <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
-                                    <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-            </Message>
-
             <!-- Mensaje informativo sobre confirmación -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="warn" 
-                :closable="false" 
+            <Message
+                v-if="descuentoPorcentualTotal > 0"
+                severity="info"
+                :closable="false"
                 class="confirmation-message"
                 size="small"
             >
-                La simulación es referencial; un asesor te confirma el monto final.
+                <div class="confirmation-message-content">
+                    <Info class="confirmation-message-icon" />
+                    <div class="confirmation-message-text-wrapper">
+                        <div class="confirmation-message-title">Simulación referencial.</div>
+                        <div class="confirmation-message-text">Un asesor revisará tu caso y confirmará el monto final.</div>
+                    </div>
+                </div>
             </Message>
 
             <!-- Becas aplicadas -->
@@ -747,9 +1051,9 @@ defineExpose({
 
         <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
         <div v-if="!isLoading && !error && calculoBecas && !isGeneratingPDF" class="export-pdf-section">
-            <Button 
-                label="Exportar PDF" 
-                icon="pi pi-download" 
+            <Button
+                label="Exportar PDF"
+                icon="pi pi-download"
                 @click="handleExportPDF"
                 class="export-pdf-button"
                 severity="secondary"
@@ -763,15 +1067,15 @@ defineExpose({
                 <!-- Header con título y badge -->
                 <div class="beca-info-header">
                     <h4 class="beca-info-title">{{ selectedBeca.beca.nombre }}</h4>
-                    <span 
-                        v-if="selectedBeca.beca.proceso_evaluacion" 
+                    <span
+                        v-if="selectedBeca.beca.proceso_evaluacion"
                         :class="['beca-info-badge', getProcesoEvaluacionBadgeClass(selectedBeca.beca.proceso_evaluacion)]"
                     >
                         {{ getProcesoEvaluacionBadge(selectedBeca.beca.proceso_evaluacion) }}
                     </span>
                 </div>
                 <div v-if="selectedBeca.beca.descripcion || (selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0)" class="beca-info-divider"></div>
-                
+
                 <!-- Descripción -->
                 <div v-if="selectedBeca.beca.descripcion" class="beca-info-body">
                     <div class="beca-info-description-section">
@@ -781,7 +1085,7 @@ defineExpose({
                     </div>
                     <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-divider"></div>
                 </div>
-                
+
                 <!-- Documentación requerida -->
                 <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-footer">
                     <h5 class="beca-info-subtitle">Documentación Requerida:</h5>
@@ -793,6 +1097,77 @@ defineExpose({
                 </div>
             </div>
         </OverlayPanel>
+
+        <!-- Overlay Panel para mostrar información de descuentos adicionales -->
+        <OverlayPanel
+            ref="descuentosInfoPanel"
+            class="descuentos-info-overlay"
+            :dismissable="false"
+            @mouseenter="keepDescuentosInfoVisible"
+            @mouseleave="hideDescuentosInfo"
+        >
+            <div class="descuentos-info-content">
+                <div class="descuentos-info-title">
+                    <b>Tenemos descuentos adicionales disponibles.</b>
+                </div>
+                <ul class="descuentos-info-list">
+                    <li v-if="descuentoPagoAnticipadoVigente" class="descuentos-info-item">
+                        <b>Por pago anticipado:</b>
+                        <ul class="descuentos-info-sublist">
+                            <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
+                                <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
+                            </li>
+                            <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
+                                <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
+                            </li>
+                            <li v-if="fechaTerminoFormateada">
+                                Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
+                            </li>
+                        </ul>
+                    </li>
+                    <li v-if="descuentosModoPagoActivos.length > 0" class="descuentos-info-item">
+                        <b>Por medio de pago:</b>
+                        <ul class="descuentos-info-sublist">
+                            <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
+                                <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </OverlayPanel>
+
+        <!-- Drawer para información del CAE -->
+        <Drawer
+            v-model:visible="showCaeDialog"
+            position="bottom"
+            :style="{ height: 'auto', maxHeight: '80vh' }"
+            :modal="true"
+        >
+            <template #header>
+                <div class="flex items-center gap-2">
+                    <i class="pi pi-info-circle text-orange-600"></i>
+                    <span class="text-lg font-semibold">Consideraciones para la simulación del crédito CAE</span>
+                </div>
+            </template>
+            <div class="cae-drawer-content p-4">
+                <p class="mb-4">
+                    <strong>El monto financiado anualmente</strong> corresponde al 100% del arancel de referencia vigente a la fecha.
+                </p>
+                <p class="mb-4">
+                    Se ha considerado una <strong>tasa de interés de UF + 2% anual</strong>; un período de <strong>18 meses</strong> a contar del egreso del estudiante, previo al inicio del cobro; y un plazo de <strong>120, 180 o 240 meses</strong> para pagar el total del crédito, según el monto total adeudado.
+                </p>
+                <p class="mb-4">
+                    El <strong>financiamiento total</strong> entregado para tu carrera en esta simulación, se otorga por iguales montos cada año y por el número de años de financiamiento que solicitas, considerando como tope el número de años de duración de la respectiva carrera.
+                </p>
+                <p class="mb-4">
+                    El cálculo considera <strong>meses de 30 días</strong> y el <strong>año de 360 días</strong>.
+                </p>
+                <p class="mb-0 text-sm text-gray-600 italic">
+                    El resultado de este ejercicio constituye una estimación. No debe utilizarse para otros fines que no sean proyectar una cuota aproximada a pagar, considerando los supuestos y parámetros definidos. Atendido lo anterior, la cuota calculada tiene carácter referencial y no genera obligación ni restricción alguna para la Comisión Administradora del Sistema de Créditos para Estudios Superiores ni para los bancos participantes en el sistema.
+                </p>
+            </div>
+        </Drawer>
     </div>
 </template>
 
@@ -1001,7 +1376,7 @@ defineExpose({
 }
 
 .table-row.discount-total-row {
-    @apply bg-red-50;
+    @apply bg-green-50;
     border-top: 2px solid #FCA5A5;
 }
 
@@ -1023,7 +1398,7 @@ defineExpose({
 }
 
 .table-cell {
-    @apply px-4 py-3 text-sm text-gray-900;
+    @apply px-4 py-3 text-sm;
 }
 
 /* Clases para responsive */
@@ -1040,33 +1415,33 @@ defineExpose({
     .desktop-only {
         display: none;
     }
-    
+
     .mobile-only {
         display: table-cell;
     }
-    
+
     .table-header,
     .table-cell {
         @apply px-2 py-2 text-xs;
     }
-    
+
     .table-cell.font-bold.text-lg {
         @apply text-base;
     }
-    
+
     .benefit-name {
         @apply text-xs;
     }
-    
+
     .benefit-name i {
         @apply mr-1;
         font-size: 0.75rem;
     }
-    
+
     .section-title {
         @apply text-xs;
     }
-    
+
     .discount-percentage {
         @apply text-xs;
     }
@@ -1151,6 +1526,29 @@ defineExpose({
 
 .confirmation-message {
     @apply mt-4;
+}
+
+.confirmation-message-content {
+    @apply flex items-start gap-3;
+}
+
+.confirmation-message-icon {
+    @apply flex-shrink-0 mt-0.5;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--p-info-color);
+}
+
+.confirmation-message-text-wrapper {
+    @apply flex flex-col;
+}
+
+.confirmation-message-title {
+    @apply font-semibold mb-1 text-base;
+}
+
+.confirmation-message-text {
+    @apply text-sm leading-relaxed;
 }
 
 .anticipado-message {
@@ -1412,6 +1810,87 @@ defineExpose({
 
 .beca-info-item {
     @apply text-xs text-gray-700 leading-relaxed;
+}
+
+/* Estilos para simulación de cuotas y medios de pago */
+.payment-simulation-card {
+    @apply mb-6;
+}
+
+.payment-simulation-content {
+    @apply flex flex-col md:flex-row gap-6;
+}
+
+.payment-control-group {
+    @apply flex-1 flex flex-col gap-2;
+}
+
+.payment-label {
+    @apply text-sm font-medium text-gray-600 mb-3;
+    @apply flex items-center gap-2;
+}
+
+.slider-container {
+    @apply w-full;
+}
+
+.payment-slider {
+    @apply w-full;
+}
+
+.slider-value {
+    @apply inline-flex items-center justify-center;
+    @apply min-w-[2.5rem] px-2 py-0.5;
+    @apply text-lg font-bold text-gray-900;
+    @apply bg-gray-100 rounded-md;
+    @apply border border-gray-200;
+}
+
+.payment-select {
+    @apply w-full;
+}
+
+/* Estilos para overlay de información de descuentos */
+.descuentos-info-overlay {
+    max-width: 400px;
+}
+
+.descuentos-info-overlay :deep(.p-overlaypanel-content) {
+    padding: 1rem !important;
+}
+
+.descuentos-info-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.descuentos-info-title {
+    @apply mb-3;
+    font-size: 0.9375rem;
+}
+
+.descuentos-info-list {
+    @apply list-disc pl-6 space-y-2;
+    margin: 0;
+}
+
+.descuentos-info-item {
+    @apply text-sm;
+    line-height: 1.6;
+}
+
+.descuentos-info-item b {
+    font-weight: 600;
+}
+
+.descuentos-info-sublist {
+    @apply list-disc pl-5 mt-1 space-y-1;
+    font-size: 0.875rem;
+}
+
+.descuentos-info-sublist li {
+    @apply text-xs;
+    line-height: 1.5;
 }
 
 </style>

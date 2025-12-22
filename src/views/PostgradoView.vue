@@ -9,19 +9,23 @@ import StepPanel from 'primevue/steppanel';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
 import CareerPostgrado from '@/components/postgrado/CareerPostgrado.vue';
+import MultipleCareerPostgrado from '@/components/postgrado/MultipleCareerPostgrado.vue';
 import PersonalAcademicData from '@/components/simulador/PersonalAcademicData.vue';
 import ResultsPostgrado from '@/components/postgrado/ResultsPostgrado.vue';
 import { useProspectos } from '@/composables/useProspectos';
 import { validateEmail, validateRUT } from '@/utils/validation';
+import { MODO_CARRERA_POSTGRADO } from '@/utils/config';
 import type { FormData } from '@/types/simulador';
 
 // Estado del formulario
-const formData = ref<Partial<FormData>>({
+const formData = ref<Partial<FormData & { carreraInteres: string; carreraInteresId: number }>>({
     // Datos de postgrado
     carreraTitulo: '',
     area: '',
     modalidadPreferencia: [],
     objetivo: [],
+    carreraInteres: '',
+    carreraInteresId: 0,
     // Datos personales
     nombre: '',
     apellido: '',
@@ -41,7 +45,7 @@ const formData = ref<Partial<FormData>>({
 });
 
 // Referencia al componente de carrera postgrado para acceder a la validación
-const careerPostgradoRef = ref<InstanceType<typeof CareerPostgrado> | null>(null);
+const careerPostgradoRef = ref<InstanceType<typeof CareerPostgrado> | InstanceType<typeof MultipleCareerPostgrado> | null>(null);
 
 // Referencia al componente de datos personales para acceder a la validación
 const personalDataRef = ref<InstanceType<typeof PersonalAcademicData> | null>(null);
@@ -79,23 +83,33 @@ const handleValidationChangeStep2 = (isValid: boolean) => {
 // Función para recopilar campos faltantes del paso 1 (CareerPostgrado)
 const getMissingFieldsStep1 = (): string[] => {
     const missing: string[] = []
-    
+    const formDataAny = formData.value as any
+
     if (!formData.value.carreraTitulo?.trim()) missing.push('Carrera o Título')
-    if (!formData.value.area?.trim()) missing.push('Área de Interés')
-    if (!formData.value.modalidadPreferencia || formData.value.modalidadPreferencia.length === 0) {
-        missing.push('Modalidad de Preferencia')
+
+    // En modo MULTIPLE se requieren campos adicionales
+    if (MODO_CARRERA_POSTGRADO === 'MULTIPLE') {
+        if (!formDataAny?.carreraInteres?.trim() || !formDataAny?.carreraInteresId || formDataAny.carreraInteresId === 0) {
+            missing.push('Carrera de Interés para Nuevo Estudio')
+        }
+    } else {
+        // En modo UNICA se requieren campos adicionales del componente CareerPostgrado
+        if (!formData.value.area?.trim()) missing.push('Área de Interés')
+        if (!formData.value.modalidadPreferencia || formData.value.modalidadPreferencia.length === 0) {
+            missing.push('Modalidad de Preferencia')
+        }
+        if (!formData.value.objetivo || formData.value.objetivo.length === 0) {
+            missing.push('Objetivo')
+        }
     }
-    if (!formData.value.objetivo || formData.value.objetivo.length === 0) {
-        missing.push('Objetivo')
-    }
-    
+
     return missing
 }
 
 // Función para recopilar campos faltantes del paso 2 (PersonalAcademicData en modo especialización)
 const getMissingFieldsStep2 = (): string[] => {
     const missing: string[] = []
-    
+
     // En modo especialización, nivelEducativo y colegio NO son requeridos
     if (!formData.value.nombre?.trim()) missing.push('Nombre')
     if (!formData.value.apellido?.trim()) missing.push('Apellido')
@@ -114,7 +128,7 @@ const getMissingFieldsStep2 = (): string[] => {
     if (formData.value.identificacion?.trim() && formData.value.tieneRUT !== false && !validateRUT(formData.value.identificacion)) {
         missing.push('RUT válido')
     }
-    
+
     return missing
 }
 
@@ -145,19 +159,19 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     if (personalDataRef.value && 'markAsSubmitted' in personalDataRef.value && typeof personalDataRef.value.markAsSubmitted === 'function') {
         personalDataRef.value.markAsSubmitted()
     }
-    
+
     // Esperar un tick para que se actualicen los errores antes de verificar validación
     await nextTick();
-    
+
     // Verificar validación antes de avanzar
     if (!isStep2Valid.value) {
         console.warn('El formulario no es válido');
         return;
     }
-    
+
     // Activar el paso 3
     activateCallback('3');
-    
+
     // Insertar prospecto en la base de datos
     try {
         const prospecto = await insertarProspecto(formData.value as FormData, 'postgrado');
@@ -207,20 +221,28 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                 <StepPanels>
                     <StepPanel v-slot="{ activateCallback }" value="1">
                         <div class="stepper-panel flex flex-col">
-                            <CareerPostgrado 
-                                ref="careerPostgradoRef" 
+                            <CareerPostgrado
+                                v-if="MODO_CARRERA_POSTGRADO === 'MULTIPLE'"
+                                ref="careerPostgradoRef"
                                 :form-data="formData"
-                                @update:form-data="handleFormDataUpdate" 
-                                @validation-change="handleValidationChange" 
+                                @update:form-data="handleFormDataUpdate"
+                                @validation-change="handleValidationChange"
+                            />
+                            <MultipleCareerPostgrado
+                                v-else-if="MODO_CARRERA_POSTGRADO === 'UNICA'"
+                                ref="careerPostgradoRef"
+                                :form-data="formData"
+                                @update:form-data="handleFormDataUpdate"
+                                @validation-change="handleValidationChange"
                             />
                         </div>
                         <div class="flex pt-6 justify-end">
-                            <div 
-                                class="m-4 button-wrapper" 
+                            <div
+                                class="m-4 button-wrapper"
                                 :class="{ 'button-blocked': isStep1ButtonBlocked }"
                                 @mousedown="() => {
                                     if (isStep1ButtonBlocked) return
-                                    
+
                                     if (careerPostgradoRef && 'markAsSubmitted' in careerPostgradoRef && typeof careerPostgradoRef.markAsSubmitted === 'function') {
                                         careerPostgradoRef.markAsSubmitted()
                                     }
@@ -243,9 +265,9 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                                     })
                                 }"
                             >
-                                <Button 
-                                    label="Siguiente" 
-                                    icon="pi pi-arrow-right" 
+                                <Button
+                                    label="Siguiente"
+                                    icon="pi pi-arrow-right"
                                     :disabled="!isStep1Valid || isStep1ButtonBlocked"
                                 />
                             </div>
@@ -253,28 +275,28 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="2">
                         <div class="stepper-panel flex flex-col">
-                            <PersonalAcademicData 
-                                ref="personalDataRef" 
+                            <PersonalAcademicData
+                                ref="personalDataRef"
                                 :form-data="formData"
                                 modo="especializacion"
-                                @update:form-data="handleFormDataUpdate" 
-                                @validation-change="handleValidationChangeStep2" 
+                                @update:form-data="handleFormDataUpdate"
+                                @validation-change="handleValidationChangeStep2"
                             />
                         </div>
                         <div class="flex pt-6 justify-between">
-                            <Button 
-                                label="Atras" 
-                                class="m-4" 
-                                severity="secondary" 
+                            <Button
+                                label="Atras"
+                                class="m-4"
+                                severity="secondary"
                                 icon="pi pi-arrow-left"
-                                @click="activateCallback('1')" 
+                                @click="activateCallback('1')"
                             />
-                            <div 
-                                class="m-4 button-wrapper" 
+                            <div
+                                class="m-4 button-wrapper"
                                 :class="{ 'button-blocked': isStep2ButtonBlocked }"
                                 @mousedown="() => {
                                     if (isStep2ButtonBlocked) return
-                                    
+
                                     if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
                                         personalDataRef.markAsSubmitted()
                                     }
@@ -305,11 +327,11 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                                     })
                                 }"
                             >
-                                <Button 
-                                    label="Ver resultados" 
-                                    icon="pi pi-arrow-right" 
+                                <Button
+                                    label="Ver resultados"
+                                    icon="pi pi-arrow-right"
                                     iconPos="right"
-                                    :disabled="!isStep2Valid || isStep2ButtonBlocked" 
+                                    :disabled="!isStep2Valid || isStep2ButtonBlocked"
                                 />
                             </div>
                         </div>
@@ -319,18 +341,18 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                             <div v-if="prospectoLoading" class="text-gray-600 mb-4">
                                 Guardando información...
                             </div>
-                            <ResultsPostgrado 
+                            <ResultsPostgrado
                                 :area="formData.area || ''"
                                 :modalidad-preferencia="formData.modalidadPreferencia && formData.modalidadPreferencia.length > 0 ? formData.modalidadPreferencia : null"
                             />
                         </div>
                         <div class="pt-6">
-                            <Button 
-                                label="Atras" 
-                                class="m-4" 
-                                severity="secondary" 
+                            <Button
+                                label="Atras"
+                                class="m-4"
+                                severity="secondary"
                                 icon="pi pi-arrow-left"
-                                @click="activateCallback('2')" 
+                                @click="activateCallback('2')"
                             />
                         </div>
                     </StepPanel>
