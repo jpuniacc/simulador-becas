@@ -658,7 +658,7 @@ defineExpose({
                                             </span>
                                             <span v-else class="text-xs text-gray-600">Fijo</span>
                                         </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
+                                        <td class="table-cell text-right font-semibold text-green-600">
                                             -{{ formatCurrency(beca.monto_descuento) }}
                                         </td>
                                     </tr>
@@ -666,7 +666,7 @@ defineExpose({
                                         <td class="table-cell font-semibold" :colspan="subtotalColspan">
                                             Después de Beneficios Internos
                                         </td>
-                                        <td class="table-cell text-right font-semibold">
+                                        <td class="table-cell text-right text-gray-700 font-semibold">
                                             {{ formatCurrency(arancelDespuesBecasInternas) }}
                                         </td>
                                     </tr>
@@ -700,7 +700,7 @@ defineExpose({
                                         <td class="table-cell text-center desktop-only">CAE</td>
                                         <td class="table-cell text-center text-gray-500 desktop-only">-</td>
                                         <td class="table-cell text-center mobile-only">CAE</td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
+                                        <td class="table-cell text-right font-semibold text-green-600">
                                             -{{ formatCurrency(descuentoCae) }}
                                             <span v-if="carreraInfo?.anio_arancel_referencia" class="text-xs text-orange-600 block">(Ref. {{ carreraInfo.anio_arancel_referencia }})</span>
                                         </td>
@@ -720,7 +720,7 @@ defineExpose({
                                         <td class="table-cell font-semibold" :colspan="subtotalColspan">
                                             Después de CAE
                                         </td>
-                                        <td class="table-cell text-right font-semibold">
+                                        <td class="table-cell text-right text-gray-700 font-semibold">
                                             {{ formatCurrency(arancelFinalReal) }}
                                         </td>
                                     </tr>
@@ -747,7 +747,7 @@ defineExpose({
                                     <td class="table-cell font-semibold" :colspan="subtotalColspan">
                                         Total Descuentos Aplicados
                                     </td>
-                                    <td class="table-cell text-right font-bold text-red-600">
+                                    <td class="table-cell text-right font-bold text-green-600">
                                         -{{ formatCurrency(descuentoTotalRealConCae) }}
                                     </td>
                                 </tr>
@@ -778,7 +778,7 @@ defineExpose({
                                         <td class="table-cell text-center mobile-only">
                                             <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
                                         </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
+                                        <td class="table-cell text-right font-semibold text-green-600">
                                             -{{ formatCurrency(descuentoPagoAnticipadoArancel) }}
                                         </td>
                                     </tr>
@@ -798,7 +798,7 @@ defineExpose({
                                         <td class="table-cell text-center mobile-only">
                                             <span class="discount-percentage">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
                                         </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
+                                        <td class="table-cell text-right font-semibold text-green-600">
                                             -{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}
                                         </td>
                                     </tr>
@@ -831,7 +831,7 @@ defineExpose({
                                         <td class="table-cell text-center mobile-only">
                                             <span class="discount-percentage">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
                                         </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
+                                        <td class="table-cell text-right font-semibold text-green-600">
                                             -{{ formatCurrency(descuentoModoPagoArancel) }}
                                         </td>
                                     </tr>
@@ -841,7 +841,7 @@ defineExpose({
                                     <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
                                         Arancel + Matrícula final a pactar
                                     </td>
-                                    <td class="table-cell text-right font-bold text-lg text-green-600">
+                                    <td class="table-cell text-right font-bold text-lg text-gray-700">
                                         {{ formatCurrency(arancelMasMatricula) }}
                                     </td>
                                 </tr>
@@ -1376,7 +1376,7 @@ defineExpose({
 }
 
 .table-row.discount-total-row {
-    @apply bg-red-50;
+    @apply bg-green-50;
     border-top: 2px solid #FCA5A5;
 }
 
@@ -1398,7 +1398,7 @@ defineExpose({
 }
 
 .table-cell {
-    @apply px-4 py-3 text-sm text-gray-900;
+    @apply px-4 py-3 text-sm;
 }
 
 /* Clases para responsive */
