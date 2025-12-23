@@ -13,6 +13,7 @@ import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
+import { useCRM } from '@/composables/useCRM'
 import { ANIO_POSTULACION } from '@/utils/config'
 import { Award, CheckCircle, FileText, Info } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
@@ -29,6 +30,7 @@ const props = defineProps<Props>()
 const simuladorStore = useSimuladorStore()
 const descuentosStore = useDescuentosStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
+const { enviarCRM } = useCRM()
 
 // Estado
 const isLoading = ref(false)
@@ -274,9 +276,20 @@ const handleSimulate = async () => {
 
         await simuladorStore.simulate()
 
-        const prospectoGuardado = await insertarProspecto(simuladorStore.formData as FormData, 'pregrado')
-        if (!prospectoGuardado && prospectoError.value) {
+        // Ejecutar ambas llamadas en paralelo
+        const [prospectoResult, crmResult] = await Promise.allSettled([
+            insertarProspecto(simuladorStore.formData as FormData, 'pregrado'),
+            enviarCRM(simuladorStore.formData as FormData, carreraInfo.value)
+        ])
+
+        if (prospectoResult.status === 'rejected') {
+            console.warn('No se pudo guardar el prospecto:', prospectoResult.reason)
+        } else if (!prospectoResult.value && prospectoError.value) {
             console.warn('No se pudo guardar el prospecto:', prospectoError.value)
+        }
+
+        if (crmResult.status === 'rejected') {
+            console.warn('No se pudo enviar al CRM:', crmResult.reason)
         }
     } catch (err) {
         error.value = err instanceof Error ? err.message : 'Error al realizar la simulación'
@@ -600,10 +613,7 @@ defineExpose({
                                             <div class="flex items-start gap-2">
                                                 <i class="pi pi-info-circle text-purple-600 mt-0.5"></i>
                                                 <span>
-                                                    Becas Mineduc dependen de tu postulación en el FUAS. La asignación es realizada por el Estado y puede modificar el arancel final.
-                                                    <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 underline font-medium ml-1">
-                                                        Más info en sitio FUAS
-                                                    </a>
+                                                    Las Becas MINEDUC se asignan según la información que entregues en el FUAS. La asignación la realiza el Estado y puede modificar el arancel final. <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 underline font-medium ml-1">Más información en el sitio FUAS.</a>
                                                 </span>
                                             </div>
                                         </td>
@@ -664,7 +674,7 @@ defineExpose({
                                     </tr>
                                     <tr class="table-row subtotal-row subtotal-interno-row">
                                         <td class="table-cell font-semibold" :colspan="subtotalColspan">
-                                            Después de Beneficios Internos
+                                            Monto a pagar con beneficio aplicado
                                         </td>
                                         <td class="table-cell text-right text-gray-700 font-semibold">
                                             {{ formatCurrency(arancelDespuesBecasInternas) }}
@@ -839,7 +849,7 @@ defineExpose({
 
                                 <tr class="table-row final-row">
                                     <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
-                                        Arancel + Matrícula final a pactar
+                                        Arancel + Matrícula final a pagar
                                     </td>
                                     <td class="table-cell text-right font-bold text-lg text-gray-700">
                                         {{ formatCurrency(arancelMasMatricula) }}
@@ -870,6 +880,18 @@ defineExpose({
                 </template>
                 <template #content>
                     <div class="payment-simulation-content">
+                      <div class="payment-control-group">
+                            <label for="tipoPago" class="payment-label">Medio de pago</label>
+                            <Select
+                                id="tipoPago"
+                                v-model="tipoPago"
+                                :options="opcionesTipoPago"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Seleccione un medio de pago"
+                                class="payment-select"
+                            />
+                        </div>
                         <div class="payment-control-group">
                             <label for="numeroCuotas" class="payment-label">Número de cuotas: <span class="slider-value">{{ numeroCuotas }}</span></label>
 
@@ -884,18 +906,7 @@ defineExpose({
                                 />
                             </div>
                         </div>
-                        <div class="payment-control-group">
-                            <label for="tipoPago" class="payment-label">Medio de pago</label>
-                            <Select
-                                id="tipoPago"
-                                v-model="tipoPago"
-                                :options="opcionesTipoPago"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Seleccione un medio de pago"
-                                class="payment-select"
-                            />
-                        </div>
+
                     </div>
                 </template>
             </Card>
@@ -965,7 +976,7 @@ defineExpose({
                     <div class="contact-message-text">
                         <b class="simulation-question">¿Te gustó la simulación?</b>
                         Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
-                        Si quieres saber tu descuento real, escríbenos a <a href="mailto:admision@uniacc.cl" class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
+                        Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
                     </div>
                 </div>
             </Message>
