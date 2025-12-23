@@ -1361,11 +1361,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .consentimiento-title {
-    @apply text-sm leading-none font-medium text-gray-900 mb-1.5;
+    @apply text-sm font-medium text-gray-900 mb-1.5;
+    line-height: 1.5;
 }
 
 .consentimiento-subtitle {
     @apply text-sm text-gray-600 font-normal;
+    line-height: 1.5;
     margin-left: calc(-1.25rem - 0.75rem);
     padding-left: calc(1.25rem + 0.75rem);
 }

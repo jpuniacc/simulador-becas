@@ -298,9 +298,10 @@ export type Database = {
           anio_arancel_referencia: number | null
           arancel: number
           arancel_referencia: number | null
-          area: string | null
+          codigo_carrera: string | null
           descripcion_programa: string
           duracion_programa: string
+          facultad: string | null
           id: number
           malla: string
           matricula: number
@@ -315,9 +316,10 @@ export type Database = {
           anio_arancel_referencia?: number | null
           arancel: number
           arancel_referencia?: number | null
-          area?: string | null
+          codigo_carrera?: string | null
           descripcion_programa: string
           duracion_programa: string
+          facultad?: string | null
           id?: number
           malla: string
           matricula: number
@@ -332,9 +334,10 @@ export type Database = {
           anio_arancel_referencia?: number | null
           arancel?: number
           arancel_referencia?: number | null
-          area?: string | null
+          codigo_carrera?: string | null
           descripcion_programa?: string
           duracion_programa?: string
+          facultad?: string | null
           id?: number
           malla?: string
           matricula?: number
@@ -1127,11 +1130,9 @@ export type Database = {
           genero: string | null
           id: string
           matematica1: number | null
-          medio_pago: string | null
           modalidadpreferencia: Json | null
           nem: number | null
           nombre: string
-          num_cuotas: number | null
           objetivo: Json | null
           paes: boolean | null
           pais: string | null
@@ -1164,11 +1165,9 @@ export type Database = {
           genero?: string | null
           id?: string
           matematica1?: number | null
-          medio_pago?: string | null
           modalidadpreferencia?: Json | null
           nem?: number | null
           nombre: string
-          num_cuotas?: number | null
           objetivo?: Json | null
           paes?: boolean | null
           pais?: string | null
@@ -1201,11 +1200,9 @@ export type Database = {
           genero?: string | null
           id?: string
           matematica1?: number | null
-          medio_pago?: string | null
           modalidadpreferencia?: Json | null
           nem?: number | null
           nombre?: string
-          num_cuotas?: number | null
           objetivo?: Json | null
           paes?: boolean | null
           pais?: string | null
