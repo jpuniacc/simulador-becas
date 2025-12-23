@@ -71,7 +71,7 @@ const formData = ref<Partial<FormData>>({
 
 // Estado para el autocomplete de carreras
 const carreraSeleccionada = ref<Carrera | null>(null)
-const carrerasSugeridas = ['Danza', 'Arquitectura', 'Ingeniería Comercial']
+const carrerasSugeridas = ['Danza', 'Psicología', 'Ingeniería Comercial']
 const filteredCarreras = ref<Carrera[]>([])
 const financingTooltipRef = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const financingIconRef = ref<HTMLElement | null>(null)
@@ -100,8 +100,8 @@ const touched = ref({
 // Computed para verificar si es egresado o tiene educación media completa
 const isEgresadoOr4to = computed(() => {
     const nivel = props.formData?.nivelEducativo
-    return nivel === 'Educación media completa' || 
-           nivel === 'Cursando educación superior' || 
+    return nivel === 'Educación media completa' ||
+           nivel === 'Cursando educación superior' ||
            nivel === 'Educación superior completa'
 })
 
@@ -139,8 +139,8 @@ const handleAutocompleteFocus = () => {
 // Computed para verificar si es egresado (completó educación media)
 const isEgresado = computed(() => {
     const nivel = props.formData?.nivelEducativo
-    return nivel === 'Educación media completa' || 
-           nivel === 'Cursando educación superior' || 
+    return nivel === 'Educación media completa' ||
+           nivel === 'Cursando educación superior' ||
            nivel === 'Educación superior completa'
 })
 
@@ -506,7 +506,7 @@ onUnmounted(() => {
                                 <template #option="slotProps">
                                     <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
                                         <div class="font-medium text-gray-900">{{ slotProps.option.nombre_programa }}</div>
-                                        <div class="text-sm text-gray-500">{{ slotProps.option.nivel_academico }}</div>
+                                        <div class="text-sm text-gray-500">{{ slotProps.option.nivel_academico }} - {{ slotProps.option.modalidad_programa }}</div>
                                         <div class="text-xs text-blue-600 mt-1">{{ slotProps.option.duracion_programa }}</div>
                                     </div>
                                 </template>

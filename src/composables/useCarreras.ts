@@ -21,7 +21,7 @@ export function useCarreras() {
     try {
       loading.value = true
       error.value = null
-      const versionSimulador = version ?? 1
+      const versionSimulador = version ?? 10
       console.log('Inicializando carreras desde Supabase...')
 
       const { data, error: supabaseError } = await supabase
