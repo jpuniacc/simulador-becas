@@ -2,7 +2,7 @@
 
 /* Contenedor de formulario */
 .form-container {
-    @apply w-full max-w-4xl mx-auto p-6;
+    @apply w-full max-w-6xl mx-auto p-6;
 }
 
 .form-title {

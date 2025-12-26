@@ -15,4 +15,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  server: {
+    proxy: {
+      '/crm': {
+        target: 'http://crmadmision-qa.uniacc.cl',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/crm/, ''),
+        secure: false
+      }
+    }
+  }
 })
