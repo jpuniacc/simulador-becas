@@ -3,18 +3,35 @@ import axios from 'axios'
 import type { FormData } from '@/types/simulador'
 import type { Carrera } from '@/stores/carrerasStore'
 
-// Usar proxy en desarrollo para evitar CORS, URL directa en producción
-// Se desconoce si en prod existira Access-Control-Allow-Origin: *
-// Por lo tanto, se usa el proxy en desarrollo para evitar CORS
+// JPS: Función para determinar la URL del CRM según el ambiente de ejecución
+// Modificación: Detección dinámica del ambiente (localhost, QA/DEV, producción) para resolver problemas de CORS
+// Funcionamiento:
+// - En localhost: retorna '/crm/webservice/formulario_web.php' que usa el proxy de Vite configurado en vite.config.ts
+//   El proxy redirige las peticiones a http://crmadmision-qa.uniacc.cl evitando errores de CORS desde localhost
+// - En QA/DEV (similador.uniacc.cl): retorna la URL directa 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+//   Las peticiones se envían directamente desde el dominio similador.uniacc.cl, evitando errores de CORS
+// - En producción: usa VITE_API_MANTIS_WEB si está configurada, sino usa la URL de QA por defecto
+// La detección se hace en tiempo de ejecución en cada petición, no al cargar el módulo
 const getCRMUrl = () => {
-  const api = import.meta.env.DEV
-  ? '/crm'
-  : import.meta.env.VITE_API_MANTIS_WEB
-  return api;
-}
+  const isLocalhost = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 
-const CRM_URL = getCRMUrl()
-console.log('CRM_URL', CRM_URL)
+  const isQA = typeof window !== 'undefined' &&
+    window.location.hostname.includes('similador.uniacc.cl')
+
+  // En localhost, usar proxy
+  if (isLocalhost) {
+    return '/crm/webservice/formulario_web.php'
+  }
+
+  // En QA/DEV, usar URL directa del CRM
+  if (isQA || import.meta.env.VITE_ENV === 'qa' || import.meta.env.VITE_ENV === 'dev') {
+    return 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  }
+
+  // En producción, usar URL de producción si está configurada
+  return import.meta.env.VITE_API_MANTIS_WEB || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+}
 
 interface JSONCRM {
   nombre: string
@@ -46,9 +63,15 @@ export function useCRM() {
       // Construir el JSON usando createJSONcrm
       const data = createJSONcrm(formData, carreraInfo, userAgent)
 
+      // JPS: Obtener la URL del CRM según el ambiente actual en tiempo de ejecución
+      // Modificación: La URL se determina dinámicamente en cada petición, no al cargar el módulo
+      // Funcionamiento: Esto permite que la misma build funcione en diferentes ambientes (localhost, QA/DEV, producción)
+      // sin necesidad de recompilar, detectando automáticamente el dominio desde donde se ejecuta la aplicación
+      const crmUrl = getCRMUrl()
+      console.log('CRM_URL', crmUrl)
       console.log('data CRM', data)
 
-      const response = await axios.post(CRM_URL, data, {
+      const response = await axios.post(crmUrl, data, {
         headers: {
           'Content-Type': 'application/json',
         }
