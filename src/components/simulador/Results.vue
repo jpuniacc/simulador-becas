@@ -737,14 +737,8 @@ defineExpose({
       <!-- Simulación de cuotas y medios de pago -->
       <Card class="payment-simulation-card">
         <template #title>
-          <div class="flex items-center gap-2">
             <i class="pi pi-credit-card"></i>
             <span>Simulación de cuotas y medios de pago</span>
-            <i v-if="tieneDescuentosDisponibles" ref="descuentosInfoIconRef"
-              class="pi pi-info-circle text-gray-500 cursor-help hover:text-blue-600 transition-colors text-sm"
-              @mouseenter="!isMobile && showDescuentosInfo($event)" @mouseleave="!isMobile && hideDescuentosInfo()"
-              @click="toggleDescuentosInfo($event)" title="Información sobre descuentos adicionales"></i>
-          </div>
         </template>
         <template #content>
           <div class="payment-simulation-content">
@@ -795,113 +789,111 @@ defineExpose({
         </div>
         <Card class="summary-item discount">
           <template #content>
-            <div class="text-center">
-              <div class="text-sm text-black-700 mb-2 font-bold">Descuento Total</div>
-              <div class="text-2xl font-bold text-red-600">
+              <div class="discount-label">Descuento Total</div>
+              <div class="discount-value">
                 -{{ formatCurrency(descuentoTotalRealConCae) }}
               </div>
-            </div>
+              <div></div>
+
           </template>
         </Card>
         <Card class="summary-item final">
           <template #content>
-            <div class="text-center">
-              <div class="text-sm text-black-700 mb-2 font-bold">Total Final a Pagar</div>
-              <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
-              <div class="text-2xl font-bold text-green-600 mb-2">
-                {{ formatCurrency(valorMensual) }}
-              </div>
-              <div class="text-xs text-gray-500 valor-anual mb-1">
-                <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
-                <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
-              </div>
+            <div>
+              <div class="final-label">Total Final a Pagar</div>
+              <div class="final-cuotas">{{ numeroCuotas }} cuotas de</div>
+            </div>
+            <div class="final-value">
+              {{ formatCurrency(valorMensual) }}
+            </div>
+            <div class="final-details valor-anual">
+              <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
+              <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
             </div>
           </template>
         </Card>
       </div>
 
-      <!-- Mensaje de contacto con descuento -->
-      <Message v-if="descuentoPorcentualTotal > 0" severity="success" :closable="false" class="contact-message"
-        size="large">
-        <div class="contact-message-content">
-          <div class="contact-message-text">
-            <b class="simulation-question">¿Te gustó la simulación?</b>
-            Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
-            Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl"
-              class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
-          </div>
-        </div>
-      </Message>
+      <div class="texto-referencial">
+        *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
+      </div>
 
-      <!-- Mensaje informativo sobre confirmación -->
-      <Message v-if="descuentoPorcentualTotal > 0" severity="info" :closable="false" class="confirmation-message"
-        size="small">
-        <div class="confirmation-message-content">
-          <Info class="confirmation-message-icon" />
-          <div class="confirmation-message-text-wrapper">
-            <div class="confirmation-message-title">Simulación referencial.</div>
-            <div class="confirmation-message-text">Un asesor revisará tu caso y confirmará el monto final.</div>
+      <!-- Mensaje de contacto con descuento -->
+      <Card v-if="descuentoPorcentualTotal > 0" class="contact-message">
+        <template #content>
+          <div class="contact-message-content">
+            <div class="contact-message-text">
+              <b class="simulation-question">¿Te gustó la simulación?</b>
+              Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
+              Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl"
+                class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
+            </div>
           </div>
-        </div>
-      </Message>
+        </template>
+      </Card>
 
       <!-- Becas aplicadas -->
-      <div v-if="becasAplicadas.length" class="benefits-section">
-        <h3 class="benefits-section-title">
-          <Award class="w-6 h-6" />
-          Becas Aplicadas
-        </h3>
+       <Card class="becas-aplicadas-card">
+        <template #content>
+    <div v-if="becasAplicadas.length" class="benefits-section">
+            <h3 class="benefits-section-title">
+              <Award class="w-6 h-6" />
+              Becas Aplicadas
+            </h3>
 
-        <!-- Becas Internas Aplicadas -->
-        <div v-if="becasAplicadas.length" class="benefits-subsection">
-          <h4 class="subsection-title">
-            <Award class="w-5 h-5 text-blue-600" />
-            Beneficios Internos (UNIACC)
-          </h4>
-          <div class="benefits-grid">
-            <div v-for="beca in becasAplicadas" :key="beca.beca.id" class="benefit-card benefit-card-interno">
-              <div class="benefit-header">
-                <div class="benefit-icon">
-                  <CheckCircle class="w-5 h-5 text-green-600" />
+            <!-- Becas Internas Aplicadas -->
+            <div v-if="becasAplicadas.length" class="benefits-subsection">
+              <h4 class="subsection-title">
+                <Award class="w-5 h-5 text-blue-600" />
+                Beneficios Internos (UNIACC)
+              </h4>
+              <div class="benefits-grid">
+                <div v-for="beca in becasAplicadas" :key="beca.beca.id" class="benefit-card benefit-card-interno">
+                  <div class="benefit-header">
+                    <div class="benefit-icon">
+                      <CheckCircle class="w-5 h-5 text-green-600" />
+                    </div>
+                    <div class="benefit-info">
+                      <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
+                      <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+                    </div>
+                  </div>
+                  <div class="benefit-details">
+                    <div class="benefit-discount">
+                      <span class="applied-label">Descuento:</span>
+                      <span class="applied-value">
+                        {{ beca.beca.tipo_descuento === 'porcentaje'
+                          ? `${beca.descuento_aplicado}%`
+                          : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
+                      </span>
+                    </div>
+                    <div class="benefit-applied">
+                      <span class="applied-label">Aplicado:</span>
+                      <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="beca.beca.descripcion" class="benefit-description">
+                    <p class="description-text">{{ beca.beca.descripcion }}</p>
+                  </div>
+                  <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0"
+                    class="benefit-documentation">
+                    <div class="documentation-header">
+                      <FileText class="w-4 h-4 text-blue-600" />
+                      <span class="documentation-title">Documentación Requerida:</span>
+                    </div>
+                    <ul class="documentation-list">
+                      <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index" class="documentation-item">
+                        {{ doc }}
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-                <div class="benefit-info">
-                  <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
-                  <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
-                </div>
-              </div>
-              <div class="benefit-details">
-                <div class="benefit-discount">
-                  <span class="discount-label">Descuento:</span>
-                  <span class="discount-value">
-                    {{ beca.beca.tipo_descuento === 'porcentaje'
-                      ? `${beca.descuento_aplicado}%`
-                      : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
-                  </span>
-                </div>
-                <div class="benefit-applied">
-                  <span class="applied-label">Aplicado:</span>
-                  <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
-                </div>
-              </div>
-              <div v-if="beca.beca.descripcion" class="benefit-description">
-                <p class="description-text">{{ beca.beca.descripcion }}</p>
-              </div>
-              <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0"
-                class="benefit-documentation">
-                <div class="documentation-header">
-                  <FileText class="w-4 h-4 text-blue-600" />
-                  <span class="documentation-title">Documentación Requerida:</span>
-                </div>
-                <ul class="documentation-list">
-                  <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index" class="documentation-item">
-                    {{ doc }}
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </template>
+        </Card>
+
     </div>
 
     <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
@@ -1093,30 +1085,97 @@ defineExpose({
 }
 
 .summary-item.discount {
-  background-color: #FEE2E2;
-  border-color: #FCA5A5;
+  background-color: #99BFD5;
+}
+
+:deep(.summary-item.discount) {
+  border-radius: 12px;
+}
+
+:deep(.summary-item.discount .p-card-content) {
+  background-color: #99BFD5;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+:deep(.summary-item.discount .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 .summary-item.final {
-  @apply border-green-200 bg-green-50;
+  background-color: #D1F4C4;
 }
 
-/* Estilos para el valor anual en la card final */
-.summary-item.final .valor-anual {
-  opacity: 0.7;
-  font-weight: 400;
+:deep(.summary-item.final) {
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
 }
 
-/* Card de Arancel Original - versión suave del naranja de la tabla (#FF6B35) */
+:deep(.summary-item.final .p-card) {
+  background-color: #D1F4C4;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+}
+
+:deep(.summary-item.final .p-card-content) {
+  background-color: #D1F4C4;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+:deep(.summary-item.final .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+
+/* Card de Arancel Original */
 .summary-item.first-column-card:not(.matricula-card) {
-  background-color: #FFF5F0;
-  border-color: #FFE5D9;
+  background-color: #CCE0E8;
 }
 
-/* Card de Matrícula - versión suave del morado de la tabla (#8d01b3) */
+:deep(.summary-item.first-column-card:not(.matricula-card)) {
+  border-radius: 12px;
+}
+
+:deep(.summary-item.first-column-card:not(.matricula-card) .p-card) {
+  background-color: #CCE0E8;
+  border-radius: 12px;
+}
+
+:deep(.summary-item.first-column-card:not(.matricula-card) .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+/* Card de Matrícula */
 .summary-item.matricula-card {
-  background-color: #F5F0FF;
-  border-color: #E8D9FF;
+  background-color: #CCE0E8;
+}
+
+:deep(.summary-item.matricula-card) {
+  border-radius: 12px;
+}
+
+:deep(.summary-item.matricula-card .p-card) {
+  background-color: #CCE0E8;
+  border-radius: 12px;
+}
+
+:deep(.summary-item.matricula-card .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 /* Centrar verticalmente el contenido de las cards de descuento y final en desktop */
@@ -1124,6 +1183,8 @@ defineExpose({
 
   :deep(.summary-item.discount .p-card-body),
   :deep(.summary-item.final .p-card-body) {
+    padding-top: 24px;
+    padding-bottom: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1136,8 +1197,103 @@ defineExpose({
   }
 }
 
-.summary-item.matricula-card {
-  @apply border-purple-200 bg-purple-50;
+/* Estilos generales para textos de las cards de la primera columna */
+.first-column-label {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  margin-bottom: 8px;
+}
+
+.first-column-value {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 28px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
+
+/* Estilos para el texto de cuotas en las cards de la primera columna */
+:deep(.summary-item.first-column-card .first-column-content > div:nth-child(2)) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  margin-bottom: 20px;
+}
+
+/* Estilos para la card final */
+:deep(.final-label) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+  margin-bottom: 8px;
+}
+
+:deep(.final-cuotas) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+  margin-bottom: 20px;
+}
+
+:deep(.final-value) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 27.39px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+}
+
+:deep(.final-details) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: medium;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+}
+
+/* Estilos para la card de descuento */
+:deep(.discount-label) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  margin-bottom: 8px;
+}
+
+:deep(.discount-value) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 27.39px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
 }
 
 /* Estilos para cards de la primera columna - solo en desktop */
@@ -1149,7 +1305,10 @@ defineExpose({
   }
 
   :deep(.summary-item.first-column-card .p-card-body) {
-    padding: 0.25rem 0.5rem;
+    padding-top: 24px;
+    padding-bottom: 24px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -1172,11 +1331,7 @@ defineExpose({
   }
 
   .first-column-label {
-    @apply text-xs mb-0.5;
-  }
-
-  .first-column-value {
-    @apply text-lg;
+    margin-bottom: 8px;
   }
 }
 
@@ -1369,23 +1524,48 @@ defineExpose({
   @apply mt-8;
 }
 
+:deep(.contact-message .p-card) {
+  background-color: #F0F8FB;
+  border: none;
+  box-shadow: none;
+  border-radius: 12px;
+}
+
+:deep(.contact-message .p-card-body) {
+  background-color: #F0F8FB;
+  padding: 1.5rem;
+}
+
 .contact-message-content {
   @apply flex flex-col;
 }
 
 .contact-message-text {
-  @apply text-sm;
-  line-height: 1.5;
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
 }
 
 .contact-message-text .simulation-question {
-  @apply text-base;
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
   display: block;
   margin-bottom: 0.5rem;
 }
 
 .contact-message-text b:not(.simulation-question) {
-  font-weight: 600;
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: normal;
 }
 
 .contact-link {
@@ -1542,12 +1722,10 @@ defineExpose({
   @apply flex justify-between items-center text-sm;
 }
 
-.discount-label,
 .applied-label {
   @apply text-gray-600;
 }
 
-.discount-value,
 .applied-value {
   @apply font-semibold text-gray-900;
 }
@@ -1703,8 +1881,14 @@ defineExpose({
 }
 
 .payment-label {
-  @apply text-sm font-medium text-gray-600 mb-3;
-  @apply flex items-center gap-2;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #001122;
+  margin-bottom: 12px;
 }
 
 .slider-container {
@@ -1713,6 +1897,10 @@ defineExpose({
 
 .payment-slider {
   @apply w-full;
+}
+
+:deep(.payment-slider .p-slider-range) {
+  background: #668BB2;
 }
 
 .slider-value {
@@ -1956,6 +2144,21 @@ defineExpose({
   padding: 16px;
 }
 
+:deep(.descuentos-adicionales-card .p-card-title) {
+  gap: 8px;
+  display: flex;
+  margin-bottom: 12px;
+}
+
+:deep(.descuentos-adicionales-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
 
 .table-arancel {
   width: 100%;
@@ -2159,4 +2362,38 @@ defineExpose({
   letter-spacing: 0%;
   color: #28B911;
 }
+
+:deep(.payment-simulation-card) {
+  border: 1px solid #B6B6B6;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+:deep(.payment-simulation-card .p-card-title) {
+  gap: 8px;
+  display: flex;
+  margin-bottom: 32px;
+}
+
+:deep(.payment-simulation-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #001122;
+}
+
+.texto-referencial{
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  text-align: center;
+}
+
 </style>
