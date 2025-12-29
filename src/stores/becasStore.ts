@@ -209,24 +209,10 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 3.1. Caso especial para Beca Apoyo Regional: aplicar automáticamente si el colegio está fuera de RM
-    if (beca.nombre.toLowerCase().includes('apoyo regional') || beca.nombre.toLowerCase().includes('regional')) {
-      // Obtener el region_id del colegio seleccionado (13 = Región Metropolitana)
-      const regionId = formData.regionId || 13 // Por defecto RM si no está definida
-      // Si el colegio está en Región Metropolitana (region_id = 13), no aplica la beca regional
-      if (regionId === 13) {
-        elegible = false
-        razon = 'Beca Apoyo Regional solo aplica para estudiantes de regiones (fuera de RM)'
-      } else {
-        // Si está fuera de RM, es elegible automáticamente
-        elegible = true
-        razon = `Elegible por residir en región ${regionId} (fuera de Región Metropolitana)`
-      }
-    }
 
     // 4. Verificar nacionalidad
     if (beca.requiere_nacionalidad) {
-      
+
       // Verificar que el usuario tenga pasaporte
       if (formData.tipoIdentificacion !== 'pasaporte' || !formData.paisPasaporte) {
         elegible = false
@@ -346,18 +332,18 @@ export const useBecasStore = defineStore('becas', () => {
     const todasLasBecasElegibles = becas.value.map(beca => verificarElegibilidad(beca, formData))
 
     console.log('STORE - todasLasBecasElegibles:', todasLasBecasElegibles)
-    
+
     // Filtrar solo las elegibles
     const becasElegibles = todasLasBecasElegibles.filter(b => b.elegible)
-    
+
     // Si no hay becas elegibles, retornar array vacío
     if (becasElegibles.length === 0) {
       return []
     }
-    
+
     // Ordenar por prioridad (menor número = mayor prioridad)
     becasElegibles.sort((a, b) => a.beca.prioridad - b.beca.prioridad)
-    
+
     // Retornar solo la beca con la prioridad más baja (primera del array ordenado)
     return [becasElegibles[0]]
   }
@@ -512,7 +498,7 @@ export const useBecasStore = defineStore('becas', () => {
     // No se consideran becas del estado en el cálculo
     const becasElegibles = calcularBecasElegibles(formData)
     const resultado = aplicarPrelacion(becasElegibles, arancelCalculado)
-    
+
     // Asegurar que el arancel_base sea el original
     return {
       ...resultado,
