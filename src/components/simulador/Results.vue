@@ -55,7 +55,7 @@ const tipoPago = ref<string | null>(null)
 const opcionesTipoPago = [
   { label: 'Seleccione', value: null },
   { label: 'Cheque', value: 'cheque' },
-  { label: 'Al contado', value: 'contado' },
+  { label: 'Al contado (Efectivo, Transferencia, Tarjeta de Crédito/Débito)', value: 'contado' },
   { label: 'Pagaré', value: 'pagare' }
 ]
 
@@ -865,7 +865,7 @@ defineExpose({
         <Card class="summary-item final">
           <template #content>
             <div>
-              <div class="final-label">Total Final a Pagar</div>
+              <div class="final-label">Total Final a Pagar en Plan de</div>
               <div class="final-cuotas">{{ numeroCuotas }} cuotas de</div>
             </div>
             <div class="final-value">
@@ -874,6 +874,7 @@ defineExpose({
             <div class="final-details valor-anual">
               <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
               <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
+              <div class="final-details-text">* Consulta con un asesor otros tipos de descuentos disponibles</div>
             </div>
           </template>
         </Card>
@@ -1015,7 +1016,7 @@ defineExpose({
                 </ShadcnCard>
 
                 <!-- Beneficios del Estado -->
-                <ShadcnCard class="mobile-card bg-blue-50 border-blue-200">
+                <ShadcnCard v-if="formData?.usaBecasEstado" class="mobile-card bg-blue-50 border-blue-200">
                   <CardHeader class="pb-3">
                     <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
                       <i class="pi pi-star-fill text-blue-600"></i>
@@ -1228,7 +1229,7 @@ defineExpose({
                 <!-- Total Final a Pagar -->
                 <ShadcnCard class="mobile-card bg-green-200">
                   <CardContent class="p-4 text-center">
-                    <div class="text-sm font-bold text-green-600 mb-1">Total Final a Pagar</div>
+                    <div class="text-sm font-bold text-green-600 mb-1">Total Final a Pagar en Plan de</div>
                     <div class="text-xs text-green-600 mb-2">{{ numeroCuotas }} cuotas de</div>
                     <div class="text-2xl font-bold text-green-600 mb-3">
                       {{ formatCurrency(valorMensual) }}
@@ -1236,6 +1237,7 @@ defineExpose({
                     <div class="text-xs text-green-600 space-y-1 pt-2 border-t border-green-300">
                       <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
                       <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
+                      <div class="final-details-text">* Consulta con un asesor otros tipos de descuentos disponibles</div>
                     </div>
                   </CardContent>
                 </ShadcnCard>
@@ -1672,9 +1674,9 @@ defineExpose({
 
 :deep(.final-cuotas) {
   font-family: Montserrat, sans-serif;
-  font-weight: 500;
-  font-style: normal;
-  font-size: 18px;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 20px;
   line-height: 125%;
   letter-spacing: 0%;
   color: #28B911;
@@ -1699,6 +1701,26 @@ defineExpose({
   line-height: 125%;
   letter-spacing: 0%;
   color: #28B911;
+}
+
+:deep(.final-details-text) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: medium;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #155708;
+  margin-top: 20px;
+}
+
+/* Estilos responsive para final-details-text en móvil */
+@media (max-width: 768px) {
+  :deep(.final-details-text) {
+    font-size: 12px;
+    line-height: 140%;
+    margin-top: 12px;
+  }
 }
 
 /* Estilos para la card de descuento */
