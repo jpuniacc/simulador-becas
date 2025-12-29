@@ -15,9 +15,12 @@ import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
 import { useCRM } from '@/composables/useCRM'
 import { ANIO_POSTULACION } from '@/utils/config'
-import { Award, CheckCircle, FileText, Info } from 'lucide-vue-next'
+import { Award, CheckCircle, FileText } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
+// JPS: Imports de componentes shadcn para versión mobile con accordion
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Card as ShadcnCard, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 // Props
 interface Props {
@@ -70,6 +73,22 @@ watch(tipoPago, (newValue) => {
 
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
+
+// JPS: Computed mejorado para detección mobile que considera ancho, touch support y user agent
+// Optimizado para iOS y Android
+const isMobileView = computed(() => {
+  if (typeof window === 'undefined') return false
+
+  const width = window.innerWidth
+  const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isIOS = /iphone|ipad|ipod/.test(userAgent)
+  const isAndroid = /android/.test(userAgent)
+  const isMobileDevice = isIOS || isAndroid
+
+  // Considerar mobile si: pantalla pequeña (≤768px) Y (tiene touch support O es dispositivo móvil)
+  return width <= 768 && (hasTouchSupport || isMobileDevice)
+})
 
 // Computed para colspan responsive
 // En desktop: Concepto + Tipo + Descuento = 3 columnas
@@ -318,6 +337,20 @@ const handleExportPDF = async () => {
     if (pdfContentRef.value) {
       const element = pdfContentRef.value
 
+      // JPS: Ocultar versión mobile (accordion) para PDF export
+      const mobileVersion = element.querySelector('.mobile-version') as HTMLElement
+      const originalMobileDisplay = mobileVersion?.style.display
+      if (mobileVersion) {
+        mobileVersion.style.display = 'none'
+      }
+
+      // Asegurar que la versión desktop esté visible
+      const desktopVersion = element.querySelector('.desktop-version') as HTMLElement
+      const originalDesktopDisplay = desktopVersion?.style.display
+      if (desktopVersion) {
+        desktopVersion.style.display = 'block'
+      }
+
       // Remover temporalmente los Message de PrimeVue del DOM (causan problemas al renderizar el PDF)
       const toRemove = Array.from(
         element.querySelectorAll('.contact-message, .anticipado-message, .confirmation-message')
@@ -383,10 +416,30 @@ const handleExportPDF = async () => {
             }
           }
         })
+
+        // JPS: Restaurar visibilidad de versión mobile después de exportar PDF
+        if (mobileVersion) {
+          mobileVersion.style.display = originalMobileDisplay || ''
+        }
+        if (desktopVersion) {
+          desktopVersion.style.display = originalDesktopDisplay || ''
+        }
       }
     }
   } catch (e) {
     console.error('No se pudo generar el PDF:', e)
+    // Asegurar restaurar visibilidad en caso de error
+    const element = pdfContentRef.value
+    if (element) {
+      const mobileVersion = element.querySelector('.mobile-version') as HTMLElement
+      const desktopVersion = element.querySelector('.desktop-version') as HTMLElement
+      if (mobileVersion) {
+        mobileVersion.style.display = ''
+      }
+      if (desktopVersion) {
+        desktopVersion.style.display = ''
+      }
+    }
   } finally {
     // Restaurar el botón después de la generación
     isGeneratingPDF.value = false
@@ -540,7 +593,9 @@ defineExpose({
 
     <!-- Contenido -->
     <div v-if="!isLoading && !error && calculoBecas" ref="pdfContentRef" class="space-y-6">
-      <!-- Información de la carrera -->
+      <!-- JPS: Versión Desktop - Mantener estructura original con PrimeVue Cards -->
+      <div class="hidden md:block desktop-version">
+        <!-- Información de la carrera -->
       <Card v-if="carreraInfo" class="career-card">
         <template #title>
           <div class="flex items-center gap-2">
@@ -893,6 +948,368 @@ defineExpose({
           </div>
         </template>
         </Card>
+      </div>
+      <!-- Fin versión Desktop -->
+
+      <!-- JPS: Versión Mobile - Accordion con shadcn Cards -->
+      <div class="block md:hidden mobile-version">
+        <Accordion type="single" collapsible class="w-full space-y-2">
+          <!-- Item 1: Información de la Carrera -->
+          <AccordionItem value="career-info" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-book"></i>
+                <span class="font-semibold">Información de la Carrera</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ShadcnCard v-if="carreraInfo" class="mobile-card">
+                <CardHeader>
+                  <CardTitle class="mobile-card-title">{{ carreraInfo.nombre_programa }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div class="flex flex-wrap gap-2">
+                    <Tag :value="'• ' + carreraInfo.nivel_academico" class="career-tag" />
+                    <Tag :value="'• ' + carreraInfo.modalidad_programa" class="career-tag" />
+                    <Tag :value="'• ' + carreraInfo.duracion_programa" class="career-tag" />
+                  </div>
+                </CardContent>
+              </ShadcnCard>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 2: Detalle de la Simulación -->
+          <AccordionItem value="simulation-detail" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-percentage"></i>
+                <span class="font-semibold">Detalle de la simulación</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <!-- Arancel Base y Matrícula -->
+                <ShadcnCard class="mobile-card">
+                  <CardContent class="p-4">
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center py-2 border-b">
+                        <span class="font-medium">Arancel Base</span>
+                        <span class="font-bold text-blue-600">{{ formatCurrency(calculoBecas?.arancel_base || 0) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center py-2">
+                        <span class="font-medium">Matrícula</span>
+                        <span class="font-bold text-blue-600">{{ formatCurrency(carreraInfo?.matricula || 0) }}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Beneficios del Estado -->
+                <ShadcnCard class="mobile-card bg-blue-50 border-blue-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-blue-600"></i>
+                      Beneficios del Estado
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0">
+                    <p class="text-sm text-gray-700">
+                      Las Becas MINEDUC se asignan según la información que entregues en el FUAS.
+                      La asignación la realiza el Estado y puede modificar el arancel final.
+                      <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank" class="text-blue-600 underline">Más información en el sitio FUAS.</a>
+                    </p>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Beneficios Internos (UNIACC) -->
+                <ShadcnCard v-if="becasAplicadas.length > 0" class="mobile-card bg-blue-50 border-blue-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-blue-600"></i>
+                      Beneficios Internos (UNIACC)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0 space-y-3">
+                    <div v-for="beca in becasAplicadas" :key="`mobile-interno-${beca.beca.id}`" class="space-y-2 pb-3 border-b last:border-b-0 last:pb-0">
+                      <div class="flex justify-between items-start">
+                        <span class="font-semibold text-blue-600 text-sm">{{ beca.beca.nombre }}</span>
+                        <Tag class="info-tag text-xs">Porcentaje</Tag>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">{{ beca.descuento_aplicado }}%</span>
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(beca.monto_descuento) }}</span>
+                      </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t">
+                      <span class="font-semibold text-green-600">Monto a pagar con beneficio aplicado</span>
+                      <span class="font-bold text-green-600">{{ formatCurrency(arancelDespuesBecasInternas) }}</span>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Arancel referencial CAE -->
+                <ShadcnCard v-if="formData?.planeaUsarCAE" class="mobile-card bg-orange-50 border-orange-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-orange-600"></i>
+                      Arancel referencial CAE
+                      <span v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION" class="text-xs font-normal">
+                        {{ carreraInfo.anio_arancel_referencia }}*
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0 space-y-2">
+                    <p v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION" class="text-xs text-gray-600 mb-2">
+                      *Los valores mostrados corresponden al arancel de referencia CAE 2025. El Mineduc publicará los nuevos aranceles de referencia durante el mes de enero 2026
+                    </p>
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-orange-600 text-sm">Máximo Financiamiento CAE</span>
+                        <Tag class="info-tag text-xs">CAE</Tag>
+                      </div>
+                      <div class="flex justify-between items-center pt-2 border-t">
+                        <span class="font-semibold text-green-600">Monto a pagar con beneficio aplicado</span>
+                        <span class="font-bold text-green-600">{{ formatCurrency(arancelFinalReal) }}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Total descuentos aplicados -->
+                <ShadcnCard class="mobile-card bg-blue-400 border-blue-500">
+                  <CardContent class="p-4">
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-white">Total descuentos aplicados</span>
+                      <span class="font-bold text-white">-{{ formatCurrency(descuentoTotalRealConCae) }}</span>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Descuentos adicionales -->
+                <ShadcnCard v-if="descuentoPagoAnticipadoArancel > 0" class="mobile-card bg-blue-50 border-blue-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-blue-600"></i>
+                      Descuentos adicionales
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0 space-y-3">
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-blue-600 text-sm">Descuento por pago anticipado (Arancel)</span>
+                        <div class="flex items-center gap-2">
+                          <Tag class="info-tag text-xs">Porcentaje</Tag>
+                          <span class="text-sm font-semibold">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(descuentoPagoAnticipadoArancel) }}</span>
+                      </div>
+                    </div>
+                    <div class="space-y-2 pt-2 border-t">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-blue-600 text-sm">Descuento por pago anticipado (Matrícula)</span>
+                        <div class="flex items-center gap-2">
+                          <Tag class="info-tag text-xs">Porcentaje</Tag>
+                          <span class="text-sm font-semibold">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}</span>
+                      </div>
+                    </div>
+                    <div v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0" class="space-y-2 pt-2 border-t">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-blue-600 text-sm">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` - ${descuentoModoPagoAplicable.nombre}` : '' }}</span>
+                        <div class="flex items-center gap-2">
+                          <Tag class="info-tag text-xs">Porcentaje</Tag>
+                          <span class="text-sm font-semibold">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(descuentoModoPagoArancel) }}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Total a pagar -->
+                <ShadcnCard class="mobile-card bg-green-100 border-green-300">
+                  <CardContent class="p-4">
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-green-600">Arancel + Matrícula final a pagar</span>
+                      <span class="font-bold text-green-600">{{ formatCurrency(arancelFinalReal) }}</span>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 3: Simulación de Cuotas y Medios de Pago -->
+          <AccordionItem value="payment-simulation" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-credit-card"></i>
+                <span class="font-semibold">Simulación de cuotas y medios de pago</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ShadcnCard class="mobile-card">
+                <CardContent class="p-4 space-y-4">
+                  <div class="space-y-2">
+                    <label for="tipoPagoMobile" class="block text-sm font-semibold">Medio de pago</label>
+                    <Select id="tipoPagoMobile" v-model="tipoPago" :options="opcionesTipoPago" optionLabel="label"
+                      optionValue="value" placeholder="Seleccione un medio de pago" class="w-full" />
+                  </div>
+                  <div class="space-y-2">
+                    <label for="numeroCuotasMobile" class="block text-sm font-semibold">
+                      Número de cuotas: <span class="slider-value">{{ numeroCuotas }}</span>
+                    </label>
+                    <Slider id="numeroCuotasMobile" v-model="numeroCuotas" :min="1" :max="12" :disabled="isSliderDisabled" class="w-full" />
+                  </div>
+                </CardContent>
+              </ShadcnCard>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 4: Resumen Financiero -->
+          <AccordionItem value="financial-summary" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-calculator"></i>
+                <span class="font-semibold">Resumen Financiero</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <!-- Arancel Original -->
+                <ShadcnCard class="mobile-card bg-gray-100">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-gray-700 mb-1">Arancel Original</div>
+                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xl font-bold text-gray-900">
+                      {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Matrícula -->
+                <ShadcnCard class="mobile-card bg-gray-100">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-gray-700 mb-1">Matrícula</div>
+                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xl font-bold text-gray-900">
+                      {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Descuento Total -->
+                <ShadcnCard class="mobile-card bg-blue-400">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-white mb-2">Descuento Total</div>
+                    <div class="text-xl font-bold text-white">
+                      -{{ formatCurrency(descuentoTotalRealConCae) }}
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Total Final a Pagar -->
+                <ShadcnCard class="mobile-card bg-green-200">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-green-600 mb-1">Total Final a Pagar</div>
+                    <div class="text-xs text-green-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-2xl font-bold text-green-600 mb-3">
+                      {{ formatCurrency(valorMensual) }}
+                    </div>
+                    <div class="text-xs text-green-600 space-y-1 pt-2 border-t border-green-300">
+                      <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
+                      <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 5: Becas Aplicadas -->
+          <AccordionItem v-if="becasAplicadas.length > 0" value="applied-benefits" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <Award class="w-5 h-5" />
+                <span class="font-semibold">Becas Aplicadas</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <div v-for="beca in becasAplicadas" :key="`mobile-beca-${beca.beca.id}`" class="mobile-card bg-white border border-blue-200 rounded-lg p-4">
+                  <div class="flex items-start gap-3 mb-3">
+                    <CheckCircle class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div class="flex-1">
+                      <h4 class="font-semibold text-sm mb-1">{{ beca.beca.nombre }}</h4>
+                      <p class="text-xs text-gray-500">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+                    </div>
+                  </div>
+                  <div class="space-y-2 mb-3">
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs text-gray-600">Descuento:</span>
+                      <span class="font-semibold text-sm">
+                        {{ beca.beca.tipo_descuento === 'porcentaje'
+                          ? `${beca.descuento_aplicado}%`
+                          : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs text-gray-600">Aplicado:</span>
+                      <span class="font-semibold text-sm">{{ formatCurrency(beca.monto_descuento) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="beca.beca.descripcion" class="text-xs text-gray-600 mb-2 pt-2 border-t">
+                    <p>{{ beca.beca.descripcion }}</p>
+                  </div>
+                  <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0" class="text-xs pt-2 border-t">
+                    <div class="flex items-center gap-2 mb-2">
+                      <FileText class="w-4 h-4 text-blue-600" />
+                      <span class="font-semibold text-gray-700">Documentación Requerida:</span>
+                    </div>
+                    <ul class="list-disc list-inside space-y-1 text-gray-600">
+                      <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index">{{ doc }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 6: Mensaje de Contacto -->
+          <AccordionItem v-if="descuentoPorcentualTotal > 0" value="contact-message" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-envelope"></i>
+                <span class="font-semibold">Contacto</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ShadcnCard class="mobile-card bg-blue-50 border-blue-200">
+                <CardContent class="p-4">
+                  <div class="text-sm text-gray-700">
+                    <p class="font-bold mb-2">¿Te gustó la simulación?</p>
+                    <p class="mb-2">Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b></p>
+                    <p>Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="text-blue-600 underline">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b></p>
+                  </div>
+                </CardContent>
+              </ShadcnCard>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        <!-- Texto referencial mobile -->
+        <div class="text-center mt-4 text-sm font-bold text-gray-700">
+          *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
+        </div>
+      </div>
+      <!-- Fin versión Mobile -->
 
     </div>
 
@@ -2394,6 +2811,137 @@ defineExpose({
   letter-spacing: 0%;
   color: #1A3B66;
   text-align: center;
+}
+
+/* JPS: Estilos Mobile - Optimizaciones para iOS y Android */
+.mobile-version {
+  padding: 0.5rem;
+}
+
+.mobile-accordion-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  background: white;
+}
+
+.mobile-accordion-trigger {
+  padding: 1rem 1.25rem;
+  min-height: 44px; /* iOS/Android touch target minimum */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #1a3b66;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* iOS Safari */
+  -webkit-touch-callout: none; /* iOS Safari */
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-accordion-trigger:hover {
+  background-color: #f3f4f6;
+}
+
+.mobile-accordion-trigger:active {
+  background-color: #e5e7eb;
+}
+
+.mobile-accordion-trigger:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Optimización para iOS safe areas */
+@supports (padding: max(0px)) {
+  .mobile-version {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+}
+
+.mobile-card {
+  margin-bottom: 0.75rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.mobile-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a3b66;
+  line-height: 1.5;
+}
+
+/* Touch targets optimizados para mobile */
+.mobile-version button,
+.mobile-version a,
+.mobile-version [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scroll suave en mobile */
+.mobile-version {
+  -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
+  scroll-behavior: smooth;
+}
+
+/* Optimizaciones específicas para Android */
+@media (hover: none) and (pointer: coarse) {
+  .mobile-accordion-trigger {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1); /* Android ripple effect */
+  }
+}
+
+/* Ajustes de espaciado para mobile */
+@media (max-width: 768px) {
+  .results-container {
+    padding: 0.75rem;
+  }
+
+  .mobile-version .slider-value {
+    min-width: 2.5rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    background: #f3f4f6;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+
+  /* Asegurar que los selects y sliders sean fáciles de usar en mobile */
+  .mobile-version :deep(.p-select),
+  .mobile-version :deep(.p-slider) {
+    min-height: 44px;
+  }
+
+  .mobile-version :deep(.p-slider-handle) {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+  }
+}
+
+/* Ocultar versión mobile en PDF export */
+@media print {
+  .mobile-version {
+    display: none !important;
+  }
+
+  .desktop-version {
+    display: block !important;
+  }
 }
 
 </style>
