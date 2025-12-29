@@ -78,11 +78,6 @@ export const useCarrerasStore = defineStore('carreras', () => {
     return carrera?.arancel || 0
   }
 
-  const obtenerArancelReferenciaCae = (nombreCarrera: string) => {
-    const carrera = carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
-    return carrera?.arancel_referencia_cae || 0
-  }
-
   const obtenerMatriculaCarrera = (nombreCarrera: string) => {
     const carrera = carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
     return carrera?.matricula || 0
@@ -98,7 +93,6 @@ export const useCarrerasStore = defineStore('carreras', () => {
 
     return {
       arancel: carrera.arancel || 0,
-      arancelReferenciaCae: carrera.arancel_referencia_cae || 0,
       matricula: carrera.matricula || 0,
       duracion: carrera.duracion_programa || '',
       anio: carrera.anio || new Date().getFullYear(),
@@ -119,7 +113,6 @@ export const useCarrerasStore = defineStore('carreras', () => {
     cargarCarreras,
     buscarCarreras,
     obtenerArancelCarrera,
-    obtenerArancelReferenciaCae,
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre,
     obtenerCostosCarrera

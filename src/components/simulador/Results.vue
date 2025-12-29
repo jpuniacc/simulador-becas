@@ -1,22 +1,30 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 import OverlayPanel from 'primevue/overlaypanel'
+import Drawer from 'primevue/drawer'
+import Slider from 'primevue/slider'
+import Select from 'primevue/select'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useDescuentosStore } from '@/stores/descuentosStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
-import { Award, CheckCircle, FileText, Download } from 'lucide-vue-next'
+import { useCRM } from '@/composables/useCRM'
+import { ANIO_POSTULACION } from '@/utils/config'
+import { Award, CheckCircle, FileText } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
+// JPS: Imports de componentes shadcn para versión mobile con accordion
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Card as ShadcnCard, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 // Props
 interface Props {
-    formData?: Partial<FormData>
+  formData?: Partial<FormData>
 }
 
 const props = defineProps<Props>()
@@ -25,6 +33,7 @@ const props = defineProps<Props>()
 const simuladorStore = useSimuladorStore()
 const descuentosStore = useDescuentosStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
+const { enviarCRM } = useCRM()
 
 // Estado
 const isLoading = ref(false)
@@ -35,44 +44,86 @@ const windowWidth = ref(window.innerWidth)
 const overlayPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
 const selectedBeca = ref<any>(null)
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
+const showCaeDialog = ref(false)
+const descuentosInfoPanel = ref<InstanceType<typeof OverlayPanel> | null>(null)
+const descuentosInfoIconRef = ref<HTMLElement | null>(null)
+let descuentosHideTimeout: ReturnType<typeof setTimeout> | null = null
+const numeroCuotas = ref(10)
+const tipoPago = ref<string | null>(null)
+
+// Opciones para el tipo de pago
+const opcionesTipoPago = [
+  { label: 'Seleccione', value: null },
+  { label: 'Cheque', value: 'cheque' },
+  { label: 'Al contado', value: 'contado' },
+  { label: 'Pagaré', value: 'pagare' }
+]
+
+// Computed para determinar si el slider debe estar deshabilitado
+const isSliderDisabled = computed(() => {
+  return tipoPago.value === 'contado'
+})
+
+// Watcher para cambiar el número de cuotas cuando se selecciona "Al contado"
+watch(tipoPago, (newValue) => {
+  if (newValue === 'contado') {
+    numeroCuotas.value = 1
+  }
+})
 
 // Detectar si es un dispositivo móvil
 const isMobile = ref(false)
+
+// JPS: Computed mejorado para detección mobile que considera ancho, touch support y user agent
+// Optimizado para iOS y Android
+const isMobileView = computed(() => {
+  if (typeof window === 'undefined') return false
+
+  const width = window.innerWidth
+  const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isIOS = /iphone|ipad|ipod/.test(userAgent)
+  const isAndroid = /android/.test(userAgent)
+  const isMobileDevice = isIOS || isAndroid
+
+  // Considerar mobile si: pantalla pequeña (≤768px) Y (tiene touch support O es dispositivo móvil)
+  return width <= 768 && (hasTouchSupport || isMobileDevice)
+})
 
 // Computed para colspan responsive
 // En desktop: Concepto + Tipo + Descuento = 3 columnas
 // En mobile: Concepto + Tipo/Descuento = 2 columnas
 const subtotalColspan = computed(() => {
-    return windowWidth.value <= 1024 ? 2 : 3
+  return windowWidth.value <= 1024 ? 2 : 3
 })
 
 // Actualizar ancho de ventana
 const updateWindowWidth = () => {
-    windowWidth.value = window.innerWidth
+  windowWidth.value = window.innerWidth
 }
 
 const handleMobileResize = () => {
-    const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-    const isSmallScreen = window.innerWidth <= 768
-    isMobile.value = hasTouchSupport && isSmallScreen
+  const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  const isSmallScreen = window.innerWidth <= 768
+  isMobile.value = hasTouchSupport && isSmallScreen
 }
 
 onMounted(() => {
-    console.log('Results mounted - becas aplicadas:', becasAplicadas.value);
-    window.addEventListener('resize', updateWindowWidth)
-    updateWindowWidth()
-    // Cargar descuentos de pago anticipado y modo de pago
-    descuentosStore.cargarDescuentosPagoAnticipado()
-    descuentosStore.cargarDescuentosModoPago()
-    
-    // Detectar si es móvil basándose en touch support y tamaño de pantalla
-    handleMobileResize()
-    window.addEventListener('resize', handleMobileResize)
+  console.log('Results mounted - becas aplicadas:', becasAplicadas.value);
+  window.addEventListener('resize', updateWindowWidth)
+  updateWindowWidth()
+  // Cargar descuentos de pago anticipado y modo de pago
+  descuentosStore.cargarDescuentosPagoAnticipado()
+  descuentosStore.cargarDescuentosModoPago()
+
+  // Detectar si es móvil basándose en touch support y tamaño de pantalla
+  handleMobileResize()
+  window.addEventListener('resize', handleMobileResize)
 })
 
 onUnmounted(() => {
-    window.removeEventListener('resize', updateWindowWidth)
-    window.removeEventListener('resize', handleMobileResize)
+  window.removeEventListener('resize', updateWindowWidth)
+  window.removeEventListener('resize', handleMobileResize)
 })
 
 // Computed
@@ -81,1337 +132,2816 @@ const formData = computed(() => simuladorStore.formData)
 
 // Computed para información de la carrera
 const carreraInfo = computed(() => {
-    if (!formData.value.carrera) return null
-    return simuladorStore.carrerasStore.obtenerCarreraPorNombre(formData.value.carrera)
+  if (!formData.value.carrera) return null
+  return simuladorStore.carrerasStore.obtenerCarreraPorNombre(formData.value.carrera)
 })
 
 // Computed para becas aplicadas (internas)
 const becasAplicadas = computed(() => {
-    return calculoBecas.value?.becas_aplicadas || []
+  return calculoBecas.value?.becas_aplicadas || []
 })
 
 // Computed para arancel después de becas internas
 // Calculado explícitamente: arancel base - descuento de becas internas solamente
 const arancelDespuesBecasInternas = computed(() => {
-    if (!calculoBecas.value) return 0
-    return calculoBecas.value.arancel_base - calculoBecas.value.descuento_total
+  if (!calculoBecas.value) return 0
+  return calculoBecas.value.arancel_base - calculoBecas.value.descuento_total
 })
 
-// Computed para descuento total (solo becas internas, no se calculan becas del estado ni CAE)
+// Computed para descuento del CAE (el monto máximo que financia el CAE)
+const descuentoCae = computed(() => {
+  if (!formData.value?.planeaUsarCAE || !maximoFinanciamientoCae.value) {
+    return 0
+  }
+  // El descuento del CAE es el máximo financiamiento CAE (el monto que financia el CAE)
+  // Este monto se resta del arancel después de becas internas
+  return maximoFinanciamientoCae.value
+})
+
+// Computed para descuento total (becas internas + descuento CAE si aplica)
 const descuentoTotalRealConCae = computed(() => {
-    if (!calculoBecas.value) return 0
-    // Solo incluye descuentos de becas internas
-    return calculoBecas.value.descuento_total
+  if (!calculoBecas.value) return 0
+  // Incluye descuentos de becas internas + descuento del CAE
+  console.log('DESUENTOS - CAE', descuentoCae.value)
+  console.log('DESUENTOS - TOTAL', calculoBecas.value.descuento_total)
+  return calculoBecas.value.descuento_total + descuentoCae.value
 })
 
-// Computed para arancel final (igual al arancel después de becas internas)
+// Computed para arancel final (aplica CAE si corresponde)
 const arancelFinalReal = computed(() => {
-    return arancelDespuesBecasInternas.value
+  // Si planea usar CAE y hay máximo financiamiento CAE, restar ese valor del arancel después de becas
+  if (formData.value?.planeaUsarCAE && maximoFinanciamientoCae.value) {
+    // El arancel final es el arancel después de becas menos el máximo financiamiento CAE
+    // Mínimo 0 (si el máximo CAE es mayor al arancel después de becas, el arancel final es 0)
+    return Math.max(0, arancelDespuesBecasInternas.value - maximoFinanciamientoCae.value)
+  }
+  // Si no usa CAE, retornar el arancel después de becas internas
+  return arancelDespuesBecasInternas.value
 })
 
-// Computed para arancel final + matrícula
+// Computed para descuentos de modo de pago que coinciden con el tipo seleccionado
+const descuentoModoPagoAplicable = computed(() => {
+  if (!tipoPago.value) return null
+  // Mapear los valores del select a posibles nombres en los descuentos
+  const tipoPagoMap: Record<string, string[]> = {
+    'cheque': ['cheque'],
+    'contado': ['contado', 'al contado', 'efectivo'],
+    'pagare': ['pagaré', 'pagare', 'pagar']
+  }
+  const posiblesNombres = tipoPagoMap[tipoPago.value] || [tipoPago.value]
+
+  return descuentosModoPagoActivos.value.find(descuento => {
+    const nombreDescuento = descuento.nombre?.toLowerCase() || ''
+    return posiblesNombres.some(nombre => nombreDescuento.includes(nombre.toLowerCase()))
+  }) || null
+})
+
+// Computed para calcular descuento de pago anticipado sobre arancel y matrícula
+const descuentoPagoAnticipadoArancel = computed(() => {
+  if (!descuentoPagoAnticipadoVigente.value?.dscto_arancel) return 0
+  return Math.round(arancelFinalReal.value * (descuentoPagoAnticipadoVigente.value.dscto_arancel / 100))
+})
+
+const descuentoPagoAnticipadoMatricula = computed(() => {
+  if (!descuentoPagoAnticipadoVigente.value?.dscto_matricula) return 0
+  const matricula = carreraInfo.value?.matricula || 0
+  return Math.round(matricula * (descuentoPagoAnticipadoVigente.value.dscto_matricula / 100))
+})
+
+// Computed para calcular descuento de modo de pago sobre arancel
+const descuentoModoPagoArancel = computed(() => {
+  if (!descuentoModoPagoAplicable.value?.dscto_arancel) return 0
+  return Math.round(arancelFinalReal.value * (descuentoModoPagoAplicable.value.dscto_arancel / 100))
+})
+
+// Computed para arancel final después de descuentos adicionales
+const arancelFinalConDescuentosAdicionales = computed(() => {
+  let arancel = arancelFinalReal.value
+  // Aplicar descuento de pago anticipado si existe
+  arancel -= descuentoPagoAnticipadoArancel.value
+  // Aplicar descuento de modo de pago si existe
+  arancel -= descuentoModoPagoArancel.value
+  return Math.max(0, arancel)
+})
+
+// Computed para matrícula final después de descuentos adicionales
+const matriculaFinalConDescuentosAdicionales = computed(() => {
+  const matricula = carreraInfo.value?.matricula || 0
+  return Math.max(0, matricula - descuentoPagoAnticipadoMatricula.value)
+})
+
+// Computed para arancel final + matrícula después de todos los descuentos
 const arancelMasMatricula = computed(() => {
-    const matricula = carreraInfo.value?.matricula || 0
-    return arancelFinalReal.value + matricula
+  return arancelFinalConDescuentosAdicionales.value + matriculaFinalConDescuentosAdicionales.value
 })
 
-// Computed para el valor mensual (dividido por 10)
+// Computed para el valor mensual (dividido por numeroCuotas)
 const valorMensual = computed(() => {
-    return Math.round(arancelMasMatricula.value / 10)
+  return Math.round(arancelMasMatricula.value / numeroCuotas.value)
 })
 
 // Porcentaje total de descuento aplicado sobre el arancel base
 const descuentoPorcentualTotal = computed(() => {
-    if (!calculoBecas.value) return 0
-    const base = calculoBecas.value.arancel_base
-    if (!base || base <= 0) return 0
-    return Math.round((descuentoTotalRealConCae.value / base) * 100)
+  if (!calculoBecas.value) return 0
+  const base = calculoBecas.value.arancel_base
+  if (!base || base <= 0) return 0
+  return Math.round((descuentoTotalRealConCae.value / base) * 100)
+})
+
+// Computed para obtener el arancel referencia CAE
+const arancelReferenciaCae = computed(() => {
+  return carreraInfo.value?.arancel_referencia || null
+})
+
+// Computed para calcular el máximo financiamiento CAE aplicable
+// El CAE financia sobre el arancel después de becas internas, pero no puede exceder el arancel_referencia
+const maximoFinanciamientoCae = computed(() => {
+  if (!arancelReferenciaCae.value || arancelReferenciaCae.value <= 0) return null
+  // El máximo financiamiento es el menor entre el arancel_referencia y el arancel después de becas internas
+  return Math.min(arancelReferenciaCae.value, arancelDespuesBecasInternas.value)
 })
 
 // Computed para descuento de pago anticipado vigente
 const descuentoPagoAnticipadoVigente = computed(() => {
-    return descuentosStore.obtenerDescuentoPagoAnticipadoVigente()
+  return descuentosStore.obtenerDescuentoPagoAnticipadoVigente()
 })
 
 // Computed para descuentos de modo de pago activos
 const descuentosModoPagoActivos = computed(() => {
-    return descuentosStore.descuentosModoPagoActivos
+  return descuentosStore.descuentosModoPagoActivos
 })
 
 // Computed para verificar si hay descuentos disponibles
 const tieneDescuentosDisponibles = computed(() => {
-    return descuentoPagoAnticipadoVigente.value !== null || descuentosModoPagoActivos.value.length > 0
+  return descuentoPagoAnticipadoVigente.value !== null || descuentosModoPagoActivos.value.length > 0
 })
 
 // Computed para formatear la fecha de término
 const fechaTerminoFormateada = computed(() => {
-    if (!descuentoPagoAnticipadoVigente.value?.fecha_termino) return ''
-    return formatDate(descuentoPagoAnticipadoVigente.value.fecha_termino, { format: 'long' })
+  if (!descuentoPagoAnticipadoVigente.value?.fecha_termino) return ''
+  return formatDate(descuentoPagoAnticipadoVigente.value.fecha_termino, { format: 'long' })
 })
 
 // Métodos
 const handleSimulate = async () => {
-    try {
-        isLoading.value = true
-        error.value = null
+  try {
+    isLoading.value = true
+    error.value = null
 
-        // Actualizar formData en el store antes de simular
-        if (props.formData) {
-            simuladorStore.updateFormData(props.formData)
-        }
-
-        await simuladorStore.simulate()
-
-        const prospectoGuardado = await insertarProspecto(simuladorStore.formData as FormData, 'pregrado')
-        if (!prospectoGuardado && prospectoError.value) {
-            console.warn('No se pudo guardar el prospecto:', prospectoError.value)
-        }
-    } catch (err) {
-        error.value = err instanceof Error ? err.message : 'Error al realizar la simulación'
-        console.error('Error en simulación:', err)
-    } finally {
-        isLoading.value = false
+    // Actualizar formData en el store antes de simular
+    if (props.formData) {
+      simuladorStore.updateFormData(props.formData)
     }
+
+    await simuladorStore.simulate()
+
+        // Ejecutar ambas llamadas en paralelo
+        const userAgent = navigator.userAgent
+        const [prospectoResult, crmResult] = await Promise.allSettled([
+            insertarProspecto(simuladorStore.formData as FormData, 'pregrado'),
+            enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
+        ])
+
+    if (prospectoResult.status === 'rejected') {
+      console.warn('No se pudo guardar el prospecto:', prospectoResult.reason)
+    } else if (!prospectoResult.value && prospectoError.value) {
+      console.warn('No se pudo guardar el prospecto:', prospectoError.value)
+    }
+
+    if (crmResult.status === 'rejected') {
+      console.warn('No se pudo enviar al CRM:', crmResult.reason)
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Error al realizar la simulación'
+    console.error('Error en simulación:', err)
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // Método para exportar PDF usando html2pdf.js
 const handleExportPDF = async () => {
-    try {
-        if (!calculoBecas.value || !carreraInfo.value) {
-            console.warn('No hay datos para generar el PDF')
-            return
-        }
-
-        // Ocultar el botón durante la generación
-        isGeneratingPDF.value = true
-
-        // Esperar un momento para que el DOM se actualice
-        await new Promise(resolve => setTimeout(resolve, 300))
-
-        // Usar html2pdf.js para generar el PDF desde el contenido HTML
-        if (pdfContentRef.value) {
-            const element = pdfContentRef.value
-
-            // Remover temporalmente los Message de PrimeVue del DOM (causan problemas al renderizar el PDF)
-            const toRemove = Array.from(
-                element.querySelectorAll('.contact-message, .anticipado-message, .confirmation-message')
-            ) as HTMLElement[]
-            
-            // Guardar referencias a los padres y posiciones para restaurar después
-            const elementsData = toRemove.map(el => ({
-                element: el,
-                parent: el.parentNode,
-                nextSibling: el.nextSibling
-            }))
-
-            // Remover elementos del DOM
-            elementsData.forEach(({ element }) => {
-                if (element.parentNode) {
-                    element.parentNode.removeChild(element)
-                }
-            })
-
-            // Agregar page break después de la tabla de detalle
-            const summaryCard = element.querySelector('.summary-card') as HTMLElement
-            let pageBreakElement: HTMLElement | null = null
-            if (summaryCard && summaryCard.parentNode) {
-                // Crear un div con la clase que html2pdf.js reconoce para page breaks
-                pageBreakElement = document.createElement('div')
-                pageBreakElement.className = 'html2pdf__page-break'
-                pageBreakElement.style.height = '0'
-                pageBreakElement.style.margin = '0'
-                pageBreakElement.style.padding = '0'
-                // Insertar después del summary-card
-                summaryCard.parentNode.insertBefore(pageBreakElement, summaryCard.nextSibling)
-            }
-
-            // Esperar a que el DOM se actualice completamente
-            await nextTick()
-            await new Promise(resolve => setTimeout(resolve, 100))
-
-            try {
-                const opt: any = {
-                    // Márgenes más pequeños para aprovechar la página
-                    margin: [12, 20, 12, 20],
-                    filename: 'simulacion-uniacc.pdf',
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                }
-
-                await html2pdf().set(opt).from(element).save()
-            } finally {
-                // Remover el elemento de page break
-                if (pageBreakElement && pageBreakElement.parentNode) {
-                    pageBreakElement.parentNode.removeChild(pageBreakElement)
-                }
-                
-                // Restaurar elementos en su posición original
-                elementsData.forEach(({ element, parent, nextSibling }) => {
-                    if (parent) {
-                        if (nextSibling) {
-                            parent.insertBefore(element, nextSibling)
-                        } else {
-                            parent.appendChild(element)
-                        }
-                    }
-                })
-            }
-        }
-    } catch (e) {
-        console.error('No se pudo generar el PDF:', e)
-    } finally {
-        // Restaurar el botón después de la generación
-        isGeneratingPDF.value = false
+  try {
+    if (!calculoBecas.value || !carreraInfo.value) {
+      console.warn('No hay datos para generar el PDF')
+      return
     }
+
+    // Ocultar el botón durante la generación
+    isGeneratingPDF.value = true
+
+    // Esperar un momento para que el DOM se actualice
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // Usar html2pdf.js para generar el PDF desde el contenido HTML
+    if (pdfContentRef.value) {
+      const element = pdfContentRef.value
+
+      // JPS: Ocultar versión mobile (accordion) para PDF export
+      const mobileVersion = element.querySelector('.mobile-version') as HTMLElement
+      const originalMobileDisplay = mobileVersion?.style.display
+      if (mobileVersion) {
+        mobileVersion.style.display = 'none'
+      }
+
+      // Asegurar que la versión desktop esté visible
+      const desktopVersion = element.querySelector('.desktop-version') as HTMLElement
+      const originalDesktopDisplay = desktopVersion?.style.display
+      if (desktopVersion) {
+        desktopVersion.style.display = 'block'
+      }
+
+      // Remover temporalmente los Message de PrimeVue del DOM (causan problemas al renderizar el PDF)
+      const toRemove = Array.from(
+        element.querySelectorAll('.contact-message, .anticipado-message, .confirmation-message')
+      ) as HTMLElement[]
+
+      // Guardar referencias a los padres y posiciones para restaurar después
+      const elementsData = toRemove.map(el => ({
+        element: el,
+        parent: el.parentNode,
+        nextSibling: el.nextSibling
+      }))
+
+      // Remover elementos del DOM
+      elementsData.forEach(({ element }) => {
+        if (element.parentNode) {
+          element.parentNode.removeChild(element)
+        }
+      })
+
+      // Agregar page break después de la tabla de detalle
+      const summaryCard = element.querySelector('.summary-card') as HTMLElement
+      let pageBreakElement: HTMLElement | null = null
+      if (summaryCard && summaryCard.parentNode) {
+        // Crear un div con la clase que html2pdf.js reconoce para page breaks
+        pageBreakElement = document.createElement('div')
+        pageBreakElement.className = 'html2pdf__page-break'
+        pageBreakElement.style.height = '0'
+        pageBreakElement.style.margin = '0'
+        pageBreakElement.style.padding = '0'
+        // Insertar después del summary-card
+        summaryCard.parentNode.insertBefore(pageBreakElement, summaryCard.nextSibling)
+      }
+
+      // Esperar a que el DOM se actualice completamente
+      await nextTick()
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      try {
+        const opt: any = {
+          // Márgenes más pequeños para aprovechar la página
+          margin: [12, 20, 12, 20],
+          filename: 'simulacion-uniacc.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        }
+
+        await html2pdf().set(opt).from(element).save()
+      } finally {
+        // Remover el elemento de page break
+        if (pageBreakElement && pageBreakElement.parentNode) {
+          pageBreakElement.parentNode.removeChild(pageBreakElement)
+        }
+
+        // Restaurar elementos en su posición original
+        elementsData.forEach(({ element, parent, nextSibling }) => {
+          if (parent) {
+            if (nextSibling) {
+              parent.insertBefore(element, nextSibling)
+            } else {
+              parent.appendChild(element)
+            }
+          }
+        })
+
+        // JPS: Restaurar visibilidad de versión mobile después de exportar PDF
+        if (mobileVersion) {
+          mobileVersion.style.display = originalMobileDisplay || ''
+        }
+        if (desktopVersion) {
+          desktopVersion.style.display = originalDesktopDisplay || ''
+        }
+      }
+    }
+  } catch (e) {
+    console.error('No se pudo generar el PDF:', e)
+    // Asegurar restaurar visibilidad en caso de error
+    const element = pdfContentRef.value
+    if (element) {
+      const mobileVersion = element.querySelector('.mobile-version') as HTMLElement
+      const desktopVersion = element.querySelector('.desktop-version') as HTMLElement
+      if (mobileVersion) {
+        mobileVersion.style.display = ''
+      }
+      if (desktopVersion) {
+        desktopVersion.style.display = ''
+      }
+    }
+  } finally {
+    // Restaurar el botón después de la generación
+    isGeneratingPDF.value = false
+  }
 }
 
 // Método para mostrar overlay panel con descripción de beca en hover
 const showBecaInfo = (event: Event, beca: any) => {
-    // Ignorar en móvil, solo usar click
-    if (isMobile.value) return
-    // Cancelar cualquier timeout pendiente
-    if (hideTimeout) {
-        clearTimeout(hideTimeout)
-        hideTimeout = null
-    }
-    selectedBeca.value = beca
-    overlayPanel.value?.show(event)
+  // Ignorar en móvil, solo usar click
+  if (isMobile.value) return
+  // Cancelar cualquier timeout pendiente
+  if (hideTimeout) {
+    clearTimeout(hideTimeout)
+    hideTimeout = null
+  }
+  selectedBeca.value = beca
+  overlayPanel.value?.show(event)
 }
 
 // Método para ocultar overlay panel
 const hideBecaInfo = () => {
-    // Ignorar en móvil, solo usar click
-    if (isMobile.value) return
-    // Pequeño delay para permitir movimiento del mouse al overlay
-    hideTimeout = setTimeout(() => {
-        overlayPanel.value?.hide()
-        hideTimeout = null
-    }, 150)
+  // Ignorar en móvil, solo usar click
+  if (isMobile.value) return
+  // Pequeño delay para permitir movimiento del mouse al overlay
+  hideTimeout = setTimeout(() => {
+    overlayPanel.value?.hide()
+    hideTimeout = null
+  }, 150)
 }
 
 // Método para toggle overlay panel (para mobile)
 const toggleBecaInfo = (event: Event, beca: any) => {
-    event.preventDefault()
-    event.stopPropagation()
-    // Cancelar cualquier timeout pendiente
-    if (hideTimeout) {
-        clearTimeout(hideTimeout)
-        hideTimeout = null
-    }
-    
-    // Si es la misma beca, hacer toggle (cerrar si está abierto, abrir si está cerrado)
-    if (selectedBeca.value?.beca.id === beca.beca.id) {
-        // Si ya está seleccionada, cerrar
-        overlayPanel.value?.hide()
-        selectedBeca.value = null
-    } else {
-        // Abrir el panel con la nueva beca
-        selectedBeca.value = beca
-        overlayPanel.value?.show(event)
-    }
+  event.preventDefault()
+  event.stopPropagation()
+  // Cancelar cualquier timeout pendiente
+  if (hideTimeout) {
+    clearTimeout(hideTimeout)
+    hideTimeout = null
+  }
+
+  // Si es la misma beca, hacer toggle (cerrar si está abierto, abrir si está cerrado)
+  if (selectedBeca.value?.beca.id === beca.beca.id) {
+    // Si ya está seleccionada, cerrar
+    overlayPanel.value?.hide()
+    selectedBeca.value = null
+  } else {
+    // Abrir el panel con la nueva beca
+    selectedBeca.value = beca
+    overlayPanel.value?.show(event)
+  }
 }
 
 // Método para mantener el overlay visible cuando el mouse está sobre él
 const keepBecaInfoVisible = () => {
-    if (hideTimeout) {
-        clearTimeout(hideTimeout)
-        hideTimeout = null
+  if (hideTimeout) {
+    clearTimeout(hideTimeout)
+    hideTimeout = null
+  }
+}
+
+// Métodos para mostrar/ocultar overlay de información de descuentos
+const showDescuentosInfo = (event: Event) => {
+  if (isMobile.value) return
+  if (descuentosHideTimeout) {
+    clearTimeout(descuentosHideTimeout)
+    descuentosHideTimeout = null
+  }
+  if (descuentosInfoIconRef.value && descuentosInfoPanel.value) {
+    descuentosInfoPanel.value.show(event, descuentosInfoIconRef.value)
+  }
+}
+
+const hideDescuentosInfo = () => {
+  if (isMobile.value) return
+  descuentosHideTimeout = setTimeout(() => {
+    if (descuentosInfoPanel.value) {
+      descuentosInfoPanel.value.hide()
     }
+    descuentosHideTimeout = null
+  }, 150)
+}
+
+const toggleDescuentosInfo = (event: Event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  if (descuentosHideTimeout) {
+    clearTimeout(descuentosHideTimeout)
+    descuentosHideTimeout = null
+  }
+  if (descuentosInfoIconRef.value && descuentosInfoPanel.value) {
+    descuentosInfoPanel.value.toggle(event, descuentosInfoIconRef.value)
+  }
+}
+
+const keepDescuentosInfoVisible = () => {
+  if (descuentosHideTimeout) {
+    clearTimeout(descuentosHideTimeout)
+    descuentosHideTimeout = null
+  }
 }
 
 // Método para obtener el texto del badge del proceso de evaluación
 const getProcesoEvaluacionBadge = (proceso: string): string => {
-    switch (proceso) {
-        case 'Evaluacion':
-            return 'Requiere evaluación'
-        case 'Postulacion':
-            return 'Requiere postulación'
-        case 'Automatico':
-            return 'Beneficio automático'
-        default:
-            return ''
-    }
+  switch (proceso) {
+    case 'Evaluacion':
+      return 'Requiere evaluación'
+    case 'Postulacion':
+      return 'Requiere postulación'
+    case 'Automatico':
+      return 'Beneficio automático'
+    default:
+      return ''
+  }
 }
 
 // Método para obtener la clase del badge según el proceso
 const getProcesoEvaluacionBadgeClass = (proceso: string): string => {
-    switch (proceso) {
-        case 'Evaluacion':
-            return 'beca-badge-evaluacion'
-        case 'Postulacion':
-            return 'beca-badge-postulacion'
-        case 'Automatico':
-            return 'beca-badge-automatico'
-        default:
-            return ''
-    }
+  switch (proceso) {
+    case 'Evaluacion':
+      return 'beca-badge-evaluacion'
+    case 'Postulacion':
+      return 'beca-badge-postulacion'
+    case 'Automatico':
+      return 'beca-badge-automatico'
+    default:
+      return ''
+  }
 }
 
 // Exponer método para ser llamado desde el padre
 defineExpose({
-    simulate: handleSimulate
+  simulate: handleSimulate
 })
 
 </script>
 
 <template>
-    <div class="results-container">
-        <!-- Loading -->
-        <div v-if="isLoading" class="loading-container">
-            <div class="loading-content">
-                <p class="loading-message">Calculando beneficios...</p>
-                <ProgressSpinner />
-            </div>
-        </div>
-
-        <!-- Error -->
-        <Message v-if="error" severity="error" :closable="false" class="mb-4">
-            {{ error }}
-        </Message>
-
-        <!-- Contenido -->
-        <div v-if="!isLoading && !error && calculoBecas" ref="pdfContentRef" class="space-y-6">
-            <!-- Información de la carrera -->
-            <Card v-if="carreraInfo" class="career-card">
-                <template #title>
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-graduation-cap"></i>
-                        <span>Información de la Carrera</span>
-                    </div>
-                </template>
-                <template #content>
-                    <div class="career-info-content">
-                        <div class="career-name">{{ carreraInfo.nombre_programa }}</div>
-                        <div class="career-details">
-                            <Tag :value="carreraInfo.nivel_academico" severity="info" class="mr-2" />
-                            <Tag :value="carreraInfo.modalidad_programa" severity="secondary" class="mr-2" />
-                            <span class="text-sm text-gray-600">{{ carreraInfo.duracion_programa }}</span>
-                        </div>
-                    </div>
-                </template>
-            </Card>
-
-            <!-- Tabla de resumen -->
-            <Card class="summary-card">
-                <template #title>
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-dollar"></i>
-                        <span>Detalle de la Simulación</span>
-                    </div>
-                </template>
-                <template #content>
-                    <div class="table-container">
-                        <table class="results-table">
-                            <thead>
-                                <tr>
-                                    <th class="table-header">Concepto</th>
-                                    <th class="table-header text-center desktop-only">Tipo</th>
-                                    <th class="table-header text-center desktop-only">Descuento</th>
-                                    <th class="table-header text-center mobile-only">Descuento</th>
-                                    <th class="table-header text-right">Monto</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr class="table-row base-row">
-                                    <td class="table-cell font-semibold">Arancel Base</td>
-                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
-                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
-                                    <td class="table-cell text-center text-gray-500 mobile-only">-</td>
-                                    <td class="table-cell text-right font-semibold">
-                                        {{ formatCurrency(calculoBecas?.arancel_base || 0) }}
-                                    </td>
-                                </tr>
-                                <tr class="table-row matricula-row">
-                                    <td class="table-cell font-semibold">Matrícula</td>
-                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
-                                    <td class="table-cell text-center text-gray-500 desktop-only">-</td>
-                                    <td class="table-cell text-center text-gray-500 mobile-only">-</td>
-                                    <td class="table-cell text-right font-semibold">
-                                        {{ formatCurrency(carreraInfo?.matricula || 0) }}
-                                    </td>
-                                </tr>
-                                <template v-if="formData?.usaBecasEstado">
-                                    <tr class="table-row section-header-row">
-                                        <td class="table-cell section-title">
-                                            Beneficios del Estado
-                                        </td>
-                                        <td class="desktop-only"></td>
-                                        <td class="desktop-only"></td>
-                                        <td class="mobile-only"></td>
-                                        <td></td>
-                                    </tr>
-                                    <tr class="table-row info-row estado-info-row">
-                                        <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
-                                            <div class="flex items-start gap-2">
-                                                <i class="pi pi-info-circle text-purple-600 mt-0.5"></i>
-                                                <span>
-                                                    Becas Mineduc dependen de tu postulación en el FUAS. La asignación es realizada por el Estado y puede modificar el arancel final.
-                                                    <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 underline font-medium ml-1">
-                                                        Más info en sitio FUAS
-                                                    </a>
-                                                </span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </template>
-
-                                <template v-if="becasAplicadas.length > 0">
-                                    <tr class="table-row section-header-row">
-                                        <td class="table-cell section-title">
-                                            Beneficios Internos (UNIACC)
-                                        </td>
-                                        <td class="desktop-only"></td>
-                                        <td class="desktop-only"></td>
-                                        <td class="mobile-only"></td>
-                                        <td></td>
-                                    </tr>
-                                    <tr v-for="beca in becasAplicadas" :key="`interno-${beca.beca.id}`"
-                                        class="table-row benefit-row interno-row">
-                                        <td class="table-cell">
-                                            <div class="benefit-name">
-                                                <i class="pi pi-star mr-2 text-blue-600 text-sm"></i>
-                                                <span class="text-sm">{{ beca.beca.nombre }}</span>
-                                                <i 
-                                                    v-if="beca.beca.proceso_evaluacion || beca.beca.descripcion || (beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0)" 
-                                                    class="pi pi-info-circle ml-2 text-gray-500 cursor-help hover:text-blue-600 transition-colors text-xs"
-                                                    @mouseenter="!isMobile && showBecaInfo($event, beca)"
-                                                    @mouseleave="!isMobile && hideBecaInfo()"
-                                                    @click="toggleBecaInfo($event, beca)"
-                                                    :aria-label="`Información sobre ${beca.beca.nombre}`"
-                                                ></i>
-                                            </div>
-                                        </td>
-                                        <td class="table-cell text-center desktop-only">
-                                            <span class="badge-type">
-                                                {{ beca.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' :
-                                                    beca.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
-                                            </span>
-                                        </td>
-                                        <td class="table-cell text-center desktop-only">
-                                            <span v-if="beca.beca.tipo_descuento === 'porcentaje'"
-                                                class="discount-percentage">
-                                                {{ beca.descuento_aplicado }}%
-                                            </span>
-                                            <span v-else class="text-gray-500">
-                                                Monto Fijo
-                                            </span>
-                                        </td>
-                                        <td class="table-cell text-center mobile-only">
-                                            <span v-if="beca.beca.tipo_descuento === 'porcentaje'"
-                                                class="discount-percentage">
-                                                {{ beca.descuento_aplicado }}%
-                                            </span>
-                                            <span v-else class="text-xs text-gray-600">Fijo</span>
-                                        </td>
-                                        <td class="table-cell text-right font-semibold text-red-600">
-                                            -{{ formatCurrency(beca.monto_descuento) }}
-                                        </td>
-                                    </tr>
-                                    <tr class="table-row subtotal-row subtotal-interno-row">
-                                        <td class="table-cell font-semibold" :colspan="subtotalColspan">
-                                            Después de Beneficios Internos
-                                        </td>
-                                        <td class="table-cell text-right font-semibold">
-                                            {{ formatCurrency(arancelDespuesBecasInternas) }}
-                                        </td>
-                                    </tr>
-                                </template>
-                                <template v-if="formData?.planeaUsarCAE">
-                                    <tr class="table-row section-header-row">
-                                        <td class="table-cell section-title">
-                                            Arancel Referencia CAE
-                                        </td>
-                                        <td class="desktop-only"></td>
-                                        <td class="desktop-only"></td>
-                                        <td class="mobile-only"></td>
-                                        <td></td>
-                                    </tr>
-                                    <tr class="table-row info-row cae-info-row">
-                                        <td class="table-cell text-sm text-gray-700 italic" :colspan="subtotalColspan + 1">
-                                            <div class="flex items-start gap-2">
-                                                <i class="pi pi-info-circle text-orange-600 mt-0.5"></i>
-                                                <span>
-                                                    Si firmas el CAE, se aplicará el arancel de referencia definido para tu carrera. El monto exacto se confirmará al momento de la firma.
-                                                </span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </template>
-
-
-                                <tr class="table-row discount-total-row">
-                                    <td class="table-cell font-semibold" :colspan="subtotalColspan">
-                                        Total Descuentos Aplicados
-                                    </td>
-                                    <td class="table-cell text-right font-bold text-red-600">
-                                        -{{ formatCurrency(descuentoTotalRealConCae) }}
-                                    </td>
-                                </tr>
-                                <tr class="table-row final-row">
-                                    <td class="table-cell font-bold text-lg" :colspan="subtotalColspan">
-                                        Arancel + Matrícula final a pagar
-                                    </td>
-                                    <td class="table-cell text-right font-bold text-lg text-green-600">
-                                        {{ formatCurrency(arancelMasMatricula) }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </template>
-            </Card>
-
-            <!-- Resumen financiero -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-                <div class="flex flex-col gap-4 h-full">
-                    <Card class="summary-item first-column-card flex-1">
-                        <template #content>
-                            <div class="text-center first-column-content h-full flex flex-col justify-center">
-                                <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Arancel Original</div>
-                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
-                                <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(calculoBecas?.arancel_base / 10 || 0) }}
-                                </div>
-                            </div>
-                        </template>
-                    </Card>
-                    <Card class="summary-item matricula-card first-column-card flex-1">
-                        <template #content>
-                            <div class="text-center first-column-content h-full flex flex-col justify-center">
-                                <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Matrícula</div>
-                                <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
-                                <div class="text-2xl font-bold text-gray-900 first-column-value">
-                                    {{ formatCurrency(carreraInfo?.matricula / 10 || 0) }}
-                                </div>
-                            </div>
-                        </template>
-                    </Card>
-                </div>
-                <Card class="summary-item discount">
-                    <template #content>
-                        <div class="text-center">
-                            <div class="text-sm text-black-700 mb-2 font-bold">Descuento Total</div>
-                            <div class="text-2xl font-bold text-red-600">
-                                -{{ formatCurrency(descuentoTotalRealConCae) }}
-                            </div>
-                        </div>
-                    </template>
-                </Card>
-                <Card class="summary-item final">
-                    <template #content>
-                        <div class="text-center">
-                            <div class="text-sm text-black-700 mb-2 font-bold">Total Final a Pagar</div>
-                            <div class="text-sm text-gray-600 mb-0 font-semibold">10 cuotas de</div>
-                            <div class="text-2xl font-bold text-green-600 mb-2">
-                                {{ formatCurrency(valorMensual) }}
-                            </div>
-                            <div class="text-xs text-gray-500 valor-anual mb-1">
-                                <div>* Arancel final: {{ formatCurrency(arancelFinalReal) }}</div>
-                                <div>* Matrícula final: {{ formatCurrency(carreraInfo?.matricula || 0) }}</div>
-                            </div>
-                        </div>
-                    </template>
-                </Card>
-            </div>
-
-            <!-- Mensaje de contacto con descuento -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="success" 
-                :closable="false" 
-                class="contact-message"
-                size="large"
-            >
-                <div class="contact-message-content">
-                    <div class="contact-message-text">
-                        <b class="simulation-question">¿Te gustó la simulación?</b>
-                        Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
-                        Si quieres saber tu descuento real, escríbenos a <a href="mailto:admision@uniacc.cl" class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
-                    </div>
-                </div>
-            </Message>
-
-            <!-- Mensaje informativo sobre descuentos adicionales -->
-            <Message 
-                v-if="tieneDescuentosDisponibles" 
-                severity="info" 
-                :closable="false" 
-                class="anticipado-message"
-                size="small"
-            >
-                <div class="anticipado-message-content">
-                    <div class="anticipado-message-title">
-                        <b>Tenemos descuentos adicionales disponibles.</b>
-                    </div>
-                    <ul class="anticipado-message-list">
-                        <li v-if="descuentoPagoAnticipadoVigente" class="subtitle-item">
-                            <b>Por pago anticipado:</b>
-                            <ul class="anticipado-sublist">
-                                <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
-                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
-                                </li>
-                                <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
-                                    <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
-                                </li>
-                                <li v-if="fechaTerminoFormateada">
-                                    Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
-                                </li>
-                            </ul>
-                        </li>
-                        <li v-if="descuentosModoPagoActivos.length > 0" class="subtitle-item">
-                            <b>Por medio de pago:</b>
-                            <ul class="anticipado-sublist">
-                                <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
-                                    <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-            </Message>
-
-            <!-- Mensaje informativo sobre confirmación -->
-            <Message 
-                v-if="descuentoPorcentualTotal > 0" 
-                severity="warn" 
-                :closable="false" 
-                class="confirmation-message"
-                size="small"
-            >
-                La simulación es referencial; un asesor te confirma el monto final.
-            </Message>
-
-            <!-- Becas aplicadas -->
-            <div v-if="becasAplicadas.length" class="benefits-section">
-                <h3 class="benefits-section-title">
-                    <Award class="w-6 h-6" />
-                    Becas Aplicadas
-                </h3>
-
-                <!-- Becas Internas Aplicadas -->
-                <div v-if="becasAplicadas.length" class="benefits-subsection">
-                    <h4 class="subsection-title">
-                        <Award class="w-5 h-5 text-blue-600" />
-                        Beneficios Internos (UNIACC)
-                    </h4>
-                    <div class="benefits-grid">
-                        <div
-                            v-for="beca in becasAplicadas"
-                            :key="beca.beca.id"
-                            class="benefit-card benefit-card-interno"
-                        >
-                            <div class="benefit-header">
-                                <div class="benefit-icon">
-                                    <CheckCircle class="w-5 h-5 text-green-600" />
-                                </div>
-                                <div class="benefit-info">
-                                    <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
-                                    <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
-                                </div>
-                            </div>
-                            <div class="benefit-details">
-                                <div class="benefit-discount">
-                                    <span class="discount-label">Descuento:</span>
-                                    <span class="discount-value">
-                                        {{ beca.beca.tipo_descuento === 'porcentaje'
-                                            ? `${beca.descuento_aplicado}%`
-                                            : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
-                                    </span>
-                                </div>
-                                <div class="benefit-applied">
-                                    <span class="applied-label">Aplicado:</span>
-                                    <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
-                                </div>
-                            </div>
-                            <div v-if="beca.beca.descripcion" class="benefit-description">
-                                <p class="description-text">{{ beca.beca.descripcion }}</p>
-                            </div>
-                            <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0" class="benefit-documentation">
-                                <div class="documentation-header">
-                                    <FileText class="w-4 h-4 text-blue-600" />
-                                    <span class="documentation-title">Documentación Requerida:</span>
-                                </div>
-                                <ul class="documentation-list">
-                                    <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index" class="documentation-item">
-                                        {{ doc }}
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
-        <div v-if="!isLoading && !error && calculoBecas && !isGeneratingPDF" class="export-pdf-section">
-            <Button 
-                label="Exportar PDF" 
-                icon="pi pi-download" 
-                @click="handleExportPDF"
-                class="export-pdf-button"
-                severity="secondary"
-                outlined
-            />
-        </div>
-
-        <!-- Overlay Panel para mostrar descripción de beca -->
-        <OverlayPanel ref="overlayPanel" class="beca-info-overlay" :dismissable="false" @mouseenter="keepBecaInfoVisible" @mouseleave="hideBecaInfo">
-            <div v-if="selectedBeca" class="beca-info-content">
-                <!-- Header con título y badge -->
-                <div class="beca-info-header">
-                    <h4 class="beca-info-title">{{ selectedBeca.beca.nombre }}</h4>
-                    <span 
-                        v-if="selectedBeca.beca.proceso_evaluacion" 
-                        :class="['beca-info-badge', getProcesoEvaluacionBadgeClass(selectedBeca.beca.proceso_evaluacion)]"
-                    >
-                        {{ getProcesoEvaluacionBadge(selectedBeca.beca.proceso_evaluacion) }}
-                    </span>
-                </div>
-                <div v-if="selectedBeca.beca.descripcion || (selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0)" class="beca-info-divider"></div>
-                
-                <!-- Descripción -->
-                <div v-if="selectedBeca.beca.descripcion" class="beca-info-body">
-                    <div class="beca-info-description-section">
-                        <p class="beca-info-description">
-                            {{ selectedBeca.beca.descripcion }}
-                        </p>
-                    </div>
-                    <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-divider"></div>
-                </div>
-                
-                <!-- Documentación requerida -->
-                <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0" class="beca-info-footer">
-                    <h5 class="beca-info-subtitle">Documentación Requerida:</h5>
-                    <ul class="beca-info-list">
-                        <li v-for="(doc, index) in selectedBeca.beca.requiere_documentacion" :key="index" class="beca-info-item">
-                            {{ doc }}
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </OverlayPanel>
+  <div class="results-container">
+    <!-- Loading -->
+    <div v-if="isLoading" class="loading-container">
+      <div class="loading-content">
+        <p class="loading-message">Calculando beneficios...</p>
+        <ProgressSpinner />
+      </div>
     </div>
+
+    <!-- Error -->
+    <Message v-if="error" severity="error" :closable="false" class="mb-4">
+      {{ error }}
+    </Message>
+
+    <!-- Contenido -->
+    <div v-if="!isLoading && !error && calculoBecas" ref="pdfContentRef" class="space-y-6">
+      <!-- JPS: Versión Desktop - Mantener estructura original con PrimeVue Cards -->
+      <div class="hidden md:block desktop-version">
+        <!-- Información de la carrera -->
+      <Card v-if="carreraInfo" class="career-card">
+        <template #title>
+          <div class="flex items-center gap-2">
+            <i class="pi pi-book"></i>
+            <span class="career-title">Información de la Carrera</span>
+          </div>
+        </template>
+        <template #content>
+          <div class="career-info-content">
+            <div class="career-name">{{ carreraInfo.nombre_programa }}</div>
+            <div class="career-details">
+              <Tag :value="'• ' + carreraInfo.nivel_academico" class="career-tag" />
+              <Tag :value="'• ' + carreraInfo.modalidad_programa" class="career-tag" />
+              <Tag :value="'• ' + carreraInfo.duracion_programa" class="career-tag" />
+            </div>
+          </div>
+        </template>
+      </Card>
+
+      <!-- Tabla de resumen -->
+      <Card class="detalle-card">
+        <template #title>
+          <div class="flex items-center gap-2 mb-2">
+            <i class="pi pi-percentage"></i>
+            <span class="detalle-title">Detalle de la simulación</span>
+          </div>
+        </template>
+        <template #content>
+          <div class="cards-container">
+            <!-- Detalle de arancel -->
+            <Card class="detalle-arancel-card">
+              <template #content>
+                <table class="table-arancel">
+                  <thead>
+                    <tr>
+                      <th>Concepto</th>
+                      <th>Tipo</th>
+                      <th>Descuento</th>
+                      <th>Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Arancel Base</td>
+                      <td>-</td>
+                      <td>-</td>
+                      <td>{{ formatCurrency(calculoBecas?.arancel_base || 0) }}</td>
+                    </tr>
+                    <tr>
+                      <td>Matrícula</td>
+                      <td>-</td>
+                      <td>-</td>
+                      <td>{{ formatCurrency(carreraInfo?.matricula || 0) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </template>
+            </Card>
+
+            <!-- Beneficios del Estado -->
+            <Card class="info-estado-card">
+              <template #title>
+                <i class="pi pi-star-fill"></i>
+                <span>Beneficios del Estado</span>
+              </template>
+              <template #content>
+                <p>Las Becas MINEDUC se asignan según la información que entregues en el FUAS.
+                  La asignación la realiza el Estado y puede modificar el arancel final.
+                  <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank">Más información en el
+                    sitio FUAS.</a>
+                </p>
+              </template>
+            </Card>
+
+            <!-- Beneficios Internos (UNIACC) -->
+            <Card class="becas-internas-card">
+              <template #title>
+                <i class="pi pi-star-fill"></i>
+                <span>Beneficios Internos (UNIACC)</span>
+              </template>
+              <template #content>
+                <table class="table-becas-internas">
+                  <tbody>
+                    <template v-if="becasAplicadas.length > 0">
+                      <tr v-for="beca in becasAplicadas" :key="`interno-${beca.beca.id}`" class="">
+                        <td class="texto-info">{{ beca.beca.nombre }}</td>
+                        <td>
+                          <Tag class="info-tag">Porcentaje</Tag>
+                        </td>
+                        <td class="texto-info">{{ beca.descuento_aplicado }}%</td>
+                        <td class="texto-info">-{{ formatCurrency(beca.monto_descuento) }}</td>
+                      </tr>
+                      <tr>
+                        <td class="texto-descuento" colspan="3">Monto a pagar con beneficio aplicado</td>
+                        <td class="texto-descuento">{{ formatCurrency(arancelDespuesBecasInternas) }}</td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+            </Card>
+
+            <!-- Arancel referencial CAE -->
+            <Card v-if="formData?.planeaUsarCAE" class="cae-card">
+              <template #title>
+                <div>
+                  <i class="pi pi-star-fill"></i>
+                  <span>Arancel referencial CAE <span
+                      v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION">
+                      {{ carreraInfo.anio_arancel_referencia }}*</span></span>
+                </div>
+                <div
+                  v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION">
+                  <p>*Los valores mostrados corresponden al arancel de referencia CAE 2025. El Mineduc publicará los
+                    nuevos aranceles de referencia durante el mes de enero 2026</p>
+                </div>
+              </template>
+              <template #content>
+                <table class="table-cae">
+                  <tbody>
+                    <tr>
+                      <td class="texto-info">Máximo Financiamiento CAE</td>
+                      <td>
+                        <Tag class="info-tag">CAE</Tag>
+                      </td>
+                      <td></td>
+                      <td class="texto-info">{{ formatCurrency(descuentoCae) }}</td>
+                    </tr>
+                    <tr>
+                      <td class="texto-descuento">Monto a pagar con beneficio aplicado</td>
+                      <td></td>
+                      <td></td>
+                      <td class="texto-descuento">{{ formatCurrency(arancelFinalReal) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </template>
+            </Card>
+
+            <!-- Total descuentos aplicados -->
+             <Card class="total-descuentos-card">
+              <template #content>
+                <span>Total descuentos aplicados</span>
+                <span>-{{ formatCurrency(descuentoTotalRealConCae) }}</span>
+              </template>
+             </Card>
+
+             <!-- Descuentos adicionales -->
+             <Card class="descuentos-adicionales-card">
+                <template #title>
+                  <i class="pi pi-star-fill"></i>
+                  <span>Descuentos adicionales</span>
+                </template>
+                <template #content>
+                  <table class="table-descuentos-adicionales">
+                    <tbody>
+                      <template v-if="descuentoPagoAnticipadoArancel > 0">
+                        <tr>
+                          <td class="texto-info">Descuento por pago anticipado (Arancel)</td>
+                          <td><Tag class="info-tag">Porcentaje</Tag></td>
+                          <td class="texto-info">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</td>
+                          <td class="texto-info">-{{ formatCurrency(descuentoPagoAnticipadoArancel) }}</td>
+                        </tr>
+                        <tr>
+                          <td class="texto-info">Descuento por pago anticipado (Matrícula)</td>
+                          <td><Tag class="info-tag">Porcentaje</Tag></td>
+                          <td class="texto-info">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</td>
+                          <td class="texto-info">-{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}</td>
+                        </tr>
+                        <tr class="fila-border" v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0">
+                          <td class="texto-info">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` -
+		  ${descuentoModoPagoAplicable.nombre}` : '' }}</td>
+                          <td><Tag class="info-tag">Porcentaje</Tag></td>
+                          <td class="texto-info">{{ descuentoModoPagoAplicable.dscto_arancel }}%</td>
+                          <td class="texto-info">-{{ formatCurrency(descuentoModoPagoArancel) }}</td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </template>
+             </Card>
+
+             <!-- Total a pagar -->
+              <Card class="total-a-pagar-card">
+                <template #content>
+                  <span class="texto-descuento">Arancel + Matrícula final a pagar</span>
+                  <span class="texto-descuento">{{ formatCurrency(arancelFinalReal) }}</span>
+                </template>
+              </Card>
+          </div>
+        </template>
+      </Card>
+
+      <!-- Simulación de cuotas y medios de pago -->
+      <Card class="payment-simulation-card">
+        <template #title>
+            <i class="pi pi-credit-card"></i>
+            <span>Simulación de cuotas y medios de pago</span>
+        </template>
+        <template #content>
+          <div class="payment-simulation-content">
+            <div class="payment-control-group">
+              <label for="tipoPago" class="payment-label">Medio de pago</label>
+              <Select id="tipoPago" v-model="tipoPago" :options="opcionesTipoPago" optionLabel="label"
+                optionValue="value" placeholder="Seleccione un medio de pago" class="payment-select" />
+            </div>
+            <div class="payment-control-group">
+              <label for="numeroCuotas" class="payment-label">Número de cuotas: <span class="slider-value">{{
+                numeroCuotas }}</span></label>
+
+              <div class="slider-container">
+                <Slider id="numeroCuotas" v-model="numeroCuotas" :min="1" :max="12" :disabled="isSliderDisabled"
+                  class="payment-slider" />
+              </div>
+            </div>
+
+          </div>
+        </template>
+      </Card>
+
+      <!-- Resumen financiero -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+        <div class="flex flex-col gap-4 h-full">
+          <Card class="summary-item first-column-card flex-1">
+            <template #content>
+              <div class="text-center first-column-content h-full flex flex-col justify-center">
+                <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Arancel Original</div>
+                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
+                <div class="text-2xl font-bold text-gray-900 first-column-value">
+                  {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
+                </div>
+              </div>
+            </template>
+          </Card>
+          <Card class="summary-item matricula-card first-column-card flex-1">
+            <template #content>
+              <div class="text-center first-column-content h-full flex flex-col justify-center">
+                <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Matrícula</div>
+                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
+                <div class="text-2xl font-bold text-gray-900 first-column-value">
+                  {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
+                </div>
+              </div>
+            </template>
+          </Card>
+        </div>
+        <Card class="summary-item discount">
+          <template #content>
+              <div class="discount-label">Descuento Total</div>
+              <div class="discount-value">
+                -{{ formatCurrency(descuentoTotalRealConCae) }}
+              </div>
+              <div></div>
+
+          </template>
+        </Card>
+        <Card class="summary-item final">
+          <template #content>
+            <div>
+              <div class="final-label">Total Final a Pagar</div>
+              <div class="final-cuotas">{{ numeroCuotas }} cuotas de</div>
+            </div>
+            <div class="final-value">
+              {{ formatCurrency(valorMensual) }}
+            </div>
+            <div class="final-details valor-anual">
+              <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
+              <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div class="texto-referencial">
+        *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
+      </div>
+
+      <!-- Mensaje de contacto con descuento -->
+      <Card v-if="descuentoPorcentualTotal > 0" class="contact-message">
+        <template #content>
+          <div class="contact-message-content">
+            <div class="contact-message-text">
+              <b class="simulation-question">¿Te gustó la simulación?</b>
+              Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b>
+              Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl"
+                class="contact-link">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b>
+            </div>
+          </div>
+        </template>
+      </Card>
+
+      <!-- Becas aplicadas -->
+       <Card class="becas-aplicadas-card">
+        <template #content>
+    <div v-if="becasAplicadas.length" class="benefits-section">
+            <h3 class="benefits-section-title">
+              <Award class="w-6 h-6" />
+              Becas Aplicadas
+            </h3>
+
+            <!-- Becas Internas Aplicadas -->
+            <div v-if="becasAplicadas.length" class="benefits-subsection">
+              <h4 class="subsection-title">
+                <Award class="w-5 h-5 text-blue-600" />
+                Beneficios Internos (UNIACC)
+              </h4>
+              <div class="benefits-grid">
+                <div v-for="beca in becasAplicadas" :key="beca.beca.id" class="benefit-card benefit-card-interno">
+                  <div class="benefit-header">
+                    <div class="benefit-icon">
+                      <CheckCircle class="w-5 h-5 text-green-600" />
+                    </div>
+                    <div class="benefit-info">
+                      <h4 class="benefit-title">{{ beca.beca.nombre }}</h4>
+                      <p class="benefit-type">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+                    </div>
+                  </div>
+                  <div class="benefit-details">
+                    <div class="benefit-discount">
+                      <span class="applied-label">Descuento:</span>
+                      <span class="applied-value">
+                        {{ beca.beca.tipo_descuento === 'porcentaje'
+                          ? `${beca.descuento_aplicado}%`
+                          : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
+                      </span>
+                    </div>
+                    <div class="benefit-applied">
+                      <span class="applied-label">Aplicado:</span>
+                      <span class="applied-value">{{ formatCurrency(beca.monto_descuento) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="beca.beca.descripcion" class="benefit-description">
+                    <p class="description-text">{{ beca.beca.descripcion }}</p>
+                  </div>
+                  <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0"
+                    class="benefit-documentation">
+                    <div class="documentation-header">
+                      <FileText class="w-4 h-4 text-blue-600" />
+                      <span class="documentation-title">Documentación Requerida:</span>
+                    </div>
+                    <ul class="documentation-list">
+                      <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index" class="documentation-item">
+                        {{ doc }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+        </Card>
+      </div>
+      <!-- Fin versión Desktop -->
+
+      <!-- JPS: Versión Mobile - Accordion con shadcn Cards -->
+      <div class="block md:hidden mobile-version">
+        <Accordion type="single" collapsible class="w-full space-y-2">
+          <!-- Item 1: Información de la Carrera -->
+          <AccordionItem value="career-info" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-book"></i>
+                <span class="font-semibold">Información de la Carrera</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ShadcnCard v-if="carreraInfo" class="mobile-card">
+                <CardHeader>
+                  <CardTitle class="mobile-card-title">{{ carreraInfo.nombre_programa }}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div class="flex flex-wrap gap-2">
+                    <Tag :value="'• ' + carreraInfo.nivel_academico" class="career-tag" />
+                    <Tag :value="'• ' + carreraInfo.modalidad_programa" class="career-tag" />
+                    <Tag :value="'• ' + carreraInfo.duracion_programa" class="career-tag" />
+                  </div>
+                </CardContent>
+              </ShadcnCard>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 2: Detalle de la Simulación -->
+          <AccordionItem value="simulation-detail" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-percentage"></i>
+                <span class="font-semibold">Detalle de la simulación</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <!-- Arancel Base y Matrícula -->
+                <ShadcnCard class="mobile-card">
+                  <CardContent class="p-4">
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center py-2 border-b">
+                        <span class="font-medium">Arancel Base</span>
+                        <span class="font-bold text-blue-600">{{ formatCurrency(calculoBecas?.arancel_base || 0) }}</span>
+                      </div>
+                      <div class="flex justify-between items-center py-2">
+                        <span class="font-medium">Matrícula</span>
+                        <span class="font-bold text-blue-600">{{ formatCurrency(carreraInfo?.matricula || 0) }}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Beneficios del Estado -->
+                <ShadcnCard class="mobile-card bg-blue-50 border-blue-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-blue-600"></i>
+                      Beneficios del Estado
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0">
+                    <p class="text-sm text-gray-700">
+                      Las Becas MINEDUC se asignan según la información que entregues en el FUAS.
+                      La asignación la realiza el Estado y puede modificar el arancel final.
+                      <a href="https://postulacion.beneficiosestudiantiles.cl/fuas/" target="_blank" class="text-blue-600 underline">Más información en el sitio FUAS.</a>
+                    </p>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Beneficios Internos (UNIACC) -->
+                <ShadcnCard v-if="becasAplicadas.length > 0" class="mobile-card bg-blue-50 border-blue-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-blue-600"></i>
+                      Beneficios Internos (UNIACC)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0 space-y-3">
+                    <div v-for="beca in becasAplicadas" :key="`mobile-interno-${beca.beca.id}`" class="space-y-2 pb-3 border-b last:border-b-0 last:pb-0">
+                      <div class="flex justify-between items-start">
+                        <span class="font-semibold text-blue-600 text-sm">{{ beca.beca.nombre }}</span>
+                        <Tag class="info-tag text-xs">Porcentaje</Tag>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">{{ beca.descuento_aplicado }}%</span>
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(beca.monto_descuento) }}</span>
+                      </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t">
+                      <span class="font-semibold text-green-600">Monto a pagar con beneficio aplicado</span>
+                      <span class="font-bold text-green-600">{{ formatCurrency(arancelDespuesBecasInternas) }}</span>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Arancel referencial CAE -->
+                <ShadcnCard v-if="formData?.planeaUsarCAE" class="mobile-card bg-orange-50 border-orange-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-orange-600"></i>
+                      Arancel referencial CAE
+                      <span v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION" class="text-xs font-normal">
+                        {{ carreraInfo.anio_arancel_referencia }}*
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0 space-y-2">
+                    <p v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION" class="text-xs text-gray-600 mb-2">
+                      *Los valores mostrados corresponden al arancel de referencia CAE 2025. El Mineduc publicará los nuevos aranceles de referencia durante el mes de enero 2026
+                    </p>
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-orange-600 text-sm">Máximo Financiamiento CAE</span>
+                        <Tag class="info-tag text-xs">CAE</Tag>
+                      </div>
+                      <div class="flex justify-between items-center pt-2 border-t">
+                        <span class="font-semibold text-green-600">Monto a pagar con beneficio aplicado</span>
+                        <span class="font-bold text-green-600">{{ formatCurrency(arancelFinalReal) }}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Total descuentos aplicados -->
+                <ShadcnCard class="mobile-card bg-blue-400 border-blue-500">
+                  <CardContent class="p-4">
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-white">Total descuentos aplicados</span>
+                      <span class="font-bold text-white">-{{ formatCurrency(descuentoTotalRealConCae) }}</span>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Descuentos adicionales -->
+                <ShadcnCard v-if="descuentoPagoAnticipadoArancel > 0" class="mobile-card bg-blue-50 border-blue-200">
+                  <CardHeader class="pb-3">
+                    <CardTitle class="mobile-card-title text-sm flex items-center gap-2">
+                      <i class="pi pi-star-fill text-blue-600"></i>
+                      Descuentos adicionales
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent class="pt-0 space-y-3">
+                    <div class="space-y-2">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-blue-600 text-sm">Descuento por pago anticipado (Arancel)</span>
+                        <div class="flex items-center gap-2">
+                          <Tag class="info-tag text-xs">Porcentaje</Tag>
+                          <span class="text-sm font-semibold">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</span>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(descuentoPagoAnticipadoArancel) }}</span>
+                      </div>
+                    </div>
+                    <div class="space-y-2 pt-2 border-t">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-blue-600 text-sm">Descuento por pago anticipado (Matrícula)</span>
+                        <div class="flex items-center gap-2">
+                          <Tag class="info-tag text-xs">Porcentaje</Tag>
+                          <span class="text-sm font-semibold">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</span>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}</span>
+                      </div>
+                    </div>
+                    <div v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0" class="space-y-2 pt-2 border-t">
+                      <div class="flex justify-between items-center">
+                        <span class="font-semibold text-blue-600 text-sm">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` - ${descuentoModoPagoAplicable.nombre}` : '' }}</span>
+                        <div class="flex items-center gap-2">
+                          <Tag class="info-tag text-xs">Porcentaje</Tag>
+                          <span class="text-sm font-semibold">{{ descuentoModoPagoAplicable.dscto_arancel }}%</span>
+                        </div>
+                      </div>
+                      <div class="flex justify-end">
+                        <span class="font-bold text-blue-600">-{{ formatCurrency(descuentoModoPagoArancel) }}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Total a pagar -->
+                <ShadcnCard class="mobile-card bg-green-100 border-green-300">
+                  <CardContent class="p-4">
+                    <div class="flex justify-between items-center">
+                      <span class="font-bold text-green-600">Arancel + Matrícula final a pagar</span>
+                      <span class="font-bold text-green-600">{{ formatCurrency(arancelFinalReal) }}</span>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 3: Simulación de Cuotas y Medios de Pago -->
+          <AccordionItem value="payment-simulation" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-credit-card"></i>
+                <span class="font-semibold">Simulación de cuotas y medios de pago</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ShadcnCard class="mobile-card">
+                <CardContent class="p-4 space-y-4">
+                  <div class="space-y-2">
+                    <label for="tipoPagoMobile" class="block text-sm font-semibold">Medio de pago</label>
+                    <Select id="tipoPagoMobile" v-model="tipoPago" :options="opcionesTipoPago" optionLabel="label"
+                      optionValue="value" placeholder="Seleccione un medio de pago" class="w-full" />
+                  </div>
+                  <div class="space-y-2">
+                    <label for="numeroCuotasMobile" class="block text-sm font-semibold">
+                      Número de cuotas: <span class="slider-value">{{ numeroCuotas }}</span>
+                    </label>
+                    <Slider id="numeroCuotasMobile" v-model="numeroCuotas" :min="1" :max="12" :disabled="isSliderDisabled" class="w-full" />
+                  </div>
+                </CardContent>
+              </ShadcnCard>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 4: Resumen Financiero -->
+          <AccordionItem value="financial-summary" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-calculator"></i>
+                <span class="font-semibold">Resumen Financiero</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <!-- Arancel Original -->
+                <ShadcnCard class="mobile-card bg-gray-100">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-gray-700 mb-1">Arancel Original</div>
+                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xl font-bold text-gray-900">
+                      {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Matrícula -->
+                <ShadcnCard class="mobile-card bg-gray-100">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-gray-700 mb-1">Matrícula</div>
+                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xl font-bold text-gray-900">
+                      {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Descuento Total -->
+                <ShadcnCard class="mobile-card bg-blue-400">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-white mb-2">Descuento Total</div>
+                    <div class="text-xl font-bold text-white">
+                      -{{ formatCurrency(descuentoTotalRealConCae) }}
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+
+                <!-- Total Final a Pagar -->
+                <ShadcnCard class="mobile-card bg-green-200">
+                  <CardContent class="p-4 text-center">
+                    <div class="text-sm font-bold text-green-600 mb-1">Total Final a Pagar</div>
+                    <div class="text-xs text-green-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-2xl font-bold text-green-600 mb-3">
+                      {{ formatCurrency(valorMensual) }}
+                    </div>
+                    <div class="text-xs text-green-600 space-y-1 pt-2 border-t border-green-300">
+                      <div>* Arancel final: {{ formatCurrency(arancelFinalConDescuentosAdicionales) }}</div>
+                      <div>* Matrícula final: {{ formatCurrency(matriculaFinalConDescuentosAdicionales) }}</div>
+                    </div>
+                  </CardContent>
+                </ShadcnCard>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 5: Becas Aplicadas -->
+          <AccordionItem v-if="becasAplicadas.length > 0" value="applied-benefits" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <Award class="w-5 h-5" />
+                <span class="font-semibold">Becas Aplicadas</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <div v-for="beca in becasAplicadas" :key="`mobile-beca-${beca.beca.id}`" class="mobile-card bg-white border border-blue-200 rounded-lg p-4">
+                  <div class="flex items-start gap-3 mb-3">
+                    <CheckCircle class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div class="flex-1">
+                      <h4 class="font-semibold text-sm mb-1">{{ beca.beca.nombre }}</h4>
+                      <p class="text-xs text-gray-500">{{ beca.beca.proceso_evaluacion }} • {{ beca.beca.tipo_descuento }}</p>
+                    </div>
+                  </div>
+                  <div class="space-y-2 mb-3">
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs text-gray-600">Descuento:</span>
+                      <span class="font-semibold text-sm">
+                        {{ beca.beca.tipo_descuento === 'porcentaje'
+                          ? `${beca.descuento_aplicado}%`
+                          : formatCurrency(beca.beca.descuento_monto_fijo || 0) }}
+                      </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs text-gray-600">Aplicado:</span>
+                      <span class="font-semibold text-sm">{{ formatCurrency(beca.monto_descuento) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="beca.beca.descripcion" class="text-xs text-gray-600 mb-2 pt-2 border-t">
+                    <p>{{ beca.beca.descripcion }}</p>
+                  </div>
+                  <div v-if="beca.beca.requiere_documentacion && beca.beca.requiere_documentacion.length > 0" class="text-xs pt-2 border-t">
+                    <div class="flex items-center gap-2 mb-2">
+                      <FileText class="w-4 h-4 text-blue-600" />
+                      <span class="font-semibold text-gray-700">Documentación Requerida:</span>
+                    </div>
+                    <ul class="list-disc list-inside space-y-1 text-gray-600">
+                      <li v-for="(doc, index) in beca.beca.requiere_documentacion" :key="index">{{ doc }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 6: Mensaje de Contacto -->
+          <AccordionItem v-if="descuentoPorcentualTotal > 0" value="contact-message" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-envelope"></i>
+                <span class="font-semibold">Contacto</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ShadcnCard class="mobile-card bg-blue-50 border-blue-200">
+                <CardContent class="p-4">
+                  <div class="text-sm text-gray-700">
+                    <p class="font-bold mb-2">¿Te gustó la simulación?</p>
+                    <p class="mb-2">Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b></p>
+                    <p>Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="text-blue-600 underline">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b></p>
+                  </div>
+                </CardContent>
+              </ShadcnCard>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        <!-- Texto referencial mobile -->
+        <div class="text-center mt-4 text-sm font-bold text-gray-700">
+          *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
+        </div>
+      </div>
+      <!-- Fin versión Mobile -->
+
+    </div>
+
+    <!-- Botón de exportar PDF (fuera del contenido del PDF) -->
+    <div v-if="!isLoading && !error && calculoBecas && !isGeneratingPDF" class="export-pdf-section">
+      <Button label="Exportar PDF" icon="pi pi-download" @click="handleExportPDF" class="export-pdf-button"
+        severity="secondary" outlined />
+    </div>
+
+    <!-- Overlay Panel para mostrar descripción de beca -->
+    <OverlayPanel ref="overlayPanel" class="beca-info-overlay" :dismissable="false" @mouseenter="keepBecaInfoVisible"
+      @mouseleave="hideBecaInfo">
+      <div v-if="selectedBeca" class="beca-info-content">
+        <!-- Header con título y badge -->
+        <div class="beca-info-header">
+          <h4 class="beca-info-title">{{ selectedBeca.beca.nombre }}</h4>
+          <span v-if="selectedBeca.beca.proceso_evaluacion"
+            :class="['beca-info-badge', getProcesoEvaluacionBadgeClass(selectedBeca.beca.proceso_evaluacion)]">
+            {{ getProcesoEvaluacionBadge(selectedBeca.beca.proceso_evaluacion) }}
+          </span>
+        </div>
+        <div
+          v-if="selectedBeca.beca.descripcion || (selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0)"
+          class="beca-info-divider"></div>
+
+        <!-- Descripción -->
+        <div v-if="selectedBeca.beca.descripcion" class="beca-info-body">
+          <div class="beca-info-description-section">
+            <p class="beca-info-description">
+              {{ selectedBeca.beca.descripcion }}
+            </p>
+          </div>
+          <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0"
+            class="beca-info-divider"></div>
+        </div>
+
+        <!-- Documentación requerida -->
+        <div v-if="selectedBeca.beca.requiere_documentacion && selectedBeca.beca.requiere_documentacion.length > 0"
+          class="beca-info-footer">
+          <h5 class="beca-info-subtitle">Documentación Requerida:</h5>
+          <ul class="beca-info-list">
+            <li v-for="(doc, index) in selectedBeca.beca.requiere_documentacion" :key="index" class="beca-info-item">
+              {{ doc }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </OverlayPanel>
+
+    <!-- Overlay Panel para mostrar información de descuentos adicionales -->
+    <OverlayPanel ref="descuentosInfoPanel" class="descuentos-info-overlay" :dismissable="false"
+      @mouseenter="keepDescuentosInfoVisible" @mouseleave="hideDescuentosInfo">
+      <div class="descuentos-info-content">
+        <div class="descuentos-info-title">
+          <b>Tenemos descuentos adicionales disponibles.</b>
+        </div>
+        <ul class="descuentos-info-list">
+          <li v-if="descuentoPagoAnticipadoVigente" class="descuentos-info-item">
+            <b>Por pago anticipado:</b>
+            <ul class="descuentos-info-sublist">
+              <li v-if="descuentoPagoAnticipadoVigente.dscto_matricula">
+                <b>{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</b> en matrícula
+              </li>
+              <li v-if="descuentoPagoAnticipadoVigente.dscto_arancel">
+                <b>{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</b> en arancel
+              </li>
+              <li v-if="fechaTerminoFormateada">
+                Válido hasta el <b>{{ fechaTerminoFormateada }}</b>
+              </li>
+            </ul>
+          </li>
+          <li v-if="descuentosModoPagoActivos.length > 0" class="descuentos-info-item">
+            <b>Por medio de pago:</b>
+            <ul class="descuentos-info-sublist">
+              <li v-for="descuento in descuentosModoPagoActivos" :key="descuento.id">
+                <b>{{ descuento.dscto_arancel }}%</b> en arancel{{ descuento.nombre ? ` - ${descuento.nombre}` : '' }}
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </OverlayPanel>
+
+    <!-- Drawer para información del CAE -->
+    <Drawer v-model:visible="showCaeDialog" position="bottom" :style="{ height: 'auto', maxHeight: '80vh' }"
+      :modal="true">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <i class="pi pi-info-circle text-orange-600"></i>
+          <span class="text-lg font-semibold">Consideraciones para la simulación del crédito CAE</span>
+        </div>
+      </template>
+      <div class="cae-drawer-content p-4">
+        <p class="mb-4">
+          <strong>El monto financiado anualmente</strong> corresponde al 100% del arancel de referencia vigente a la
+          fecha.
+        </p>
+        <p class="mb-4">
+          Se ha considerado una <strong>tasa de interés de UF + 2% anual</strong>; un período de <strong>18
+            meses</strong> a
+          contar del egreso del estudiante, previo al inicio del cobro; y un plazo de <strong>120, 180 o 240
+            meses</strong>
+          para pagar el total del crédito, según el monto total adeudado.
+        </p>
+        <p class="mb-4">
+          El <strong>financiamiento total</strong> entregado para tu carrera en esta simulación, se otorga por iguales
+          montos cada año y por el número de años de financiamiento que solicitas, considerando como tope el número de
+          años
+          de duración de la respectiva carrera.
+        </p>
+        <p class="mb-4">
+          El cálculo considera <strong>meses de 30 días</strong> y el <strong>año de 360 días</strong>.
+        </p>
+        <p class="mb-0 text-sm text-gray-600 italic">
+          El resultado de este ejercicio constituye una estimación. No debe utilizarse para otros fines que no sean
+          proyectar una cuota aproximada a pagar, considerando los supuestos y parámetros definidos. Atendido lo
+          anterior,
+          la cuota calculada tiene carácter referencial y no genera obligación ni restricción alguna para la Comisión
+          Administradora del Sistema de Créditos para Estudios Superiores ni para los bancos participantes en el
+          sistema.
+        </p>
+      </div>
+    </Drawer>
+  </div>
 </template>
 
 <style scoped>
 .results-container {
-    @apply w-full max-w-4xl mx-auto p-6;
+  @apply w-full max-w-6xl mx-auto p-6;
 }
 
 .loading-container {
-    @apply flex justify-center items-center py-16 px-6;
+  @apply flex justify-center items-center py-16 px-6;
 }
 
 .loading-content {
-    @apply flex flex-col items-center justify-center gap-6;
-    @apply bg-gray-50 border border-gray-200 rounded-lg shadow-sm;
-    @apply px-12 py-10;
-    min-width: 300px;
+  @apply flex flex-col items-center justify-center gap-6;
+  @apply bg-gray-50 border border-gray-200 rounded-lg shadow-sm;
+  @apply px-12 py-10;
+  min-width: 300px;
 }
 
 .loading-message {
-    @apply text-lg font-medium text-gray-700 mb-0;
-    margin: 0;
+  @apply text-lg font-medium text-gray-700 mb-0;
+  margin: 0;
 }
 
 .career-card {
-    @apply mb-6;
+  @apply mb-6;
 }
 
+
+
 .career-info-content {
-    @apply space-y-3;
+  @apply space-y-3;
 }
 
 .career-name {
-    @apply text-xl font-bold text-gray-900;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 36px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #4D98C5;
 }
 
 .career-details {
-    @apply flex items-center flex-wrap gap-2;
+  @apply flex items-center flex-wrap gap-2;
+}
+
+:deep(.career-tag) {
+  background-color: #7AB2D4;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 100%;
+  letter-spacing: -1%;
+  color: #FFFFFF;
 }
 
 .summary-card {
-    @apply mb-6;
+  @apply mb-6;
 }
 
 .summary-item {
-    @apply text-center;
+  @apply text-center;
 }
 
 .summary-item.discount {
-    background-color: #FEE2E2;
-    border-color: #FCA5A5;
+  background-color: #99BFD5;
+}
+
+:deep(.summary-item.discount) {
+  border-radius: 12px;
+}
+
+:deep(.summary-item.discount .p-card-content) {
+  background-color: #99BFD5;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+:deep(.summary-item.discount .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 .summary-item.final {
-    @apply border-green-200 bg-green-50;
+  background-color: #D1F4C4;
 }
 
-/* Estilos para el valor anual en la card final */
-.summary-item.final .valor-anual {
-    opacity: 0.7;
-    font-weight: 400;
+:deep(.summary-item.final) {
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
 }
 
-/* Card de Arancel Original - versión suave del naranja de la tabla (#FF6B35) */
+:deep(.summary-item.final .p-card) {
+  background-color: #D1F4C4;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+}
+
+:deep(.summary-item.final .p-card-content) {
+  background-color: #D1F4C4;
+  border-radius: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+:deep(.summary-item.final .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+
+/* Card de Arancel Original */
 .summary-item.first-column-card:not(.matricula-card) {
-    background-color: #FFF5F0;
-    border-color: #FFE5D9;
+  background-color: #CCE0E8;
 }
 
-/* Card de Matrícula - versión suave del morado de la tabla (#8d01b3) */
+:deep(.summary-item.first-column-card:not(.matricula-card)) {
+  border-radius: 12px;
+}
+
+:deep(.summary-item.first-column-card:not(.matricula-card) .p-card) {
+  background-color: #CCE0E8;
+  border-radius: 12px;
+}
+
+:deep(.summary-item.first-column-card:not(.matricula-card) .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+/* Card de Matrícula */
 .summary-item.matricula-card {
-    background-color: #F5F0FF;
-    border-color: #E8D9FF;
+  background-color: #CCE0E8;
+}
+
+:deep(.summary-item.matricula-card) {
+  border-radius: 12px;
+}
+
+:deep(.summary-item.matricula-card .p-card) {
+  background-color: #CCE0E8;
+  border-radius: 12px;
+}
+
+:deep(.summary-item.matricula-card .p-card-body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 /* Centrar verticalmente el contenido de las cards de descuento y final en desktop */
 @media (min-width: 768px) {
-    :deep(.summary-item.discount .p-card-body),
-    :deep(.summary-item.final .p-card-body) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100%;
-    }
 
-    :deep(.summary-item.discount .p-card-content),
-    :deep(.summary-item.final .p-card-content) {
-        width: 100%;
-    }
+  :deep(.summary-item.discount .p-card-body),
+  :deep(.summary-item.final .p-card-body) {
+    padding-top: 24px;
+    padding-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+  }
+
+  :deep(.summary-item.discount .p-card-content),
+  :deep(.summary-item.final .p-card-content) {
+    width: 100%;
+  }
 }
 
-.summary-item.matricula-card {
-    @apply border-purple-200 bg-purple-50;
+/* Estilos generales para textos de las cards de la primera columna */
+.first-column-label {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  margin-bottom: 8px;
+}
+
+.first-column-value {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 28px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
+
+/* Estilos para el texto de cuotas en las cards de la primera columna */
+:deep(.summary-item.first-column-card .first-column-content > div:nth-child(2)) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  margin-bottom: 20px;
+}
+
+/* Estilos para la card final */
+:deep(.final-label) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+  margin-bottom: 8px;
+}
+
+:deep(.final-cuotas) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+  margin-bottom: 20px;
+}
+
+:deep(.final-value) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 27.39px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+}
+
+:deep(.final-details) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: medium;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+}
+
+/* Estilos para la card de descuento */
+:deep(.discount-label) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  margin-bottom: 8px;
+}
+
+:deep(.discount-value) {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 27.39px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
 }
 
 /* Estilos para cards de la primera columna - solo en desktop */
 @media (min-width: 768px) {
-    :deep(.summary-item.first-column-card) {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
+  :deep(.summary-item.first-column-card) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 
-    :deep(.summary-item.first-column-card .p-card-body) {
-        padding: 0.25rem 0.5rem;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-    }
+  :deep(.summary-item.first-column-card .p-card-body) {
+    padding-top: 24px;
+    padding-bottom: 24px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
 
-    :deep(.summary-item.first-column-card .p-card-content) {
-        padding: 0.25rem 0;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
+  :deep(.summary-item.first-column-card .p-card-content) {
+    padding: 0.25rem 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
 
-    .first-column-content {
-        @apply py-0;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
+  .first-column-content {
+    @apply py-0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
 
-    .first-column-label {
-        @apply text-xs mb-0.5;
-    }
-
-    .first-column-value {
-        @apply text-lg;
-    }
+  .first-column-label {
+    margin-bottom: 8px;
+  }
 }
 
 .table-container {
-    @apply overflow-x-auto;
+  @apply overflow-x-auto;
 }
 
 .results-table {
-    @apply w-full border-collapse bg-white rounded-lg shadow-sm overflow-hidden;
+  @apply w-full border-collapse bg-white rounded-lg shadow-sm overflow-hidden;
 }
 
 .table-header {
-    @apply px-4 py-3 text-xs font-semibold uppercase tracking-wide;
-    background-color: #000000;
-    color: #ffffff;
-    border-bottom: 1px solid #000000;
+  @apply px-4 py-3 text-xs font-semibold uppercase tracking-wide;
+  background-color: #000000;
+  color: #ffffff;
+  border-bottom: 1px solid #000000;
 }
 
 .results-table tbody tr {
-    @apply border-b border-gray-200 transition-colors;
+  @apply border-b border-gray-200 transition-colors;
 }
 
 .results-table tbody tr:hover:not(.section-header-row):not(.base-row):not(.matricula-row) {
-    @apply bg-gray-50;
+  @apply bg-gray-50;
 }
 
 .table-row.base-row {
-    background-color: #FF6B35;
-    color: #ffffff;
-    font-weight: 600;
+  background-color: #FF6B35;
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .table-row.base-row .table-cell {
-    color: #ffffff;
+  color: #ffffff;
 }
 
 .table-row.matricula-row {
-    background-color: var(--uniacc-purple);
-    color: #ffffff;
-    font-weight: 600;
+  background-color: var(--uniacc-purple);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .table-row.matricula-row .table-cell {
-    color: #ffffff;
+  color: #ffffff;
 }
 
 .table-row.section-header-row {
-    background-color: #4A5568;
+  background-color: #4A5568;
 }
 
 .table-row.section-header-row .table-cell {
-    color: #ffffff;
-    font-weight: 600;
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .table-row.benefit-row {
-    @apply bg-white;
+  @apply bg-white;
 }
 
 .table-row.estado-row {
-    @apply bg-purple-50;
+  @apply bg-purple-50;
 }
 
 .table-row.interno-row {
-    @apply bg-blue-50;
+  @apply bg-blue-50;
 }
 
 .table-row.cae-row {
-    @apply bg-orange-50;
+  @apply bg-orange-50;
 }
 
 .table-row.subtotal-row {
-    @apply bg-gray-100;
+  @apply bg-gray-100;
 }
 
 .table-row.discount-total-row {
-    @apply bg-red-50;
-    border-top: 2px solid #FCA5A5;
+  @apply bg-green-50;
+  border-top: 2px solid #FCA5A5;
 }
 
 .table-row.final-row {
-    @apply bg-green-50;
-    border-top: 2px solid #86EFAC;
+  @apply bg-green-50;
+  border-top: 2px solid #86EFAC;
 }
 
 .table-row.info-row {
-    @apply bg-gray-50;
+  @apply bg-gray-50;
 }
 
 .table-row.estado-info-row {
-    @apply bg-purple-50;
+  @apply bg-purple-50;
 }
 
 .table-row.cae-info-row {
-    @apply bg-orange-50;
+  @apply bg-orange-50;
 }
 
 .table-cell {
-    @apply px-4 py-3 text-sm text-gray-900;
+  @apply px-4 py-3 text-sm;
 }
 
 /* Clases para responsive */
 .desktop-only {
-    display: table-cell;
+  display: table-cell;
 }
 
 .mobile-only {
-    display: none;
+  display: none;
 }
 
 /* Estilos responsive para pantallas pequeñas y medianas */
 @media (max-width: 1024px) {
-    .desktop-only {
-        display: none;
-    }
-    
-    .mobile-only {
-        display: table-cell;
-    }
-    
-    .table-header,
-    .table-cell {
-        @apply px-2 py-2 text-xs;
-    }
-    
-    .table-cell.font-bold.text-lg {
-        @apply text-base;
-    }
-    
-    .benefit-name {
-        @apply text-xs;
-    }
-    
-    .benefit-name i {
-        @apply mr-1;
-        font-size: 0.75rem;
-    }
-    
-    .section-title {
-        @apply text-xs;
-    }
-    
-    .discount-percentage {
-        @apply text-xs;
-    }
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: table-cell;
+  }
+
+  .table-header,
+  .table-cell {
+    @apply px-2 py-2 text-xs;
+  }
+
+  .table-cell.font-bold.text-lg {
+    @apply text-base;
+  }
+
+  .benefit-name {
+    @apply text-xs;
+  }
+
+  .benefit-name i {
+    @apply mr-1;
+    font-size: 0.75rem;
+  }
+
+  .section-title {
+    @apply text-xs;
+  }
+
+  .discount-percentage {
+    @apply text-xs;
+  }
 }
 
 .table-cell.text-red-600 {
-    color: #dc2626 !important;
+  color: #dc2626 !important;
 }
 
 .benefit-name {
-    @apply flex items-center;
+  @apply flex items-center;
 }
 
 .badge-type {
-    @apply inline-flex items-center justify-center px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800;
+  @apply inline-flex items-center justify-center px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800;
 }
 
 .badge-estado {
-    @apply bg-purple-100 text-purple-800;
+  @apply bg-purple-100 text-purple-800;
 }
 
 .badge-cae {
-    @apply bg-orange-100 text-orange-800;
+  @apply bg-orange-100 text-orange-800;
 }
 
 .discount-percentage {
-    @apply font-semibold text-blue-600;
+  @apply font-semibold text-blue-600;
 }
 
 .section-title {
-    @apply text-sm uppercase tracking-wide;
-    @apply flex items-center gap-2;
+  @apply text-sm uppercase tracking-wide;
+  @apply flex items-center gap-2;
 }
 
 .section-tooltip-icon {
-    @apply ml-2 cursor-help;
-    font-size: 0.875rem;
-    opacity: 0.9;
-    transition: opacity 0.2s;
+  @apply ml-2 cursor-help;
+  font-size: 0.875rem;
+  opacity: 0.9;
+  transition: opacity 0.2s;
 }
 
 .section-tooltip-icon:hover {
-    opacity: 1;
+  opacity: 1;
 }
 
 /* Estilos para mensaje de contacto */
 .contact-message {
-    @apply mt-8;
+  @apply mt-8;
+}
+
+:deep(.contact-message .p-card) {
+  background-color: #F0F8FB;
+  border: none;
+  box-shadow: none;
+  border-radius: 12px;
+}
+
+:deep(.contact-message .p-card-body) {
+  background-color: #F0F8FB;
+  padding: 1.5rem;
 }
 
 .contact-message-content {
-    @apply flex flex-col;
+  @apply flex flex-col;
 }
 
 .contact-message-text {
-    @apply text-sm;
-    line-height: 1.5;
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
 }
 
 .contact-message-text .simulation-question {
-    @apply text-base;
-    display: block;
-    margin-bottom: 0.5rem;
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-style: Bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  display: block;
+  margin-bottom: 0.5rem;
 }
 
 .contact-message-text b:not(.simulation-question) {
-    font-weight: 600;
+  font-family: Montserrat, sans-serif;
+  font-weight: 500;
+  font-style: normal;
 }
 
 .contact-link {
-    @apply underline font-medium;
-    color: inherit;
+  @apply underline font-medium;
+  color: inherit;
 }
 
 .contact-link:hover {
-    @apply opacity-80;
+  @apply opacity-80;
 }
 
 .contact-phone {
-    @apply font-semibold;
+  @apply font-semibold;
 }
 
 .confirmation-message {
-    @apply mt-4;
+  @apply mt-4;
+}
+
+.confirmation-message-content {
+  @apply flex items-start gap-3;
+}
+
+.confirmation-message-icon {
+  @apply flex-shrink-0 mt-0.5;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--p-info-color);
+}
+
+.confirmation-message-text-wrapper {
+  @apply flex flex-col;
+}
+
+.confirmation-message-title {
+  @apply font-semibold mb-1 text-base;
+}
+
+.confirmation-message-text {
+  @apply text-sm leading-relaxed;
 }
 
 .anticipado-message {
-    @apply mt-6;
+  @apply mt-6;
 }
 
 .anticipado-message-content {
-    @apply flex flex-col;
+  @apply flex flex-col;
 }
 
 .anticipado-message-title {
-    @apply mb-2;
-    font-size: 0.9375rem;
+  @apply mb-2;
+  font-size: 0.9375rem;
 }
 
 .anticipado-message-list {
-    @apply list-disc pl-6 mt-2 space-y-2;
+  @apply list-disc pl-6 mt-2 space-y-2;
 }
 
 .anticipado-message-list li {
-    @apply text-sm;
-    line-height: 1.6;
+  @apply text-sm;
+  line-height: 1.6;
 }
 
 .anticipado-message-list li b {
-    font-weight: 600;
+  font-weight: 600;
 }
 
 .anticipado-message-list .subtitle-item {
-    @apply mb-1;
+  @apply mb-1;
 }
 
 .anticipado-sublist {
-    @apply list-disc pl-5 mt-1 space-y-1;
-    font-size: 0.875rem;
+  @apply list-disc pl-5 mt-1 space-y-1;
+  font-size: 0.875rem;
 }
 
 .anticipado-sublist li {
-    @apply text-xs;
-    line-height: 1.5;
+  @apply text-xs;
+  line-height: 1.5;
 }
 
 .subtotal-estado-row {
-    @apply bg-purple-50 font-semibold;
+  @apply bg-purple-50 font-semibold;
 }
 
 .subtotal-interno-row {
-    @apply bg-blue-50 font-semibold;
+  @apply bg-blue-50 font-semibold;
 }
 
 .subtotal-cae-row {
-    @apply bg-orange-50 font-semibold;
+  @apply bg-orange-50 font-semibold;
 }
 
 /* Estilos para sección de becas aplicadas */
 .benefits-section {
-    @apply space-y-6 mt-8;
+  @apply space-y-6 mt-8;
 }
 
 .benefits-subsection {
-    @apply space-y-4 mt-6;
+  @apply space-y-4 mt-6;
 }
 
 .benefits-section-title {
-    @apply flex items-center space-x-2 text-xl font-bold text-gray-900 mb-4;
+  @apply flex items-center space-x-2 text-xl font-bold text-gray-900 mb-4;
 }
 
 .subsection-title {
-    @apply flex items-center space-x-2 text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
+  @apply flex items-center space-x-2 text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
 }
 
 .benefits-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
 }
 
 .benefit-card {
-    @apply bg-white border border-gray-200 rounded-lg p-4;
+  @apply bg-white border border-gray-200 rounded-lg p-4;
 }
 
 .benefit-card-estado {
-    @apply border-purple-200 bg-purple-50/30;
+  @apply border-purple-200 bg-purple-50/30;
 }
 
 .benefit-card-interno {
-    @apply border-blue-200 bg-blue-50/30;
+  @apply border-blue-200 bg-blue-50/30;
 }
 
 .benefit-header {
-    @apply flex items-start space-x-3 mb-3;
+  @apply flex items-start space-x-3 mb-3;
 }
 
 .benefit-icon {
-    @apply flex-shrink-0 mt-1;
+  @apply flex-shrink-0 mt-1;
 }
 
 .benefit-info {
-    @apply flex-1;
+  @apply flex-1;
 }
 
 .benefit-title {
-    @apply text-sm font-semibold text-gray-900 mb-1;
+  @apply text-sm font-semibold text-gray-900 mb-1;
 }
 
 .benefit-type {
-    @apply text-xs text-gray-500;
+  @apply text-xs text-gray-500;
 }
 
 .benefit-details {
-    @apply space-y-2;
+  @apply space-y-2;
 }
 
 .benefit-discount,
 .benefit-applied {
-    @apply flex justify-between items-center text-sm;
+  @apply flex justify-between items-center text-sm;
 }
 
-.discount-label,
 .applied-label {
-    @apply text-gray-600;
+  @apply text-gray-600;
 }
 
-.discount-value,
 .applied-value {
-    @apply font-semibold text-gray-900;
+  @apply font-semibold text-gray-900;
 }
 
 .benefit-description {
-    @apply mt-3 pt-3 border-t border-gray-200;
+  @apply mt-3 pt-3 border-t border-gray-200;
 }
 
 .description-text {
-    @apply text-sm text-gray-600;
+  @apply text-sm text-gray-600;
 }
 
 .benefit-documentation {
-    @apply mt-3 pt-3 border-t border-gray-200;
+  @apply mt-3 pt-3 border-t border-gray-200;
 }
 
 .documentation-header {
-    @apply flex items-center space-x-2 mb-2;
+  @apply flex items-center space-x-2 mb-2;
 }
 
 .documentation-title {
-    @apply text-sm font-semibold text-gray-700;
+  @apply text-sm font-semibold text-gray-700;
 }
 
 .documentation-list {
-    @apply list-none space-y-1.5 pl-0;
+  @apply list-none space-y-1.5 pl-0;
 }
 
 .documentation-item {
-    @apply text-sm text-gray-600 flex items-start;
+  @apply text-sm text-gray-600 flex items-start;
 }
 
 .documentation-item::before {
-    content: '•';
-    @apply text-blue-600 font-bold mr-2 mt-0.5;
+  content: '•';
+  @apply text-blue-600 font-bold mr-2 mt-0.5;
 }
 
 /* Estilos para botón de exportar PDF */
 .export-pdf-section {
-    @apply flex justify-center mt-8 pt-6 border-t border-gray-200;
+  @apply flex justify-center mt-8 pt-6 border-t border-gray-200;
 }
 
 .export-pdf-button {
-    @apply min-w-[200px];
+  @apply min-w-[200px];
 }
 
 /* Estilos para overlay panel de información de beca */
 .beca-info-overlay {
-    max-width: 320px;
+  max-width: 320px;
 }
 
 .beca-info-overlay :deep(.p-overlaypanel-content) {
-    padding: 0 !important;
+  padding: 0 !important;
 }
 
 .beca-info-content {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .beca-info-header {
-    @apply flex items-start justify-between gap-2 px-3 py-2 mb-0;
+  @apply flex items-start justify-between gap-2 px-3 py-2 mb-0;
 }
 
-.beca-info-content > *:not(.beca-info-header):not(.beca-info-divider) {
-    @apply px-3;
+.beca-info-content>*:not(.beca-info-header):not(.beca-info-divider) {
+  @apply px-3;
 }
 
-.beca-info-content > .beca-info-body,
-.beca-info-content > .beca-info-footer {
-    @apply py-2;
+.beca-info-content>.beca-info-body,
+.beca-info-content>.beca-info-footer {
+  @apply py-2;
 }
 
-.beca-info-content > .beca-info-divider {
-    @apply mx-3;
+.beca-info-content>.beca-info-divider {
+  @apply mx-3;
 }
 
 .beca-info-title {
-    @apply text-sm font-semibold text-gray-900;
-    flex: 1;
-    margin: 0;
+  @apply text-sm font-semibold text-gray-900;
+  flex: 1;
+  margin: 0;
 }
 
 .beca-info-badge {
-    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap;
-    flex-shrink: 0;
+  @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap;
+  flex-shrink: 0;
 }
 
 .beca-badge-automatico {
-    @apply bg-green-100 text-green-800;
+  @apply bg-green-100 text-green-800;
 }
 
 .beca-badge-evaluacion {
-    @apply bg-yellow-100 text-yellow-800;
+  @apply bg-yellow-100 text-yellow-800;
 }
 
 .beca-badge-postulacion {
-    @apply bg-blue-100 text-blue-800;
+  @apply bg-blue-100 text-blue-800;
 }
 
 .beca-info-divider {
-    @apply my-2;
-    height: 1px;
-    background-color: rgba(0, 0, 0, 0.1);
-    border: none;
-    width: 100%;
+  @apply my-2;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border: none;
+  width: 100%;
 }
 
 .beca-info-body {
-    @apply flex flex-col;
+  @apply flex flex-col;
 }
 
 .beca-info-description-section {
-    @apply mb-0;
+  @apply mb-0;
 }
 
 .beca-info-description {
-    @apply text-xs text-gray-700 leading-relaxed;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    margin: 0;
+  @apply text-xs text-gray-700 leading-relaxed;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
 }
 
 .beca-info-footer {
-    @apply mt-0;
+  @apply mt-0;
 }
 
 .beca-info-subtitle {
-    @apply text-xs font-semibold text-gray-800 mb-1.5;
-    margin-top: 0;
+  @apply text-xs font-semibold text-gray-800 mb-1.5;
+  margin-top: 0;
 }
 
 .beca-info-list {
-    @apply list-disc pl-4 space-y-1;
-    margin: 0;
+  @apply list-disc pl-4 space-y-1;
+  margin: 0;
 }
 
 .beca-info-item {
-    @apply text-xs text-gray-700 leading-relaxed;
+  @apply text-xs text-gray-700 leading-relaxed;
+}
+
+/* Estilos para simulación de cuotas y medios de pago */
+.payment-simulation-card {
+  @apply mb-6;
+}
+
+.payment-simulation-content {
+  @apply flex flex-col md:flex-row gap-6;
+}
+
+.payment-control-group {
+  @apply flex-1 flex flex-col gap-2;
+}
+
+.payment-label {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #001122;
+  margin-bottom: 12px;
+}
+
+.slider-container {
+  @apply w-full;
+}
+
+.payment-slider {
+  @apply w-full;
+}
+
+:deep(.payment-slider .p-slider-range) {
+  background: #668BB2;
+}
+
+.slider-value {
+  @apply inline-flex items-center justify-center;
+  @apply min-w-[2.5rem] px-2 py-0.5;
+  @apply text-lg font-bold text-gray-900;
+  @apply bg-gray-100 rounded-md;
+  @apply border border-gray-200;
+}
+
+.payment-select {
+  @apply w-full;
+}
+
+/* Estilos para overlay de información de descuentos */
+.descuentos-info-overlay {
+  max-width: 400px;
+}
+
+.descuentos-info-overlay :deep(.p-overlaypanel-content) {
+  padding: 1rem !important;
+}
+
+.descuentos-info-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.descuentos-info-title {
+  @apply mb-3;
+  font-size: 0.9375rem;
+}
+
+.descuentos-info-list {
+  @apply list-disc pl-6 space-y-2;
+  margin: 0;
+}
+
+.descuentos-info-item {
+  @apply text-sm;
+  line-height: 1.6;
+}
+
+.descuentos-info-item b {
+  font-weight: 600;
+}
+
+.descuentos-info-sublist {
+  @apply list-disc pl-5 mt-1 space-y-1;
+  font-size: 0.875rem;
+}
+
+.descuentos-info-sublist li {
+  @apply text-xs;
+  line-height: 1.5;
+}
+
+
+.cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
+/* Ajustes Jacinta */
+
+:deep(.career-card) {
+  border: 1px solid #B6B6B6;
+  background-color: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: none;
+}
+
+.career-title {
+  color: #001122;
+  font-weight: 700;
+  font-size: 18px;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 125%;
+  letter-spacing: 0%;
+}
+
+.detalle-title {
+  color: #001122;
+  font-weight: 700;
+  font-size: 18px;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 125%;
+  letter-spacing: 0%;
+}
+
+:deep(.detalle-card) {
+  border: 1px solid #B6B6B6;
+  background-color: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: none;
+}
+
+:deep(.detalle-arancel-card) {
+  border: 1px solid #929292;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+:deep(.detalle-arancel-card .p-card-body) {
+  padding: 0;
+}
+
+:deep(.info-estado-card) {
+  border: 1px solid #ADADAD;
+  background-color: #F0F8FB;
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 16px;
+}
+
+:deep(.info-estado-card .p-card-title) {
+  gap: 8px;
+  display: flex;
+}
+
+:deep(.info-estado-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
+
+:deep(.info-estado-card .p-card-content p) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  font-style: medium;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #797979;
+}
+
+:deep(.info-estado-card .p-card-content a) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  font-style: semibold;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #797979;
+  text-decoration: underline;
+}
+
+:deep(.becas-internas-card) {
+  border: 1px solid #ADADAD;
+  background-color: #F0F8FB;
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 16px;
+}
+
+:deep(.becas-internas-card .p-card-title) {
+  gap: 8px;
+  display: flex;
+}
+
+:deep(.becas-internas-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
+
+:deep(.cae-card) {
+  border: 1px solid #ADADAD;
+  background-color: #F0F8FB;
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 16px;
+}
+
+:deep(.cae-card .p-card-title div:first-child) {
+  gap: 8px;
+  display: flex;
+  margin-bottom: 12px;
+}
+
+:deep(.cae-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
+
+:deep(.cae-card .p-card-title p) {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  font-style: medium;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #797979;
+}
+
+:deep(.total-descuentos-card) {
+  border: none;
+  box-shadow: none;
+  border-radius: 12px;
+  background-color: #99BFD5;
+  padding: 10px 24px;
+}
+
+:deep(.total-descuentos-card .p-card-content) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+:deep(.total-descuentos-card .p-card-content span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #FFFFFF;
+}
+
+:deep(.descuentos-adicionales-card) {
+  border: 1px solid #ADADAD;
+  background-color: #F0F8FB;
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 16px;
+}
+
+:deep(.descuentos-adicionales-card .p-card-title) {
+  gap: 8px;
+  display: flex;
+  margin-bottom: 12px;
+}
+
+:deep(.descuentos-adicionales-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+}
+
+.table-arancel {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-arancel thead tr {
+  background-color: #E9E9E9;
+}
+
+.table-arancel thead th {
+  padding: 12px;
+  color: #797979;
+  font-weight: 400;
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  line-height: 125%;
+  letter-spacing: 0%;
+}
+
+.table-arancel thead th:first-child {
+  text-align: left;
+  border-top-left-radius: 12px;
+  padding-left: 42px;
+}
+
+.table-arancel thead th:last-child {
+  text-align: right;
+  border-top-right-radius: 12px;
+  padding-right: 42px;
+}
+
+.table-arancel tbody td {
+  padding: 12px;
+}
+
+.table-arancel tbody tr:not(:last-child) td {
+  border-bottom: 1px solid #E5E5E5;
+}
+
+
+.table-arancel tbody td:last-child {
+  text-align: right;
+  padding-right: 42px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #668BB2;
+}
+
+.table-arancel tbody td:first-child {
+  text-align: left;
+  padding-left: 42px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 100%;
+  letter-spacing: 0%;
+  color: #668BB2;
+}
+
+.table-arancel tbody td:not(:first-child):not(:last-child) {
+  text-align: center;
+}
+
+.table-becas-internas {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-becas-internas tr td {
+  padding: 20px 9px;
+}
+
+.table-becas-internas tr:first-child {
+  border-bottom: 1px solid #A9A9A9;
+}
+
+.table-becas-internas tr td:first-child {
+  text-align: left;
+}
+
+.table-becas-internas tr td:last-child {
+  text-align: right;
+}
+
+.table-becas-internas tr td:not(:first-child):not(:last-child) {
+  text-align: center;
+}
+
+.texto-info {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #668BB2;
+}
+
+.texto-descuento {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #52D931;
+}
+
+:deep(.info-tag) {
+  background-color: #668BB2;
+  border-radius: 12px;
+  padding: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #FFFFFF;
+}
+
+.table-cae {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-cae tr td {
+  padding: 20px 9px;
+}
+
+.table-cae tr:first-child {
+  border-bottom: 1px solid #A9A9A9;
+}
+
+.table-cae tr td:first-child {
+  text-align: left;
+}
+
+.table-cae tr td:last-child {
+  text-align: right;
+}
+
+.table-cae tr td:not(:first-child):not(:last-child) {
+  text-align: center;
+}
+
+
+.table-descuentos-adicionales {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-descuentos-adicionales tr td {
+  padding: 20px 9px;
+}
+
+.table-descuentos-adicionales tr:first-child {
+  border-bottom: 1px solid #A9A9A9;
+}
+
+.table-descuentos-adicionales tr td:first-child {
+  text-align: left;
+}
+
+.table-descuentos-adicionales tr td:last-child {
+  text-align: right;
+}
+
+.table-descuentos-adicionales tr td:not(:first-child):not(:last-child) {
+  text-align: center;
+}
+
+.fila-border {
+  border-top: 1px solid #A9A9A9;
+}
+
+.total-a-pagar-card {
+  border: 1px solid #28B911;
+  background-color: #D1F4C4;
+  box-shadow: none;
+  padding: 10px 24px;
+}
+
+:deep(.total-a-pagar-card .p-card-content) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+:deep(.total-a-pagar-card .p-card-content span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #28B911;
+}
+
+:deep(.payment-simulation-card) {
+  border: 1px solid #B6B6B6;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+:deep(.payment-simulation-card .p-card-title) {
+  gap: 8px;
+  display: flex;
+  margin-bottom: 32px;
+}
+
+:deep(.payment-simulation-card .p-card-title span) {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #001122;
+}
+
+.texto-referencial{
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-style: bold;
+  font-size: 18px;
+  line-height: 125%;
+  letter-spacing: 0%;
+  color: #1A3B66;
+  text-align: center;
+}
+
+/* JPS: Estilos Mobile - Optimizaciones para iOS y Android */
+.mobile-version {
+  padding: 0.5rem;
+}
+
+.mobile-accordion-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  background: white;
+}
+
+.mobile-accordion-trigger {
+  padding: 1rem 1.25rem;
+  min-height: 44px; /* iOS/Android touch target minimum */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #1a3b66;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* iOS Safari */
+  -webkit-touch-callout: none; /* iOS Safari */
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-accordion-trigger:hover {
+  background-color: #f3f4f6;
+}
+
+.mobile-accordion-trigger:active {
+  background-color: #e5e7eb;
+}
+
+.mobile-accordion-trigger:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Optimización para iOS safe areas */
+@supports (padding: max(0px)) {
+  .mobile-version {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+}
+
+.mobile-card {
+  margin-bottom: 0.75rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.mobile-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a3b66;
+  line-height: 1.5;
+}
+
+/* Touch targets optimizados para mobile */
+.mobile-version button,
+.mobile-version a,
+.mobile-version [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scroll suave en mobile */
+.mobile-version {
+  -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
+  scroll-behavior: smooth;
+}
+
+/* Optimizaciones específicas para Android */
+@media (hover: none) and (pointer: coarse) {
+  .mobile-accordion-trigger {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1); /* Android ripple effect */
+  }
+}
+
+/* Ajustes de espaciado para mobile */
+@media (max-width: 768px) {
+  .results-container {
+    padding: 0.75rem;
+  }
+
+  .mobile-version .slider-value {
+    min-width: 2.5rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    background: #f3f4f6;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+
+  /* Asegurar que los selects y sliders sean fáciles de usar en mobile */
+  .mobile-version :deep(.p-select),
+  .mobile-version :deep(.p-slider) {
+    min-height: 44px;
+  }
+
+  .mobile-version :deep(.p-slider-handle) {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+  }
+}
+
+/* Ocultar versión mobile en PDF export */
+@media print {
+  .mobile-version {
+    display: none !important;
+  }
+
+  .desktop-version {
+    display: block !important;
+  }
 }
 
 </style>

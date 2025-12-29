@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      aranceles_cae: {
+        Row: {
+          arancel_anual: number | null
+          arancel_referencia: number | null
+          codigo_carrera: number | null
+          codigo_ies: number | null
+          created_at: string
+          duracion_maxima: number | null
+          id: number
+          id_carrera: number | null
+          jornada: string | null
+          nombre_carrera: string | null
+        }
+        Insert: {
+          arancel_anual?: number | null
+          arancel_referencia?: number | null
+          codigo_carrera?: number | null
+          codigo_ies?: number | null
+          created_at?: string
+          duracion_maxima?: number | null
+          id?: number
+          id_carrera?: number | null
+          jornada?: string | null
+          nombre_carrera?: string | null
+        }
+        Update: {
+          arancel_anual?: number | null
+          arancel_referencia?: number | null
+          codigo_carrera?: number | null
+          codigo_ies?: number | null
+          created_at?: string
+          duracion_maxima?: number | null
+          id?: number
+          id_carrera?: number | null
+          jornada?: string | null
+          nombre_carrera?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foreign_key_carrera_arancel"
+            columns: ["id_carrera"]
+            isOneToOne: false
+            referencedRelation: "carreras_uniacc"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       becas_estado: {
         Row: {
           codigo_beca: string | null
@@ -248,10 +295,13 @@ export type Database = {
       carreras_uniacc: {
         Row: {
           anio: number
+          anio_arancel_referencia: number | null
           arancel: number
-          area: string | null
+          arancel_referencia: number | null
+          codigo_carrera: string | null
           descripcion_programa: string
           duracion_programa: string
+          facultad: string | null
           id: number
           malla: string
           matricula: number
@@ -263,10 +313,13 @@ export type Database = {
         }
         Insert: {
           anio: number
+          anio_arancel_referencia?: number | null
           arancel: number
-          area?: string | null
+          arancel_referencia?: number | null
+          codigo_carrera?: string | null
           descripcion_programa: string
           duracion_programa: string
+          facultad?: string | null
           id?: number
           malla: string
           matricula: number
@@ -278,10 +331,13 @@ export type Database = {
         }
         Update: {
           anio?: number
+          anio_arancel_referencia?: number | null
           arancel?: number
-          area?: string | null
+          arancel_referencia?: number | null
+          codigo_carrera?: string | null
           descripcion_programa?: string
           duracion_programa?: string
+          facultad?: string | null
           id?: number
           malla?: string
           matricula?: number
@@ -1066,6 +1122,7 @@ export type Database = {
           colegio: string | null
           comprension_lectora: number | null
           comuna: string | null
+          consentimiento_contacto: boolean | null
           created_at: string | null
           curso: string
           decil: string | null
@@ -1100,6 +1157,7 @@ export type Database = {
           colegio?: string | null
           comprension_lectora?: number | null
           comuna?: string | null
+          consentimiento_contacto?: boolean | null
           created_at?: string | null
           curso: string
           decil?: string | null
@@ -1134,6 +1192,7 @@ export type Database = {
           colegio?: string | null
           comprension_lectora?: number | null
           comuna?: string | null
+          consentimiento_contacto?: boolean | null
           created_at?: string | null
           curso?: string
           decil?: string | null

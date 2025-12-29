@@ -17,16 +17,17 @@ export function useCarreras() {
   })
 
   // Función para inicializar carreras
-  const inicializar = async () => {
+  const inicializar = async (version?: number) => {
     try {
       loading.value = true
       error.value = null
+      const versionSimulador = version ?? 10
       console.log('Inicializando carreras desde Supabase...')
 
       const { data, error: supabaseError } = await supabase
         .from('carreras_uniacc')
         .select('*')
-        .eq('version_simulador', 1)
+        .eq('version_simulador', versionSimulador)
         .order('nombre_programa')
 
       if (supabaseError) {

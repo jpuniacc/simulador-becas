@@ -21,7 +21,7 @@ export function useProspectos() {
       // El formato es "REGION-PAIS" (ej: "LA-AR")
       let regionPais: string | null = null
       let pais: string | null = null
-      
+
       if (form.paisPasaporte) {
         const [region, countryCode] = form.paisPasaporte.split('-')
         regionPais = region || null
@@ -66,6 +66,9 @@ export function useProspectos() {
         area_interes: form.area || null,
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
+
+        // Consentimiento
+        consentimiento_contacto: form.consentimiento_contacto ?? false,
 
         // Segmentación
         segmentacion: segmentacion || null
