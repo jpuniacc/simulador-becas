@@ -167,6 +167,14 @@ const descuentoTotalRealConCae = computed(() => {
   return calculoBecas.value.descuento_total + descuentoCae.value
 })
 
+// Computed para descuento total incluyendo descuentos adicionales
+const descuentoTotalConAdicionales = computed(() => {
+  return descuentoTotalRealConCae.value +
+         descuentoPagoAnticipadoArancel.value +
+         descuentoPagoAnticipadoMatricula.value +
+         descuentoModoPagoArancel.value
+})
+
 // Computed para arancel final (aplica CAE si corresponde)
 const arancelFinalReal = computed(() => {
   // Si planea usar CAE y hay máximo financiamiento CAE, restar ese valor del arancel después de becas
@@ -245,7 +253,11 @@ const descuentoPorcentualTotal = computed(() => {
   if (!calculoBecas.value) return 0
   const base = calculoBecas.value.arancel_base
   if (!base || base <= 0) return 0
-  return Math.round((descuentoTotalRealConCae.value / base) * 100)
+  // Incluir descuentos en arancel: becas internas + CAE + pago anticipado arancel + modo de pago arancel
+  const descuentoTotalArancel = descuentoTotalRealConCae.value +
+                                 descuentoPagoAnticipadoArancel.value +
+                                 descuentoModoPagoArancel.value
+  return Math.round((descuentoTotalArancel / base) * 100)
 })
 
 // Computed para obtener el arancel referencia CAE
@@ -656,7 +668,7 @@ defineExpose({
             </Card>
 
             <!-- Beneficios del Estado -->
-            <Card class="info-estado-card">
+            <Card v-if="formData?.usaBecasEstado" class="info-estado-card">
               <template #title>
                 <i class="pi pi-star-fill"></i>
                 <span>Beneficios del Estado</span>
@@ -671,7 +683,7 @@ defineExpose({
             </Card>
 
             <!-- Beneficios Internos (UNIACC) -->
-            <Card class="becas-internas-card">
+            <Card v-if="becasAplicadas.length > 0" class="becas-internas-card">
               <template #title>
                 <i class="pi pi-star-fill"></i>
                 <span>Beneficios Internos (UNIACC)</span>
@@ -679,20 +691,18 @@ defineExpose({
               <template #content>
                 <table class="table-becas-internas">
                   <tbody>
-                    <template v-if="becasAplicadas.length > 0">
-                      <tr v-for="beca in becasAplicadas" :key="`interno-${beca.beca.id}`" class="">
-                        <td class="texto-info">{{ beca.beca.nombre }}</td>
-                        <td>
-                          <Tag class="info-tag">Porcentaje</Tag>
-                        </td>
-                        <td class="texto-info">{{ beca.descuento_aplicado }}%</td>
-                        <td class="texto-info">-{{ formatCurrency(beca.monto_descuento) }}</td>
-                      </tr>
-                      <tr>
-                        <td class="texto-descuento" colspan="3">Monto a pagar con beneficio aplicado</td>
-                        <td class="texto-descuento">{{ formatCurrency(arancelDespuesBecasInternas) }}</td>
-                      </tr>
-                    </template>
+                    <tr v-for="beca in becasAplicadas" :key="`interno-${beca.beca.id}`" class="">
+                      <td class="texto-info">{{ beca.beca.nombre }}</td>
+                      <td>
+                        <Tag class="info-tag">Porcentaje</Tag>
+                      </td>
+                      <td class="texto-info">{{ beca.descuento_aplicado }}%</td>
+                      <td class="texto-info">-{{ formatCurrency(beca.monto_descuento) }}</td>
+                    </tr>
+                    <tr>
+                      <td class="texto-descuento" colspan="3">Monto a pagar con beneficio aplicado</td>
+                      <td class="texto-descuento">{{ formatCurrency(arancelDespuesBecasInternas) }}</td>
+                    </tr>
                   </tbody>
                 </table>
               </template>
@@ -736,7 +746,7 @@ defineExpose({
             </Card>
 
             <!-- Total descuentos aplicados -->
-             <Card class="total-descuentos-card">
+             <Card v-if="descuentoTotalRealConCae !== 0" class="total-descuentos-card">
               <template #content>
                 <span>Total descuentos aplicados</span>
                 <span>-{{ formatCurrency(descuentoTotalRealConCae) }}</span>
@@ -744,7 +754,7 @@ defineExpose({
              </Card>
 
              <!-- Descuentos adicionales -->
-             <Card class="descuentos-adicionales-card">
+             <Card v-if="descuentoPagoAnticipadoArancel > 0 || (descuentoModoPagoAplicable && descuentoModoPagoArancel > 0)" class="descuentos-adicionales-card">
                 <template #title>
                   <i class="pi pi-star-fill"></i>
                   <span>Descuentos adicionales</span>
@@ -752,27 +762,25 @@ defineExpose({
                 <template #content>
                   <table class="table-descuentos-adicionales">
                     <tbody>
-                      <template v-if="descuentoPagoAnticipadoArancel > 0">
-                        <tr>
-                          <td class="texto-info">Descuento por pago anticipado (Arancel)</td>
-                          <td><Tag class="info-tag">Porcentaje</Tag></td>
-                          <td class="texto-info">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</td>
-                          <td class="texto-info">-{{ formatCurrency(descuentoPagoAnticipadoArancel) }}</td>
-                        </tr>
-                        <tr>
-                          <td class="texto-info">Descuento por pago anticipado (Matrícula)</td>
-                          <td><Tag class="info-tag">Porcentaje</Tag></td>
-                          <td class="texto-info">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</td>
-                          <td class="texto-info">-{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}</td>
-                        </tr>
-                        <tr class="fila-border" v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0">
-                          <td class="texto-info">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` -
+                      <tr v-if="descuentoPagoAnticipadoArancel > 0">
+                        <td class="texto-info">Descuento por pago anticipado (Arancel)</td>
+                        <td><Tag class="info-tag">Porcentaje</Tag></td>
+                        <td class="texto-info">{{ descuentoPagoAnticipadoVigente.dscto_arancel }}%</td>
+                        <td class="texto-info">-{{ formatCurrency(descuentoPagoAnticipadoArancel) }}</td>
+                      </tr>
+                      <tr v-if="descuentoPagoAnticipadoMatricula > 0">
+                        <td class="texto-info">Descuento por pago anticipado (Matrícula)</td>
+                        <td><Tag class="info-tag">Porcentaje</Tag></td>
+                        <td class="texto-info">{{ descuentoPagoAnticipadoVigente.dscto_matricula }}%</td>
+                        <td class="texto-info">-{{ formatCurrency(descuentoPagoAnticipadoMatricula) }}</td>
+                      </tr>
+                      <tr v-if="descuentoModoPagoAplicable && descuentoModoPagoArancel > 0" class="fila-border">
+                        <td class="texto-info">Descuento por medio de pago{{ descuentoModoPagoAplicable.nombre ? ` -
 		  ${descuentoModoPagoAplicable.nombre}` : '' }}</td>
-                          <td><Tag class="info-tag">Porcentaje</Tag></td>
-                          <td class="texto-info">{{ descuentoModoPagoAplicable.dscto_arancel }}%</td>
-                          <td class="texto-info">-{{ formatCurrency(descuentoModoPagoArancel) }}</td>
-                        </tr>
-                      </template>
+                        <td><Tag class="info-tag">Porcentaje</Tag></td>
+                        <td class="texto-info">{{ descuentoModoPagoAplicable.dscto_arancel }}%</td>
+                        <td class="texto-info">-{{ formatCurrency(descuentoModoPagoArancel) }}</td>
+                      </tr>
                     </tbody>
                   </table>
                 </template>
@@ -782,9 +790,11 @@ defineExpose({
               <Card class="total-a-pagar-card">
                 <template #content>
                   <span class="texto-descuento">Arancel + Matrícula final a pagar</span>
-                  <span class="texto-descuento">{{ formatCurrency(arancelFinalReal) }}</span>
+                  <span class="texto-descuento">{{ formatCurrency(arancelMasMatricula) }}</span>
                 </template>
               </Card>
+
+
           </div>
         </template>
       </Card>
@@ -846,7 +856,7 @@ defineExpose({
           <template #content>
               <div class="discount-label">Descuento Total</div>
               <div class="discount-value">
-                -{{ formatCurrency(descuentoTotalRealConCae) }}
+                -{{ formatCurrency(descuentoTotalConAdicionales) }}
               </div>
               <div></div>
 
@@ -869,7 +879,7 @@ defineExpose({
         </Card>
       </div>
 
-      <div class="texto-referencial">
+      <div class="texto-referencial mt-3">
         *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
       </div>
 
@@ -888,16 +898,16 @@ defineExpose({
       </Card>
 
       <!-- Becas aplicadas -->
-       <Card class="becas-aplicadas-card">
+        <Card v-if="becasAplicadas.length" class="becas-aplicadas-card">
         <template #content>
-    <div v-if="becasAplicadas.length" class="benefits-section">
+    <div class="benefits-section">
             <h3 class="benefits-section-title">
               <Award class="w-6 h-6" />
               Becas Aplicadas
             </h3>
 
             <!-- Becas Internas Aplicadas -->
-            <div v-if="becasAplicadas.length" class="benefits-subsection">
+            <div class="benefits-subsection">
               <h4 class="subsection-title">
                 <Award class="w-5 h-5 text-blue-600" />
                 Beneficios Internos (UNIACC)
