@@ -101,7 +101,7 @@ const touched = ref({
 const isEgresadoOr4to = computed(() => {
     const nivel = props.formData?.nivelEducativo
     return nivel === 'Educación media completa' ||
-           nivel === 'Cursando educación superior' ||
+           nivel === 'Educación superior incompleta' ||
            nivel === 'Educación superior completa'
 })
 
@@ -140,7 +140,7 @@ const handleAutocompleteFocus = () => {
 const isEgresado = computed(() => {
     const nivel = props.formData?.nivelEducativo
     return nivel === 'Educación media completa' ||
-           nivel === 'Cursando educación superior' ||
+           nivel === 'Educación superior incompleta' ||
            nivel === 'Educación superior completa'
 })
 
