@@ -15,7 +15,7 @@ export interface FormData {
   consentimiento_contacto: boolean
 
   // Datos Académicos
-  nivelEducativo: 'Educación media incompleta' | 'Educación media completa' | 'Cursando educación superior' | 'Educación superior completa' | ''
+  nivelEducativo: 'Educación media incompleta' | 'Educación media completa' | 'Educación superior incompleta' | 'Educación superior completa' | ''
   colegio: string
   carrera: string
   carreraId: number
