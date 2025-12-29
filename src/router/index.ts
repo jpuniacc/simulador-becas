@@ -13,15 +13,15 @@ const router = createRouter({
         description: 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito'
       }
     },
-    {
-      path: '/elige-tu-camino',
-      name: 'elige-tu-camino',
-      component: () => import('../views/Segmentation.vue'),
-      meta: {
-        title: 'Elige tu camino - UNIACC',
-        description: 'Elige tu camino hacia la universidad en UNIACC'
-      }
-    },
+    // {
+    //   path: '/elige-tu-camino',
+    //   name: 'elige-tu-camino',
+    //   component: () => import('../views/Segmentation.vue'),
+    //   meta: {
+    //     title: 'Elige tu camino - UNIACC',
+    //     description: 'Elige tu camino hacia la universidad en UNIACC'
+    //   }
+    // },
     {
       path: '/postgrado',
       name: 'postgrado',
