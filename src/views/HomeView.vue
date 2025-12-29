@@ -21,7 +21,7 @@ const featuresSection = ref<HTMLElement>()
 
 // Métodos
 const goToSimulator = () => {
-  router.push('/elige-tu-camino')
+  router.push('/simulador')
 }
 
 const goToAbout = () => {
