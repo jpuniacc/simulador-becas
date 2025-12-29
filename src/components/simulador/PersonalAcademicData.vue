@@ -48,7 +48,7 @@ const emit = defineEmits<{
 const opcionesNivelEducativo = [
     { label: 'Educación media incompleta', value: 'Educación media incompleta' },
     { label: 'Educación media completa', value: 'Educación media completa' },
-    { label: 'Cursando educación superior', value: 'Cursando educación superior' },
+    { label: 'Educación superior incompleta', value: 'Educación superior incompleta' },
     { label: 'Educación superior completa', value: 'Educación superior completa' }
 ]
 
@@ -164,7 +164,7 @@ const formData = ref<Partial<FormData>>({
 const isEgresado = computed(() => {
     const nivel = formData.value.nivelEducativo
     return nivel === 'Educación media completa' ||
-           nivel === 'Cursando educación superior' ||
+           nivel === 'Educación superior incompleta' ||
            nivel === 'Educación superior completa'
 })
 
@@ -775,7 +775,7 @@ watch(() => props.formData, (newData) => {
 
 // Watcher para limpiar campos de egresado si cambia el nivel educativo
 watch(() => formData.value.nivelEducativo, (newNivel) => {
-    const nivelesCompletos = ['Educación media completa', 'Cursando educación superior', 'Educación superior completa']
+    const nivelesCompletos = ['Educación media completa', 'Educación superior incompleta', 'Educación superior completa']
     if (!nivelesCompletos.includes(newNivel || '')) {
         formData.value.añoEgreso = ''
         formData.value.ranking = null
