@@ -64,7 +64,7 @@ watch(rut, (newRut) => {
     if (newRut !== undefined && newRut !== '') {
         // Actualizar formData
         formData.value.identificacion = newRut;
-        
+
         // Disparar el procesamiento del RUT en el componente hijo (formateo y validación)
         processRUTInChild(newRut);
     }
@@ -113,7 +113,7 @@ const handleValidationChangeStep2 = (isValid: boolean) => {
 // Función para recopilar campos faltantes del paso 1
 const getMissingFieldsStep1 = (): string[] => {
     const missing: string[] = []
-    
+
     if (!formData.value.nombre?.trim()) missing.push('Nombre')
     if (!formData.value.apellido?.trim()) missing.push('Apellido')
     if (!formData.value.email?.trim()) missing.push('Email')
@@ -132,14 +132,14 @@ const getMissingFieldsStep1 = (): string[] => {
     if (formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte' && !formData.value.paisPasaporte?.trim()) {
         missing.push('País de Origen')
     }
-    
+
     return missing
 }
 
 // Función para recopilar campos faltantes del paso 2
 const getMissingFieldsStep2 = (): string[] => {
     const missing: string[] = []
-    
+
     if (!formData.value.carrera?.trim() || formData.value.carreraId === 0) {
         missing.push('Carrera')
     }
@@ -155,7 +155,7 @@ const getMissingFieldsStep2 = (): string[] => {
     if ((formData.value.planeaUsarCAE || formData.value.usaBecasEstado) && (formData.value.decil === null || formData.value.decil === undefined)) {
         missing.push('Tramo de Renta Mensual (Decil)')
     }
-    
+
     return missing
 }
 
@@ -204,7 +204,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
             <h1>Simulador de Becas UNIACC</h1>
         </div>
         <div class="content-container">
-            <Stepper value="1" linear class="w-full sm:basis-[30rem] md:basis-[40rem] lg:basis-[50rem]">
+            <Stepper value="1" linear class="w-full sm:basis-[40rem] md:basis-[50rem] lg:basis-[72rem]">
                 <StepList class="stepper-header sticky top-0 z-10 bg-white py-4">
                     <Step value="1">
                         <!-- Corto en móvil -->
@@ -237,12 +237,12 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                                 @update:form-data="handleFormDataUpdate" @validation-change="handleValidationChange" />
                         </div>
                         <div class="flex pt-6 justify-end">
-                            <div 
-                                class="m-4 button-wrapper" 
+                            <div
+                                class="m-4 button-wrapper"
                                 :class="{ 'button-blocked': isStep1ButtonBlocked }"
                                 @mousedown="() => {
                                     if (isStep1ButtonBlocked) return
-                                    
+
                                     if (personalDataRef && 'markAsSubmitted' in personalDataRef && typeof personalDataRef.markAsSubmitted === 'function') {
                                         personalDataRef.markAsSubmitted()
                                     }
@@ -278,12 +278,12 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                         <div class="flex pt-6 justify-between">
                             <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"
                                 @click="activateCallback('1')" />
-                            <div 
-                                class="m-4 button-wrapper" 
+                            <div
+                                class="m-4 button-wrapper"
                                 :class="{ 'button-blocked': isStep2ButtonBlocked }"
                                 @mousedown="() => {
                                     if (isStep2ButtonBlocked) return
-                                    
+
                                     if (careerFinancingRef && 'markAsSubmitted' in careerFinancingRef && typeof careerFinancingRef.markAsSubmitted === 'function') {
                                         careerFinancingRef.markAsSubmitted()
                                     }
@@ -300,7 +300,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                                                 // Fallback a la función local si el componente hijo no está disponible
                                                 missingFields = getMissingFieldsStep2()
                                             }
-                                            
+
                                             if (missingFields.length > 0) {
                                                 toast.add({
                                                     severity: 'error',
@@ -355,7 +355,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 
 .header-container {
     width: 100%;
-    max-width: 50rem;
+    max-width: 72rem;
     background-color: #000000;
     color: #ffffff;
     padding: 2rem;
@@ -388,7 +388,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 
 .content-container {
     width: 100%;
-    max-width: 50rem;
+    max-width: 72rem;
     display: flex;
     justify-content: center;
 }
