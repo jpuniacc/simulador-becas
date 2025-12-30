@@ -72,6 +72,11 @@ export function useCarreras() {
     return carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
   }
 
+  // Función para obtener información completa de una carrera por ID
+  const obtenerCarreraPorId = (idCarrera: number) => {
+    return carrerasVigentes.value.find(c => c.id === idCarrera)
+  }
+
   // Computed para carreras con aranceles definidos
   const carrerasConArancel = computed(() => {
     return carrerasVigentes.value.filter(carrera =>
@@ -108,6 +113,7 @@ export function useCarreras() {
     buscarCarreras,
     obtenerArancelCarrera,
     obtenerMatriculaCarrera,
-    obtenerCarreraPorNombre
+    obtenerCarreraPorNombre,
+    obtenerCarreraPorId
   }
 }

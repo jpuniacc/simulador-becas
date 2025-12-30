@@ -507,8 +507,8 @@ export const useBecasStore = defineStore('becas', () => {
   }
 
   // Obtener información completa de costos de una carrera
-  const obtenerCostosCarrera = (nombreCarrera: string) => {
-    return carrerasStore.obtenerCostosCarrera(nombreCarrera)
+  const obtenerCostosCarrera = (idCarrera: number) => {
+    return carrerasStore.obtenerCostosCarrera(idCarrera)
   }
 
   return {

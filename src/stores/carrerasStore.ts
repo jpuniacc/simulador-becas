@@ -69,7 +69,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
 
     const terminoLower = termino.toLowerCase()
     return carrerasVigentes.value.filter(carrera =>
-      carrera.nombre_programa.toLowerCase().includes(terminoLower) 
+      carrera.nombre_programa.toLowerCase().includes(terminoLower)
     )
   }
 
@@ -87,8 +87,12 @@ export const useCarrerasStore = defineStore('carreras', () => {
     return carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
   }
 
-  const obtenerCostosCarrera = (nombreCarrera: string) => {
-    const carrera = obtenerCarreraPorNombre(nombreCarrera)
+  const obtenerCarreraPorId = (idCarrera: number) => {
+    return carrerasVigentes.value.find(c => c.id === idCarrera)
+  }
+
+  const obtenerCostosCarrera = (idCarrera: number) => {
+    const carrera = obtenerCarreraPorId(idCarrera)
     if (!carrera) return null
 
     return {
@@ -115,6 +119,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
     obtenerArancelCarrera,
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre,
+    obtenerCarreraPorId,
     obtenerCostosCarrera
   }
 })
