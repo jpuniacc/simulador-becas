@@ -87,8 +87,30 @@ export const useCarrerasStore = defineStore('carreras', () => {
     return carrerasVigentes.value.find(c => c.nombre_programa === nombreCarrera)
   }
 
-  const obtenerCarreraPorId = (idCarrera: number) => {
-    return carrerasVigentes.value.find(c => c.id === idCarrera)
+  const obtenerCarreraPorId = (idCarrera: number, modalidadesAplicables?: string[] | null) => {
+    const carrera = carrerasVigentes.value.find(c => c.id === idCarrera)
+
+    if (!carrera) return undefined
+
+    // Verificación de modalidades aplicables
+    if (modalidadesAplicables && modalidadesAplicables.length > 0) {
+      // Si la carrera no tiene modalidad definida, no es compatible
+      if (!carrera.modalidad_programa) {
+        return undefined
+      }
+
+      // Verificar si la modalidad de la carrera está en las modalidades aplicables
+      const modalidadCarrera = carrera.modalidad_programa.trim()
+      const esCompatible = modalidadesAplicables.some(modalidad =>
+        modalidad.trim().toLowerCase() === modalidadCarrera.toLowerCase()
+      )
+
+      if (!esCompatible) {
+        return undefined
+      }
+    }
+
+    return carrera
   }
 
   const obtenerCostosCarrera = (idCarrera: number) => {

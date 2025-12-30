@@ -266,7 +266,22 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 7. Verificar años de egreso
+    // 7. Verificar modalidades aplicables
+    if (beca.modalidades_aplicables && beca.modalidades_aplicables.length > 0) {
+      if (formData.carreraId) {
+        const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId, beca.modalidades_aplicables)
+        if (!carrera) {
+          elegible = false
+          razon = `No aplica para la modalidad de la carrera seleccionada`
+        }
+      } else {
+        // Si no hay carreraId pero hay modalidades aplicables, no es elegible
+        elegible = false
+        razon = `Requiere una carrera seleccionada para verificar modalidad`
+      }
+    }
+
+    // 8. Verificar años de egreso
     if (beca.max_anos_egreso) {
       const anoActual = new Date().getFullYear()
       const anoEgreso = formData.añoEgreso ? parseInt(formData.añoEgreso) : null
@@ -276,7 +291,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 8. Verificar años PAES
+    // 9. Verificar años PAES
     if (beca.max_anos_paes) {
       const anoActual = new Date().getFullYear()
       const anoPAES = formData.añoEgreso ? parseInt(formData.añoEgreso) : null // Asumimos que año PAES = año egreso
@@ -286,7 +301,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 9. Verificar vigencia
+    // 10. Verificar vigencia
     const hoy = new Date()
     const vigenciaDesde = new Date(beca.vigencia_desde)
     const vigenciaHasta = beca.vigencia_hasta ? new Date(beca.vigencia_hasta) : null
@@ -301,7 +316,7 @@ export const useBecasStore = defineStore('becas', () => {
       razon = `Beca vencida desde ${vigenciaHasta.toLocaleDateString()}`
     }
 
-    // 10. Verificar cupos
+    // 11. Verificar cupos
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`
