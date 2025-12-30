@@ -52,8 +52,8 @@ const formData = computed(() => simuladorStore.formData)
 
 // Computed para información de la carrera
 const carreraInfo = computed(() => {
-  if (!formData.value.carrera) return null
-  return simuladorStore.carrerasStore.obtenerCarreraPorNombre(formData.value.carrera)
+  if (!formData.value.carreraId) return null
+  return simuladorStore.carrerasStore.obtenerCarreraPorId(formData.value.carreraId)
 })
 
 // Computed para becas aplicadas (internas)

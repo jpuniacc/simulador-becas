@@ -290,7 +290,7 @@ onMounted(async () => {
                     'flex items-center space-x-3',
                     (currentStep === 'region' && regionSeleccionada?.region_id === option.region_id) ||
                     (currentStep === 'comuna' && comunaSeleccionada?.comuna_nombre === option.comuna_nombre) ||
-                    (currentStep === 'colegio' && colegioSeleccionado?.id === option.id)
+                    (currentStep === 'colegio' && colegioSeleccionado?.rbd === option.rbd)
                       ? 'bg-uniacc-blue/10 text-uniacc-blue font-medium border border-uniacc-blue/20'
                       : 'text-gray-900'
                   ]"

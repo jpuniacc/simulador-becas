@@ -449,8 +449,8 @@ export const useSimuladorStore = defineStore('simulador', () => {
       }
 
       // Obtener costos de la carrera seleccionada
-      if (formData.value.carrera) {
-        costosCarrera.value = becasStore.obtenerCostosCarrera(formData.value.carrera)
+      if (formData.value.carreraId) {
+        costosCarrera.value = becasStore.obtenerCostosCarrera(formData.value.carreraId)
       }
 
       // Calcular becas elegibles
