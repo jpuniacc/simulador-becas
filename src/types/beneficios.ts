@@ -3,7 +3,7 @@ import type { Database } from './supabase'
 
 // Tipos base de Supabase
 export type Nacionalidad = Database['public']['Tables']['nacionalidades']['Row']
-export type Colegio = Database['public']['Tables']['colegios2']['Row']
+export type Colegio = Database['public']['Tables']['colegios3']['Row']
 export type Decil = Database['public']['Tables']['deciles']['Row']
 export type BeneficioUniacc = Database['public']['Tables']['beneficios_uniacc']['Row']
 export type Beca = Database['public']['Tables']['becas']['Row']
@@ -11,7 +11,7 @@ export type Beneficio = Database['public']['Tables']['beneficios']['Row']
 
 // Tipos para inserción
 export type NacionalidadInsert = Database['public']['Tables']['nacionalidades']['Insert']
-export type ColegioInsert = Database['public']['Tables']['colegios2']['Insert']
+export type ColegioInsert = Database['public']['Tables']['colegios3']['Insert']
 export type DecilInsert = Database['public']['Tables']['deciles']['Insert']
 export type BeneficioUniaccInsert = Database['public']['Tables']['beneficios_uniacc']['Insert']
 export type BecaInsert = Database['public']['Tables']['becas']['Insert']
@@ -19,7 +19,7 @@ export type BeneficioInsert = Database['public']['Tables']['beneficios']['Insert
 
 // Tipos para actualización
 export type NacionalidadUpdate = Database['public']['Tables']['nacionalidades']['Update']
-export type ColegioUpdate = Database['public']['Tables']['colegios2']['Update']
+export type ColegioUpdate = Database['public']['Tables']['colegios3']['Update']
 export type DecilUpdate = Database['public']['Tables']['deciles']['Update']
 export type BeneficioUniaccUpdate = Database['public']['Tables']['beneficios_uniacc']['Update']
 export type BecaUpdate = Database['public']['Tables']['becas']['Update']

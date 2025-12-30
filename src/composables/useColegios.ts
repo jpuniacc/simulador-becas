@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
 // Tipos extraídos de la base de datos
-type ColegioRow = Database['public']['Tables']['colegios2']['Row']
+type ColegioRow = Database['public']['Tables']['colegios3']['Row']
 
 export interface Region {
   region_id: number
@@ -88,7 +88,7 @@ export function useColegios() {
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('colegios2')
+        .from('colegios3')
         .select('*')
         .eq('comuna_nombre', comunaNombre)
         .order('nombre')
@@ -110,7 +110,7 @@ export function useColegios() {
       error.value = null
 
       const { data, error: supabaseError } = await supabase
-        .from('colegios2')
+        .from('colegios3')
         .select('*')
         .eq('comuna_nombre', comunaNombre)
         .ilike('nombre', `%${termino}%`)

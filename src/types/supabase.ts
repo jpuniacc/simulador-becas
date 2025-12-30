@@ -454,6 +454,45 @@ export type Database = {
         }
         Relationships: []
       }
+      colegios3: {
+        Row: {
+          comuna_nombre: string | null
+          dependencia: string | null
+          descripcion_orientacion_religiosa: string | null
+          dv: string | null
+          nombre: string | null
+          orientacion_religiosa: string | null
+          rbd: string | null
+          rbd_rural: string | null
+          region_id: number | null
+          region_nombre: string | null
+        }
+        Insert: {
+          comuna_nombre?: string | null
+          dependencia?: string | null
+          descripcion_orientacion_religiosa?: string | null
+          dv?: string | null
+          nombre?: string | null
+          orientacion_religiosa?: string | null
+          rbd?: string | null
+          rbd_rural?: string | null
+          region_id?: number | null
+          region_nombre?: string | null
+        }
+        Update: {
+          comuna_nombre?: string | null
+          dependencia?: string | null
+          descripcion_orientacion_religiosa?: string | null
+          dv?: string | null
+          nombre?: string | null
+          orientacion_religiosa?: string | null
+          rbd?: string | null
+          rbd_rural?: string | null
+          region_id?: number | null
+          region_nombre?: string | null
+        }
+        Relationships: []
+      }
       datos_academicos: {
         Row: {
           año_egreso: number | null

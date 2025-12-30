@@ -89,7 +89,7 @@ export function useBecas() {
   const errorEstado = ref<string | null>(null)
 
   // Integrar con useCarreras para obtener aranceles
-  const { obtenerArancelCarrera, obtenerMatriculaCarrera, obtenerCarreraPorNombre } = useCarreras()
+  const { obtenerArancelCarrera, obtenerCarreraPorId } = useCarreras()
 
   // Cargar becas desde Supabase
   const cargarBecas = async () => {
@@ -177,8 +177,8 @@ export function useBecas() {
     if (beca.requiere_beca_estado !== null && beca.requiere_beca_estado !== undefined) {
       if (formData.usaBecasEstado !== beca.requiere_beca_estado) {
         elegible = false
-        razon = beca.requiere_beca_estado 
-          ? 'Requiere tener beca del estado' 
+        razon = beca.requiere_beca_estado
+          ? 'Requiere tener beca del estado'
           : 'No aplica si tiene beca del estado'
       }
     }
@@ -365,17 +365,17 @@ export function useBecas() {
   }
 
   // Obtener información completa de costos de una carrera
-  const obtenerCostosCarrera = (nombreCarrera: string) => {
-    const carrera = obtenerCarreraPorNombre(nombreCarrera)
+  const obtenerCostosCarrera = (idCarrera: number) => {
+    const carrera = obtenerCarreraPorId(idCarrera)
     if (!carrera) return null
 
     return {
-      arancel: carrera.arancel_carrera || 0,
-      arancelReferenciaCae: carrera.arancel_referencia_cae || 0,
-      matricula: carrera.matricula_carrera || 0,
-      duracion: carrera.duracion_en_semestres || 0,
+      arancel: carrera.arancel || 0,
+      arancelReferenciaCae: carrera.arancel_referencia || 0,
+      matricula: carrera.matricula || 0,
+      duracion: carrera.duracion_programa || '',
       anio: carrera.anio || new Date().getFullYear(),
-      totalAnual: (carrera.arancel_carrera || 0) + (carrera.matricula_carrera || 0)
+      totalAnual: (carrera.arancel || 0) + (carrera.matricula || 0)
     }
   }
 
