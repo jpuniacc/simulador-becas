@@ -126,12 +126,12 @@ export type Database = {
           descuento_porcentaje: number | null
           duracion_meses: number | null
           duracion_tipo: string | null
+          edad_requerida: number | null
           es_combinable: boolean | null
           id: string
           max_anos_egreso: number | null
           max_anos_paes: number | null
           modalidades_aplicables: Json
-          nacionalidad_requerida: string | null
           nem_minimo: number | null
           nivel_aplicable: string | null
           nombre: string
@@ -141,15 +141,15 @@ export type Database = {
           programas_excluidos: Json | null
           ranking_minimo: number | null
           region_excluida: string | null
-          region_requerida: string | null
           requiere_beca_estado: boolean | null
           requiere_documentacion: Json | null
+          requiere_extranjeria: boolean | null
           requiere_genero: string | null
-          requiere_nacionalidad: boolean | null
           requiere_nem: boolean | null
           requiere_paes: boolean | null
           requiere_ranking: boolean | null
           requiere_region_especifica: boolean | null
+          requiere_residencia_chile: boolean | null
           tipo_descuento: string | null
           updated_at: string | null
           vigencia_desde: string
@@ -168,12 +168,12 @@ export type Database = {
           descuento_porcentaje?: number | null
           duracion_meses?: number | null
           duracion_tipo?: string | null
+          edad_requerida?: number | null
           es_combinable?: boolean | null
           id?: string
           max_anos_egreso?: number | null
           max_anos_paes?: number | null
           modalidades_aplicables: Json
-          nacionalidad_requerida?: string | null
           nem_minimo?: number | null
           nivel_aplicable?: string | null
           nombre: string
@@ -183,15 +183,15 @@ export type Database = {
           programas_excluidos?: Json | null
           ranking_minimo?: number | null
           region_excluida?: string | null
-          region_requerida?: string | null
           requiere_beca_estado?: boolean | null
           requiere_documentacion?: Json | null
+          requiere_extranjeria?: boolean | null
           requiere_genero?: string | null
-          requiere_nacionalidad?: boolean | null
           requiere_nem?: boolean | null
           requiere_paes?: boolean | null
           requiere_ranking?: boolean | null
           requiere_region_especifica?: boolean | null
+          requiere_residencia_chile?: boolean | null
           tipo_descuento?: string | null
           updated_at?: string | null
           vigencia_desde: string
@@ -210,12 +210,12 @@ export type Database = {
           descuento_porcentaje?: number | null
           duracion_meses?: number | null
           duracion_tipo?: string | null
+          edad_requerida?: number | null
           es_combinable?: boolean | null
           id?: string
           max_anos_egreso?: number | null
           max_anos_paes?: number | null
           modalidades_aplicables?: Json
-          nacionalidad_requerida?: string | null
           nem_minimo?: number | null
           nivel_aplicable?: string | null
           nombre?: string
@@ -225,15 +225,15 @@ export type Database = {
           programas_excluidos?: Json | null
           ranking_minimo?: number | null
           region_excluida?: string | null
-          region_requerida?: string | null
           requiere_beca_estado?: boolean | null
           requiere_documentacion?: Json | null
+          requiere_extranjeria?: boolean | null
           requiere_genero?: string | null
-          requiere_nacionalidad?: boolean | null
           requiere_nem?: boolean | null
           requiere_paes?: boolean | null
           requiere_ranking?: boolean | null
           requiere_region_especifica?: boolean | null
+          requiere_residencia_chile?: boolean | null
           tipo_descuento?: string | null
           updated_at?: string | null
           vigencia_desde?: string
@@ -1149,8 +1149,702 @@ export type Database = {
         }
         Relationships: []
       }
+      planmejora_mv_acciones: {
+        Row: {
+          acc_creacion: string | null
+          acc_detalle: string | null
+          acc_id: number
+          acc_presupuesto: number | null
+          acc_titulo: string
+          borrado: number | null
+          created_at: string | null
+          deb_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          acc_creacion?: string | null
+          acc_detalle?: string | null
+          acc_id?: number
+          acc_presupuesto?: number | null
+          acc_titulo: string
+          borrado?: number | null
+          created_at?: string | null
+          deb_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          acc_creacion?: string | null
+          acc_detalle?: string | null
+          acc_id?: number
+          acc_presupuesto?: number | null
+          acc_titulo?: string
+          borrado?: number | null
+          created_at?: string | null
+          deb_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_acciones_deb_id_fkey"
+            columns: ["deb_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_debilidades"
+            referencedColumns: ["deb_id"]
+          },
+        ]
+      }
+      planmejora_mv_actividades: {
+        Row: {
+          acc_id: number | null
+          act_costo: number | null
+          act_creacion: string | null
+          act_detalle: string | null
+          act_fechatermino: string | null
+          act_id: number
+          act_titulo: string
+          borrado: number | null
+          created_at: string | null
+          est_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          acc_id?: number | null
+          act_costo?: number | null
+          act_creacion?: string | null
+          act_detalle?: string | null
+          act_fechatermino?: string | null
+          act_id?: number
+          act_titulo: string
+          borrado?: number | null
+          created_at?: string | null
+          est_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          acc_id?: number | null
+          act_costo?: number | null
+          act_creacion?: string | null
+          act_detalle?: string | null
+          act_fechatermino?: string | null
+          act_id?: number
+          act_titulo?: string
+          borrado?: number | null
+          created_at?: string | null
+          est_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_actividades_acc_id_fkey"
+            columns: ["acc_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_acciones"
+            referencedColumns: ["acc_id"]
+          },
+          {
+            foreignKeyName: "planmejora_mv_actividades_est_id_fkey"
+            columns: ["est_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_estados"
+            referencedColumns: ["est_id"]
+          },
+        ]
+      }
+      planmejora_mv_debilidades: {
+        Row: {
+          borrado: number | null
+          created_at: string | null
+          deb_creacion: string | null
+          deb_detalle: string | null
+          deb_id: number
+          deb_titulo: string
+          dim_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          created_at?: string | null
+          deb_creacion?: string | null
+          deb_detalle?: string | null
+          deb_id?: number
+          deb_titulo: string
+          dim_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          created_at?: string | null
+          deb_creacion?: string | null
+          deb_detalle?: string | null
+          deb_id?: number
+          deb_titulo?: string
+          dim_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_debilidades_dim_id_fkey"
+            columns: ["dim_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_dimensiones"
+            referencedColumns: ["dim_id"]
+          },
+        ]
+      }
+      planmejora_mv_dimensiones: {
+        Row: {
+          borrado: number | null
+          created_at: string | null
+          dim_creacion: string | null
+          dim_detalle: string | null
+          dim_id: number
+          dim_titulo: string
+          pla_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          created_at?: string | null
+          dim_creacion?: string | null
+          dim_detalle?: string | null
+          dim_id?: number
+          dim_titulo: string
+          pla_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          created_at?: string | null
+          dim_creacion?: string | null
+          dim_detalle?: string | null
+          dim_id?: number
+          dim_titulo?: string
+          pla_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_dimensiones_pla_id_fkey"
+            columns: ["pla_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_planes"
+            referencedColumns: ["pla_id"]
+          },
+        ]
+      }
+      planmejora_mv_evidencias: {
+        Row: {
+          act_id: number
+          borrado: number | null
+          created_at: string | null
+          evi_detalle: string | null
+          evi_id: number
+          evi_titulo: string
+          evi_urlarchivo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          act_id: number
+          borrado?: number | null
+          created_at?: string | null
+          evi_detalle?: string | null
+          evi_id?: number
+          evi_titulo: string
+          evi_urlarchivo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          act_id?: number
+          borrado?: number | null
+          created_at?: string | null
+          evi_detalle?: string | null
+          evi_id?: number
+          evi_titulo?: string
+          evi_urlarchivo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_evidencias_act_id_fkey"
+            columns: ["act_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_actividades"
+            referencedColumns: ["act_id"]
+          },
+        ]
+      }
+      planmejora_mv_observaciones: {
+        Row: {
+          borrado: number | null
+          created_at: string | null
+          obs_id: number
+          obs_observacion: string | null
+          obs_observacionfecha: string | null
+          obs_replica: string | null
+          obs_replicafecha: string | null
+          pla_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          created_at?: string | null
+          obs_id?: number
+          obs_observacion?: string | null
+          obs_observacionfecha?: string | null
+          obs_replica?: string | null
+          obs_replicafecha?: string | null
+          pla_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          created_at?: string | null
+          obs_id?: number
+          obs_observacion?: string | null
+          obs_observacionfecha?: string | null
+          obs_replica?: string | null
+          obs_replicafecha?: string | null
+          pla_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_observaciones_pla_id_fkey"
+            columns: ["pla_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_planes"
+            referencedColumns: ["pla_id"]
+          },
+        ]
+      }
+      planmejora_mv_observaciones_actividades: {
+        Row: {
+          act_id: number
+          borrado: number | null
+          created_at: string | null
+          oba_id: number
+          obs_observacion: string | null
+          obs_observacionfecha: string | null
+          obs_replica: string | null
+          obs_replicafecha: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          act_id: number
+          borrado?: number | null
+          created_at?: string | null
+          oba_id?: number
+          obs_observacion?: string | null
+          obs_observacionfecha?: string | null
+          obs_replica?: string | null
+          obs_replicafecha?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          act_id?: number
+          borrado?: number | null
+          created_at?: string | null
+          oba_id?: number
+          obs_observacion?: string | null
+          obs_observacionfecha?: string | null
+          obs_replica?: string | null
+          obs_replicafecha?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_observaciones_actividades_act_id_fkey"
+            columns: ["act_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_actividades"
+            referencedColumns: ["act_id"]
+          },
+        ]
+      }
+      planmejora_mv_planes: {
+        Row: {
+          are_id: number | null
+          borrado: number | null
+          car_id: number | null
+          created_at: string | null
+          est_id: number | null
+          ped_id: number | null
+          pla_acciones: number | null
+          pla_avancetotal: number | null
+          pla_contexto: string | null
+          pla_costo_estimado: number | null
+          pla_costos: number | null
+          pla_fecha_fin: string | null
+          pla_fecha_inicio: string | null
+          pla_id: number
+          pla_nombre: string
+          updated_at: string | null
+          usu_ejecutor: number | null
+          usu_supervisor: number | null
+        }
+        Insert: {
+          are_id?: number | null
+          borrado?: number | null
+          car_id?: number | null
+          created_at?: string | null
+          est_id?: number | null
+          ped_id?: number | null
+          pla_acciones?: number | null
+          pla_avancetotal?: number | null
+          pla_contexto?: string | null
+          pla_costo_estimado?: number | null
+          pla_costos?: number | null
+          pla_fecha_fin?: string | null
+          pla_fecha_inicio?: string | null
+          pla_id?: number
+          pla_nombre: string
+          updated_at?: string | null
+          usu_ejecutor?: number | null
+          usu_supervisor?: number | null
+        }
+        Update: {
+          are_id?: number | null
+          borrado?: number | null
+          car_id?: number | null
+          created_at?: string | null
+          est_id?: number | null
+          ped_id?: number | null
+          pla_acciones?: number | null
+          pla_avancetotal?: number | null
+          pla_contexto?: string | null
+          pla_costo_estimado?: number | null
+          pla_costos?: number | null
+          pla_fecha_fin?: string | null
+          pla_fecha_inicio?: string | null
+          pla_id?: number
+          pla_nombre?: string
+          updated_at?: string | null
+          usu_ejecutor?: number | null
+          usu_supervisor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_mv_planes_are_id_fkey"
+            columns: ["are_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_areas"
+            referencedColumns: ["are_id"]
+          },
+          {
+            foreignKeyName: "planmejora_mv_planes_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_cargos"
+            referencedColumns: ["car_id"]
+          },
+          {
+            foreignKeyName: "planmejora_mv_planes_est_id_fkey"
+            columns: ["est_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_estados"
+            referencedColumns: ["est_id"]
+          },
+          {
+            foreignKeyName: "planmejora_mv_planes_ped_id_fkey"
+            columns: ["ped_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_periodos"
+            referencedColumns: ["ped_id"]
+          },
+          {
+            foreignKeyName: "planmejora_mv_planes_usu_ejecutor_fkey"
+            columns: ["usu_ejecutor"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_usuarios"
+            referencedColumns: ["usu_id"]
+          },
+          {
+            foreignKeyName: "planmejora_mv_planes_usu_supervisor_fkey"
+            columns: ["usu_supervisor"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_usuarios"
+            referencedColumns: ["usu_id"]
+          },
+        ]
+      }
+      planmejora_tp_areas: {
+        Row: {
+          are_descripcion: string | null
+          are_id: number
+          are_nombre: string
+          borrado: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          are_descripcion?: string | null
+          are_id?: number
+          are_nombre: string
+          borrado?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          are_descripcion?: string | null
+          are_id?: number
+          are_nombre?: string
+          borrado?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      planmejora_tp_cargos: {
+        Row: {
+          borrado: number | null
+          car_id: number
+          car_nombre: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          car_id?: number
+          car_nombre: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          car_id?: number
+          car_nombre?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      planmejora_tp_estados: {
+        Row: {
+          borrado: number | null
+          created_at: string | null
+          est_detalle: string | null
+          est_id: number
+          est_nombre: string
+          est_tipo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          created_at?: string | null
+          est_detalle?: string | null
+          est_id?: number
+          est_nombre: string
+          est_tipo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          created_at?: string | null
+          est_detalle?: string | null
+          est_id?: number
+          est_nombre?: string
+          est_tipo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      planmejora_tp_perfiles: {
+        Row: {
+          borrado: number | null
+          created_at: string | null
+          per_detalles: string | null
+          per_id: number
+          per_nombre: string
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          created_at?: string | null
+          per_detalles?: string | null
+          per_id?: number
+          per_nombre: string
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          created_at?: string | null
+          per_detalles?: string | null
+          per_id?: number
+          per_nombre?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      planmejora_tp_perfiles_usuarios: {
+        Row: {
+          created_at: string | null
+          pdu_id: number
+          per_id: number
+          updated_at: string | null
+          usu_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          pdu_id?: number
+          per_id: number
+          updated_at?: string | null
+          usu_id: number
+        }
+        Update: {
+          created_at?: string | null
+          pdu_id?: number
+          per_id?: number
+          updated_at?: string | null
+          usu_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_tp_perfiles_usuarios_per_id_fkey"
+            columns: ["per_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_perfiles"
+            referencedColumns: ["per_id"]
+          },
+          {
+            foreignKeyName: "planmejora_tp_perfiles_usuarios_usu_id_fkey"
+            columns: ["usu_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_usuarios"
+            referencedColumns: ["usu_id"]
+          },
+        ]
+      }
+      planmejora_tp_periodos: {
+        Row: {
+          borrado: number | null
+          created_at: string | null
+          ped_detalle: string | null
+          ped_fecha_fin: string | null
+          ped_fecha_inicio: string | null
+          ped_id: number
+          ped_nombre: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          borrado?: number | null
+          created_at?: string | null
+          ped_detalle?: string | null
+          ped_fecha_fin?: string | null
+          ped_fecha_inicio?: string | null
+          ped_id?: number
+          ped_nombre?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          borrado?: number | null
+          created_at?: string | null
+          ped_detalle?: string | null
+          ped_fecha_fin?: string | null
+          ped_fecha_inicio?: string | null
+          ped_id?: number
+          ped_nombre?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      planmejora_tp_responsables_iniciativas: {
+        Row: {
+          created_at: string | null
+          pla_id: number
+          rsp_id: number
+          rsp_tipo: string
+          updated_at: string | null
+          usu_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          pla_id: number
+          rsp_id?: number
+          rsp_tipo: string
+          updated_at?: string | null
+          usu_id: number
+        }
+        Update: {
+          created_at?: string | null
+          pla_id?: number
+          rsp_id?: number
+          rsp_tipo?: string
+          updated_at?: string | null
+          usu_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_responsables_planes"
+            columns: ["pla_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_mv_planes"
+            referencedColumns: ["pla_id"]
+          },
+          {
+            foreignKeyName: "planmejora_tp_responsables_iniciativas_usu_id_fkey"
+            columns: ["usu_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_usuarios"
+            referencedColumns: ["usu_id"]
+          },
+        ]
+      }
+      planmejora_tp_usuarios: {
+        Row: {
+          are_id: number | null
+          borrado: number | null
+          created_at: string | null
+          habilitado: number | null
+          password: string
+          updated_at: string | null
+          usu_email: string | null
+          usu_id: number
+          usu_materno: string | null
+          usu_nombre: string
+          usu_paterno: string
+          usu_usuario: string
+        }
+        Insert: {
+          are_id?: number | null
+          borrado?: number | null
+          created_at?: string | null
+          habilitado?: number | null
+          password: string
+          updated_at?: string | null
+          usu_email?: string | null
+          usu_id?: number
+          usu_materno?: string | null
+          usu_nombre: string
+          usu_paterno: string
+          usu_usuario: string
+        }
+        Update: {
+          are_id?: number | null
+          borrado?: number | null
+          created_at?: string | null
+          habilitado?: number | null
+          password?: string
+          updated_at?: string | null
+          usu_email?: string | null
+          usu_id?: number
+          usu_materno?: string | null
+          usu_nombre?: string
+          usu_paterno?: string
+          usu_usuario?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planmejora_tp_usuarios_are_id_fkey"
+            columns: ["are_id"]
+            isOneToOne: false
+            referencedRelation: "planmejora_tp_areas"
+            referencedColumns: ["are_id"]
+          },
+        ]
+      }
       prospectos: {
         Row: {
+          anio_nacimiento: number | null
           año_egreso: number | null
           apellido: string
           area_interes: string | null
@@ -1186,6 +1880,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          anio_nacimiento?: number | null
           año_egreso?: number | null
           apellido: string
           area_interes?: string | null
@@ -1221,6 +1916,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          anio_nacimiento?: number | null
           año_egreso?: number | null
           apellido?: string
           area_interes?: string | null
@@ -1414,6 +2110,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auth_login:
+        | { Args: { p_password: string; p_usu_usuario: string }; Returns: Json }
+        | { Args: { p_password: string; p_usu_usuario: string }; Returns: Json }
+      generate_jwt_token:
+        | { Args: { p_usu_id: number; p_usu_usuario: string }; Returns: string }
+        | { Args: { p_usu_id: number; p_usu_usuario: string }; Returns: string }
       get_comunas_por_region: {
         Args: { region: number }
         Returns: {
@@ -1475,6 +2177,7 @@ export type Database = {
         }[]
       }
       puede_simular: { Args: { prospecto_uuid: string }; Returns: boolean }
+      verify_jwt_token: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

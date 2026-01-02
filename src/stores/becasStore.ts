@@ -23,10 +23,13 @@ export interface BecasUniacc {
   requiere_nacionalidad: boolean
   nacionalidad_requerida: string | null
   region_requerida: string | null
+  requiere_extranjeria: boolean | null
+  requiere_residencia_chile: boolean | null
   carreras_aplicables: string[] | null
   programas_excluidos: string[] | null
   max_anos_egreso: number | null
   max_anos_paes: number | null
+  edad_requerida: number | null
   vigencia_desde: string
   vigencia_hasta: string | null
   modalidades_aplicables: string[]
@@ -202,37 +205,40 @@ export const useBecasStore = defineStore('becas', () => {
     }
 
     // 3. Verificar región
-    if (beca.requiere_region_especifica && beca.region_excluida) {
-      if (formData.regionResidencia === beca.region_excluida) {
+    if (beca.requiere_region_especifica) {
+      // Si requiere región específica y no hay región de residencia, no es elegible
+      if (!formData.regionResidencia || formData.regionResidencia.trim() === '') {
+        elegible = false
+        razon = `Requiere región de residencia`
+      } else if (beca.region_excluida && formData.regionResidencia === beca.region_excluida) {
         elegible = false
         razon = `No aplica para región ${beca.region_excluida}`
       }
     }
 
 
-    // 4. Verificar nacionalidad
-    if (beca.requiere_nacionalidad) {
-
-      // Verificar que el usuario tenga pasaporte
-      if (formData.tipoIdentificacion !== 'pasaporte' || !formData.paisPasaporte) {
+    // 4. Verificar extranjería y residencia
+    // Verificar si requiere ser extranjero
+    if (beca.requiere_extranjeria !== null && beca.requiere_extranjeria !== undefined) {
+      const esExtranjero = formData.extranjero === true
+      if (beca.requiere_extranjeria && !esExtranjero) {
         elegible = false
-        razon = `Requiere nacionalidad ${beca.nacionalidad_requerida ?? beca.region_requerida} (pasaporte requerido)`
-      } else {
-        // Extraer región y país del formato "REGION-PAIS" (ej: "LA-AR", "CB-HT")
-        const [regionPasaporte, paisPasaporte] = formData.paisPasaporte.split('-')
-        const regionRequerida = beca.region_requerida
-        const paisRequerido = beca.nacionalidad_requerida
+        razon = `Requiere ser extranjero`
+      } else if (!beca.requiere_extranjeria && esExtranjero) {
+        elegible = false
+        razon = `No aplica para extranjeros`
+      }
+    }
 
-        if (regionRequerida === regionPasaporte) {
-          elegible = true
-          razon = `Elegible por pasaporte región ${regionPasaporte}`
-        } else if (paisRequerido === paisPasaporte) {
-          elegible = true
-          razon = `Elegible por pasaporte país ${paisPasaporte}`
-        } else {
-          elegible = false
-          razon = `No cumple con la nacionalidad requerida`
-        }
+    // Verificar si requiere residencia en Chile
+    if (beca.requiere_residencia_chile !== null && beca.requiere_residencia_chile !== undefined) {
+      const resideEnChile = formData.residencia_chilena === true
+      if (beca.requiere_residencia_chile && !resideEnChile) {
+        elegible = false
+        razon = `Requiere residir en Chile`
+      } else if (!beca.requiere_residencia_chile && resideEnChile) {
+        elegible = false
+        razon = `No aplica para residentes en Chile`
       }
     }
 
@@ -301,7 +307,22 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 10. Verificar vigencia
+    // 10. Verificar edad requerida (aplica para mayores o iguales a esa edad)
+    if (beca.edad_requerida !== null && beca.edad_requerida !== undefined) {
+      if (!formData.anio_nacimiento) {
+        elegible = false
+        razon = `Requiere edad mínima ${beca.edad_requerida} años (año de nacimiento no proporcionado)`
+      } else {
+        const anoActual = new Date().getFullYear()
+        const edad = anoActual - formData.anio_nacimiento
+        if (edad < beca.edad_requerida) {
+          elegible = false
+          razon = `Requiere edad mínima ${beca.edad_requerida} años (edad actual: ${edad} años)`
+        }
+      }
+    }
+
+    // 11. Verificar vigencia
     const hoy = new Date()
     const vigenciaDesde = new Date(beca.vigencia_desde)
     const vigenciaHasta = beca.vigencia_hasta ? new Date(beca.vigencia_hasta) : null
@@ -316,7 +337,7 @@ export const useBecasStore = defineStore('becas', () => {
       razon = `Beca vencida desde ${vigenciaHasta.toLocaleDateString()}`
     }
 
-    // 11. Verificar cupos
+    // 12. Verificar cupos
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`

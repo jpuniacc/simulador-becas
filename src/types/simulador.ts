@@ -8,10 +8,11 @@ export interface FormData {
   tieneRUT: boolean | undefined
   tipoIdentificacion: 'rut' | 'pasaporte' | ''
   identificacion: string
-  nacionalidad: string
-  paisPasaporte: string
+  extranjero: boolean | undefined
+  residencia_chilena: boolean | undefined
   fechaNacimiento: string
   genero: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | ''
+  anio_nacimiento: number | null
   consentimiento_contacto: boolean
 
   // Datos Académicos
