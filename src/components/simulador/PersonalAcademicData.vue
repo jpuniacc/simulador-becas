@@ -5,11 +5,11 @@ import InputNumber from 'primevue/inputnumber'
 import InputGroup from 'primevue/inputgroup'
 import InputGroupAddon from 'primevue/inputgroupaddon'
 import FloatLabel from 'primevue/floatlabel'
-import Select from 'primevue/select'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Checkbox from 'primevue/checkbox'
 import OverlayPanel from 'primevue/overlaypanel'
+import DatePicker from 'primevue/datepicker'
 import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
 import type { FormData } from '@/types/simulador'
 import type { Region, Comuna, Colegio } from '@/composables/useColegios'
@@ -50,60 +50,6 @@ const opcionesNivelEducativo = [
     { label: 'Educación media completa', value: 'Educación media completa' },
     { label: 'Educación superior incompleta', value: 'Educación superior incompleta' },
     { label: 'Educación superior completa', value: 'Educación superior completa' }
-]
-
-// Países agrupados para el select de pasaporte (solo latinos excepto Chile + Haití)
-// El value tiene formato "REGION-PAIS" para poder extraer ambos valores
-const groupedCountries = [
-    {
-        label: 'América del Sur',
-        code: 'SA',
-        regionCode: 'LA',
-        items: [
-            { label: 'Argentina', value: 'LA-AR', code: 'ar' },
-            { label: 'Bolivia', value: 'LA-BO', code: 'bo' },
-            { label: 'Brasil', value: 'LA-BR', code: 'br' },
-            { label: 'Colombia', value: 'LA-CO', code: 'co' },
-            { label: 'Ecuador', value: 'LA-EC', code: 'ec' },
-            { label: 'Paraguay', value: 'LA-PY', code: 'py' },
-            { label: 'Perú', value: 'LA-PE', code: 'pe' },
-            { label: 'Uruguay', value: 'LA-UY', code: 'uy' },
-            { label: 'Venezuela', value: 'LA-VE', code: 've' }
-        ]
-    },
-    {
-        label: 'América Central',
-        code: 'CA',
-        regionCode: 'LA',
-        items: [
-            { label: 'Belice', value: 'CA-BZ', code: 'bz' },
-            { label: 'Costa Rica', value: 'CA-CR', code: 'cr' },
-            { label: 'El Salvador', value: 'CA-SV', code: 'sv' },
-            { label: 'Guatemala', value: 'CA-GT', code: 'gt' },
-            { label: 'Honduras', value: 'CA-HN', code: 'hn' },
-            { label: 'Nicaragua', value: 'CA-NI', code: 'ni' },
-            { label: 'Panamá', value: 'CA-PA', code: 'pa' }
-        ]
-    },
-    {
-        label: 'América del Norte',
-        code: 'NA',
-        regionCode: 'NA',
-        items: [
-            { label: 'México', value: 'NA-MX', code: 'mx' }
-        ]
-    },
-    {
-        label: 'Caribe',
-        code: 'CB',
-        regionCode: 'CB',
-        items: [
-            { label: 'Cuba', value: 'CB-CU', code: 'cu' },
-            { label: 'República Dominicana', value: 'CB-DO', code: 'do' },
-            { label: 'Haití', value: 'CB-HT', code: 'ht' },
-            { label: 'Puerto Rico', value: 'CB-PR', code: 'pr' }
-        ]
-    }
 ]
 
 // Estado del modal de selección de colegio
@@ -149,7 +95,8 @@ const formData = ref<Partial<FormData>>({
     identificacion: props.formData?.identificacion || '',
     tipoIdentificacion: props.formData?.tipoIdentificacion || 'rut',
     tieneRUT: props.formData?.tieneRUT !== undefined ? props.formData.tieneRUT : true,
-    paisPasaporte: props.formData?.paisPasaporte || '',
+    extranjero: props.formData?.extranjero !== undefined ? props.formData.extranjero : false,
+    residencia_chilena: props.formData?.residencia_chilena !== undefined ? props.formData.residencia_chilena : true,
     nivelEducativo: props.formData?.nivelEducativo || '',
     regionResidencia: props.formData?.regionResidencia || '',
     comunaResidencia: props.formData?.comunaResidencia || '',
@@ -157,6 +104,7 @@ const formData = ref<Partial<FormData>>({
     añoEgreso: props.formData?.añoEgreso || '',
     ranking: props.formData?.ranking || null,
     nem: props.formData?.nem || null,
+    anio_nacimiento: props.formData?.anio_nacimiento || null,
     consentimiento_contacto: props.formData?.consentimiento_contacto || false
 })
 
@@ -179,13 +127,23 @@ const mostrarPasaporte = computed(() => {
 
 // Computed para el checkbox de extranjero
 const esExtranjero = computed({
-    get: () => formData.value.tieneRUT === false,
+    get: () => formData.value.extranjero === true,
     set: (value: boolean) => {
+        formData.value.extranjero = value
         if (value) {
             cambiarAPasaporte()
         } else {
             volverARUT()
         }
+    }
+})
+
+// Computed para el checkbox de residencia fuera del país
+// Si está marcado, significa que NO reside en Chile (residencia_chilena = false)
+const resideFueraPais = computed({
+    get: () => formData.value.residencia_chilena === false,
+    set: (value: boolean) => {
+        formData.value.residencia_chilena = !value
     }
 })
 
@@ -204,6 +162,31 @@ const rankingValue = computed({
         formData.value.ranking = value
     }
 })
+
+// Computed para manejar el año de nacimiento (Calendar devuelve Date, necesitamos extraer el año)
+const anioNacimientoValue = computed({
+    get: () => {
+        if (formData.value.anio_nacimiento !== null && formData.value.anio_nacimiento !== undefined) {
+            // Crear una fecha con el año seleccionado
+            return new Date(formData.value.anio_nacimiento, 0, 1)
+        }
+        return null
+    },
+    set: (value: Date | null) => {
+        if (value instanceof Date && !isNaN(value.getTime())) {
+            formData.value.anio_nacimiento = value.getFullYear()
+        } else {
+            formData.value.anio_nacimiento = null
+        }
+    }
+})
+
+// Constantes para el rango de años de nacimiento
+const anioMinimo = 1900
+const anioActual = new Date().getFullYear()
+const minDate = new Date(anioMinimo, 0, 1) // 1 de enero del año mínimo
+const maxDate = new Date(anioActual, 11, 31) // 31 de diciembre del año actual
+const yearRange = `${anioMinimo}:${anioActual}` // Rango de años para ocultar los que están fuera
 
 // Estado local para el valor del input NEM (string) - mantiene el estado del input sin convertir a número
 const nemInputValue = ref('')
@@ -446,9 +429,9 @@ const touched = ref({
     email: false,
     telefono: false,
     identificacion: false,
-    paisPasaporte: false,
     nivelEducativo: false,
-    colegio: false
+    colegio: false,
+    anio_nacimiento: false
 })
 
 // Validar email cuando cambie
@@ -467,10 +450,12 @@ watch(() => formData.value.email, (newEmail) => {
 
 // Función para cambiar a pasaporte
 const cambiarAPasaporte = () => {
+    // Guardar el valor del RUT antes de cambiar
+    const valorRUT = formData.value.identificacion || ''
     formData.value.tieneRUT = false
     formData.value.tipoIdentificacion = 'pasaporte'
-    formData.value.identificacion = '' // Limpiar el campo al cambiar
-    formData.value.paisPasaporte = '' // Limpiar el país al cambiar
+    // Copiar el valor del RUT al campo de pasaporte
+    formData.value.identificacion = valorRUT
     rutError.value = null // Limpiar error de RUT
 }
 
@@ -479,7 +464,6 @@ const volverARUT = () => {
     formData.value.tieneRUT = true
     formData.value.tipoIdentificacion = 'rut'
     formData.value.identificacion = '' // Limpiar el campo al cambiar
-    formData.value.paisPasaporte = '' // Limpiar el país al cambiar
     rutError.value = null // Limpiar error de RUT
 }
 
@@ -623,12 +607,11 @@ const isFormValid = computed(() => {
         formData.value.email?.trim() !== '' &&
         formData.value.telefono?.trim() !== '' &&
         formData.value.identificacion?.trim() !== '' &&
+        formData.value.anio_nacimiento !== null &&
         // Nivel educativo solo es requerido si NO es especialización
         (isEspecializacion || formData.value.nivelEducativo !== '') &&
         // Colegio solo es requerido si NO usa pasaporte Y NO es especialización
-        (isEspecializacion || mostrarPasaporte.value || formData.value.colegio?.trim() !== '') &&
-        // Si es pasaporte, el país es requerido
-        (mostrarRUT.value || (mostrarPasaporte.value && formData.value.paisPasaporte?.trim() !== ''))
+        (isEspecializacion || mostrarPasaporte.value || formData.value.colegio?.trim() !== '')
 
     const isEmailValid = formData.value.email ? validateEmail(formData.value.email) : false
     // Validar RUT solo si tieneRUT es true, si es pasaporte solo verificar que no esté vacío
@@ -735,7 +718,8 @@ watch(() => props.formData, (newData) => {
             formData.value.identificacion !== (newData.identificacion || '') ||
             formData.value.tipoIdentificacion !== (newData.tipoIdentificacion || 'rut') ||
             formData.value.tieneRUT !== (newData.tieneRUT !== undefined ? newData.tieneRUT : true) ||
-            formData.value.paisPasaporte !== (newData.paisPasaporte || '') ||
+            formData.value.extranjero !== (newData.extranjero !== undefined ? newData.extranjero : false) ||
+            formData.value.residencia_chilena !== (newData.residencia_chilena !== undefined ? newData.residencia_chilena : true) ||
             formData.value.nivelEducativo !== (newData.nivelEducativo || '') ||
             formData.value.regionResidencia !== (newData.regionResidencia || '') ||
             formData.value.comunaResidencia !== (newData.comunaResidencia || '') ||
@@ -743,6 +727,7 @@ watch(() => props.formData, (newData) => {
             formData.value.añoEgreso !== (newData.añoEgreso || '') ||
             formData.value.ranking !== (newData.ranking || null) ||
             formData.value.nem !== (newData.nem || null) ||
+            formData.value.anio_nacimiento !== (newData.anio_nacimiento || null) ||
             formData.value.consentimiento_contacto !== (newData.consentimiento_contacto || false)
 
         if (hasChanges) {
@@ -755,7 +740,8 @@ watch(() => props.formData, (newData) => {
                 identificacion: newData.identificacion || '',
                 tipoIdentificacion: newData.tipoIdentificacion || 'rut',
                 tieneRUT: newData.tieneRUT !== undefined ? newData.tieneRUT : true,
-                paisPasaporte: newData.paisPasaporte || '',
+                extranjero: newData.extranjero !== undefined ? newData.extranjero : false,
+                residencia_chilena: newData.residencia_chilena !== undefined ? newData.residencia_chilena : true,
                 nivelEducativo: newData.nivelEducativo || '',
                 regionResidencia: newData.regionResidencia || '',
                 comunaResidencia: newData.comunaResidencia || '',
@@ -763,6 +749,7 @@ watch(() => props.formData, (newData) => {
                 añoEgreso: newData.añoEgreso || '',
                 ranking: newData.ranking || null,
                 nem: newData.nem || null,
+                anio_nacimiento: newData.anio_nacimiento || null,
                 consentimiento_contacto: newData.consentimiento_contacto || false
             }
             // Resetear el flag después de un pequeño delay
@@ -933,7 +920,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                 id="identificacion"
                                 v-model="formData.identificacion"
                                 type="text"
-                                placeholder="Rut provisorio/Pasaporte"
+                                placeholder="Rut provisorio/Pasaporte/DNI"
                                 class="form-input"
                                 :invalid="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')"
                                 @blur="touched.identificacion = true"
@@ -950,6 +937,37 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                         </Message>
                     </div>
                 </div>
+
+                <!-- Campo Año de Nacimiento -->
+                <div class="form-field">
+                    <div class="flex flex-col gap-1">
+                        <FloatLabel>
+                            <DatePicker
+                                id="anio_nacimiento"
+                                v-model="anioNacimientoValue"
+                                view="year"
+                                dateFormat="yy"
+                                class="form-input w-full"
+                                :invalid="(submitted || touched.anio_nacimiento) && formData.anio_nacimiento === null"
+                                :minDate="minDate"
+                                :maxDate="maxDate"
+                                :yearRange="yearRange"
+                                @blur="touched.anio_nacimiento = true"
+                            />
+                            <label for="anio_nacimiento">Año de Nacimiento *</label>
+                        </FloatLabel>
+                        <Message
+                            v-if="(submitted || touched.anio_nacimiento) && formData.anio_nacimiento === null"
+                            severity="error"
+                            variant="simple"
+                            size="small"
+                        >
+                            Año de nacimiento es requerido
+                        </Message>
+                    </div>
+                </div>
+
+
 
                  <!-- Checkbox ¿Eres extranjero? (solo para primera carrera) -->
                  <div v-if="props.modo !== 'especializacion'" class="form-field">
@@ -981,55 +999,21 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </OverlayPanel>
                 </div>
 
-                <!-- Campo País (solo si tipoIdentificacion es pasaporte y NO es especialización) -->
-                <div v-if="mostrarPasaporte && props.modo !== 'especializacion'" class="form-field">
-                    <div class="flex flex-col gap-1">
-                        <FloatLabel>
-                            <Select
-                                id="paisPasaporte"
-                                v-model="formData.paisPasaporte"
-                                :options="groupedCountries"
-                                optionLabel="label"
-                                optionGroupLabel="label"
-                                optionGroupChildren="items"
-                                optionValue="value"
-                                class="w-full form-input"
-                                :invalid="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')"
-                                @blur="touched.paisPasaporte = true"
-                            >
-                                <template #optiongroup="slotProps">
-                                    <div class="flex items-center">
-                                        <img
-                                            :alt="slotProps.option.label"
-                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png"
-                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`"
-                                            style="width: 18px"
-                                        />
-                                        <div>{{ slotProps.option.label }}</div>
-                                    </div>
-                                </template>
-                                <template #option="slotProps">
-                                    <div class="flex items-center">
-                                        <img
-                                            :alt="slotProps.option.label"
-                                            src="https://primefaces.org/cdn/primevue/images/flag/flag_placeholder.png"
-                                            :class="`mr-2 flag flag-${slotProps.option.code.toLowerCase()}`"
-                                            style="width: 18px"
-                                        />
-                                        <div>{{ slotProps.option.label }}</div>
-                                    </div>
-                                </template>
-                            </Select>
-                            <label for="paisPasaporte">País de Origen *</label>
-                        </FloatLabel>
-                        <Message
-                            v-if="(submitted || touched.paisPasaporte) && (!formData.paisPasaporte || formData.paisPasaporte.trim() === '')"
-                            severity="error"
-                            variant="simple"
-                            size="small"
+                <!-- Checkbox ¿Resides fuera del país? (solo si es extranjero y NO es especialización) -->
+                <div v-if="esExtranjero && props.modo !== 'especializacion'" class="form-field">
+                    <div class="flex items-end gap-2">
+                        <Checkbox
+                            id="resideFueraPais"
+                            v-model="resideFueraPais"
+                            :binary="true"
+                        />
+                        <label
+                            for="resideFueraPais"
+                            class="text-gray-500 text-sm cursor-pointer"
+                            @click="resideFueraPais = !resideFueraPais"
                         >
-                            País es requerido
-                        </Message>
+                            ¿Resides fuera del país?
+                        </label>
                     </div>
                 </div>
 
@@ -1086,6 +1070,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 </div>
 
                 <!-- Año de Egreso (solo para egresados) -->
+                 <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
                 <div v-if="isEgresado" class="form-field">
                     <FloatLabel>
                         <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
@@ -1094,8 +1079,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- Ranking de Notas (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field">
+                <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
+                <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
+                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
                     <FloatLabel>
                         <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
                             class="form-input" />
@@ -1103,8 +1090,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- NEM (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field">
+                <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
+                <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
+                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
                     <FloatLabel>
                         <InputText
                             id="nem"
@@ -1119,8 +1108,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera) -->
-                <div v-if="mostrarRUT && props.modo === 'primera_carrera'" class="form-field colegio-field">
+                <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera Y (no es extranjero O es extranjero pero reside en Chile)) -->
+                <div v-if="(!esExtranjero || (esExtranjero && !resideFueraPais))" class="form-field colegio-field">
                     <div class="flex flex-col gap-1">
                         <label for="colegio" class="colegio-label">
                             Colegio *
