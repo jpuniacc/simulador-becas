@@ -112,6 +112,42 @@ export type Database = {
         }
         Relationships: []
       }
+      becas_informativas: {
+        Row: {
+          codigo: string
+          descripcion: string
+          estado: string | null
+          id: string
+          nombre: string
+          porcentajes: Json | null
+          requisitos: Json | null
+          vigente_desde: string
+          vigente_hasta: string
+        }
+        Insert: {
+          codigo: string
+          descripcion: string
+          estado?: string | null
+          id?: string
+          nombre: string
+          porcentajes?: Json | null
+          requisitos?: Json | null
+          vigente_desde: string
+          vigente_hasta: string
+        }
+        Update: {
+          codigo?: string
+          descripcion?: string
+          estado?: string | null
+          id?: string
+          nombre?: string
+          porcentajes?: Json | null
+          requisitos?: Json | null
+          vigente_desde?: string
+          vigente_hasta?: string
+        }
+        Relationships: []
+      }
       becas_uniacc: {
         Row: {
           activa: boolean | null
@@ -150,6 +186,7 @@ export type Database = {
           requiere_ranking: boolean | null
           requiere_region_especifica: boolean | null
           requiere_residencia_chile: boolean | null
+          tipo: string | null
           tipo_descuento: string | null
           updated_at: string | null
           vigencia_desde: string
@@ -192,6 +229,7 @@ export type Database = {
           requiere_ranking?: boolean | null
           requiere_region_especifica?: boolean | null
           requiere_residencia_chile?: boolean | null
+          tipo?: string | null
           tipo_descuento?: string | null
           updated_at?: string | null
           vigencia_desde: string
@@ -234,6 +272,7 @@ export type Database = {
           requiere_ranking?: boolean | null
           requiere_region_especifica?: boolean | null
           requiere_residencia_chile?: boolean | null
+          tipo?: string | null
           tipo_descuento?: string | null
           updated_at?: string | null
           vigencia_desde?: string
@@ -1868,12 +1907,10 @@ export type Database = {
           nombre: string
           objetivo: Json | null
           paes: boolean | null
-          pais: string | null
           pasaporte: string | null
           rango_ingreso: string | null
           ranking: number | null
           region: string | null
-          region_pais: string | null
           rut: string | null
           segmentacion: string | null
           telefono: string | null
@@ -1904,12 +1941,10 @@ export type Database = {
           nombre: string
           objetivo?: Json | null
           paes?: boolean | null
-          pais?: string | null
           pasaporte?: string | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
-          region_pais?: string | null
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null
@@ -1940,12 +1975,10 @@ export type Database = {
           nombre?: string
           objetivo?: Json | null
           paes?: boolean | null
-          pais?: string | null
           pasaporte?: string | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
-          region_pais?: string | null
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null

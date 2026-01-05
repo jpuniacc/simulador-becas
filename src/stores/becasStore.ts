@@ -90,6 +90,19 @@ export interface BecasElegiblesEstado {
   monto_descuento: number
 }
 
+// Tipo para becas informativas
+export interface BecasInformativas {
+  id: string
+  codigo: string
+  nombre: string
+  descripcion: string
+  estado: string | null
+  porcentajes: unknown | null
+  requisitos: unknown | null
+  vigente_desde: string
+  vigente_hasta: string
+}
+
 export const useBecasStore = defineStore('becas', () => {
   // Estado
   const becas = ref<BecasUniacc[]>([])
@@ -101,6 +114,11 @@ export const useBecasStore = defineStore('becas', () => {
   const loadingEstado = ref(false)
   const errorEstado = ref<string | null>(null)
   const becasElegiblesEstado = ref<BecasElegiblesEstado[]>([])
+
+  // Estado para becas informativas
+  const becasInformativas = ref<BecasInformativas[]>([])
+  const loadingInformativas = ref(false)
+  const errorInformativas = ref<string | null>(null)
 
   // Integrar con carreras store
   const carrerasStore = useCarrerasStore()
@@ -547,6 +565,36 @@ export const useBecasStore = defineStore('becas', () => {
     return carrerasStore.obtenerCostosCarrera(idCarrera)
   }
 
+  // Cargar becas informativas (solo activas y vigentes)
+  const cargarBecasInformativas = async () => {
+    try {
+      loadingInformativas.value = true
+      errorInformativas.value = null
+
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0) // Establecer a inicio del día para comparación
+
+      const { data, error: supabaseError } = await supabase
+        .from('becas_informativas')
+        .select('*')
+        .eq('estado', 'activa')
+        .lte('vigente_desde', hoy.toISOString()) // vigente_desde <= hoy
+        .or(`vigente_hasta.is.null,vigente_hasta.gte.${hoy.toISOString()}`) // vigente_hasta es null o >= hoy
+        .order('nombre', { ascending: true })
+
+      if (supabaseError) {
+        throw supabaseError
+      }
+
+      becasInformativas.value = data || []
+    } catch (err) {
+      errorInformativas.value = err instanceof Error ? err.message : 'Error al cargar becas informativas'
+      console.error('Error cargando becas informativas:', err)
+    } finally {
+      loadingInformativas.value = false
+    }
+  }
+
   return {
     // Estado
     becas,
@@ -559,6 +607,10 @@ export const useBecasStore = defineStore('becas', () => {
     loadingEstado,
     errorEstado,
     becasElegiblesEstado,
+    // Becas informativas
+    becasInformativas,
+    loadingInformativas,
+    errorInformativas,
 
     // Acciones
     cargarBecas,
@@ -569,6 +621,7 @@ export const useBecasStore = defineStore('becas', () => {
     obtenerCostosCarrera,
     cargarBecasEstado,
     verificarElegibilidadEstado,
-    calcularBecasElegiblesEstado
+    calcularBecasElegiblesEstado,
+    cargarBecasInformativas
   }
 })
