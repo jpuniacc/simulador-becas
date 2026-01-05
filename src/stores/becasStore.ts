@@ -360,12 +360,30 @@ export const useBecasStore = defineStore('becas', () => {
       elegible = false
       razon = `No hay cupos disponibles`
     }
-    // Si es elegible, calcular descuento
+
+    // Si es elegible, calcular descuento inicial
     if (elegible) {
       if (beca.tipo_descuento === 'porcentaje' && beca.descuento_porcentaje) {
         descuento_aplicado = beca.descuento_porcentaje
       } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto_fijo) {
         monto_descuento = beca.descuento_monto_fijo
+      }
+    }
+
+    // 13. TODO: Deuda técnica - Condición especial para beca EXPERIENCIA
+    // Si el código de la beca es 'EXPERIENCIA' y ya es elegible, ajustar descuento según modalidad
+    if (elegible && beca.codigo_beca === 'EXPERIENCIA' && formData.carreraId) {
+      const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId)
+      if (carrera && carrera.modalidad_programa) {
+        const modalidad = carrera.modalidad_programa.trim()
+        // Aplicar 20% para Diurno, Vespertino o Semipresencial
+        if (modalidad === 'Diurno' || modalidad === 'Vespertino' || modalidad === 'Semipresencial') {
+          descuento_aplicado = 20
+        }
+        // Aplicar 30% para Online
+        else if (modalidad === 'Online') {
+          descuento_aplicado = 30
+        }
       }
     }
 
