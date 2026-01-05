@@ -920,7 +920,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                 id="identificacion"
                                 v-model="formData.identificacion"
                                 type="text"
-                                placeholder="Rut provisorio/Pasaporte"
+                                placeholder="Rut provisorio/Pasaporte/DNI"
                                 class="form-input"
                                 :invalid="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')"
                                 @blur="touched.identificacion = true"
@@ -1070,6 +1070,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 </div>
 
                 <!-- Año de Egreso (solo para egresados) -->
+                 <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
                 <div v-if="isEgresado" class="form-field">
                     <FloatLabel>
                         <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
@@ -1078,8 +1079,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- Ranking de Notas (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field">
+                <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
+                <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
+                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
                     <FloatLabel>
                         <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
                             class="form-input" />
@@ -1087,8 +1090,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- NEM (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field">
+                <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
+                <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
+                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
                     <FloatLabel>
                         <InputText
                             id="nem"

@@ -118,21 +118,58 @@ const opcionesFinanciamiento = [
 // Estado para controlar si piensa usar financiamiento del estado
 const piensaUsarFinanciamiento = ref(false)
 
+// JPS: Computed para verificar si es extranjero y reside fuera del país
+// Modificación: Detectar cuando el usuario es extranjero Y reside fuera del país
+// Funcionamiento: Si ambas condiciones se cumplen, solo se deben mostrar carreras online
+// Esto es necesario porque los extranjeros fuera del país solo pueden acceder a programas online
+const esExtranjeroFueraPais = computed(() => {
+    return props.formData?.extranjero === true && props.formData?.residencia_chilena === false
+})
 
-// Función para buscar carreras (usada por Autocomplete)
-const searchCarreras = (event: { query: string }) => {
-    if (!event.query || !event.query.trim()) {
-        filteredCarreras.value = carrerasVigentes.value
-    } else {
-        filteredCarreras.value = buscarCarreras(event.query)
+// JPS: Función para filtrar carreras según modalidad cuando es extranjero fuera del país
+// Modificación: Aplicar filtro de modalidad "Online" cuando esExtranjeroFueraPais es true
+// Funcionamiento:
+// - Si es extranjero fuera del país: filtra solo carreras con modalidad_programa === "Online"
+// - Si no es extranjero fuera del país: retorna todas las carreras sin filtrar
+// La comparación se hace en minúsculas y sin espacios para evitar problemas de formato
+const aplicarFiltroModalidad = (carreras: Carrera[]): Carrera[] => {
+    if (esExtranjeroFueraPais.value) {
+        // Solo mostrar carreras online
+        return carreras.filter(carrera => {
+            const modalidad = carrera.modalidad_programa?.toLowerCase().trim()
+            return modalidad === 'online'
+        })
     }
+    // Si no es extranjero fuera del país, mostrar todas las carreras
+    return carreras
 }
 
-// Función para manejar el focus del Autocomplete
+// JPS: Función para buscar carreras (usada por Autocomplete) - Modificada para aplicar filtro de modalidad
+// Modificación: Aplicar filtro de modalidad después de buscar carreras
+// Funcionamiento: Primero busca las carreras según el término de búsqueda, luego aplica el filtro
+// de modalidad si es extranjero fuera del país
+const searchCarreras = (event: { query: string }) => {
+    let carreras: Carrera[] = []
+
+    if (!event.query || !event.query.trim()) {
+        carreras = carrerasVigentes.value
+    } else {
+        carreras = buscarCarreras(event.query)
+    }
+
+    // Aplicar filtro de modalidad si es extranjero fuera del país
+    filteredCarreras.value = aplicarFiltroModalidad(carreras)
+}
+
+// JPS: Función para manejar el focus del Autocomplete - Modificada para aplicar filtro de modalidad
+// Modificación: Aplicar filtro de modalidad al inicializar las carreras filtradas
+// Funcionamiento: Cuando el usuario hace focus en el autocomplete, se cargan todas las carreras
+// pero se aplica el filtro de modalidad si corresponde
 const handleAutocompleteFocus = () => {
     touched.value.carrera = true
     if (filteredCarreras.value.length === 0) {
-        filteredCarreras.value = carrerasVigentes.value
+        // Aplicar filtro de modalidad al inicializar
+        filteredCarreras.value = aplicarFiltroModalidad(carrerasVigentes.value)
     }
 }
 
@@ -239,13 +276,20 @@ const selectCarrera = (carrera: Carrera) => {
     touched.value.carrera = true
 }
 
+// JPS: Función para seleccionar carrera sugerida - Modificada para respetar filtro de modalidad
+// Modificación: Verificar que la carrera encontrada cumpla con el filtro de modalidad
+// Funcionamiento: Busca la carrera pero solo la selecciona si es válida según el filtro
 const seleccionarCarreraSugerida = (nombre: string) => {
     // Buscar la carrera en la lista de carreras vigentes
     const carreraEncontrada = carrerasVigentes.value.find(
         c => c.nombre_programa.toLowerCase().includes(nombre.toLowerCase())
     )
     if (carreraEncontrada) {
-        selectCarrera(carreraEncontrada)
+        // Verificar que la carrera sea válida según el filtro de modalidad
+        const carrerasFiltradas = aplicarFiltroModalidad([carreraEncontrada])
+        if (carrerasFiltradas.length > 0) {
+            selectCarrera(carreraEncontrada)
+        }
     }
 }
 
@@ -332,6 +376,32 @@ watch(() => piensaUsarFinanciamiento.value, (newValue) => {
         formData.value.decil = null
     }
 })
+
+// JPS: Watcher para actualizar el filtro cuando cambien extranjero o residencia_chilena
+// Modificación: Agregar watcher que reacciona a cambios en extranjero y residencia_chilena
+// Funcionamiento:
+// - Si el usuario se marca como extranjero fuera del país y tiene una carrera seleccionada que NO es online,
+//   se limpia la selección automáticamente
+// - Se re-aplica el filtro de modalidad a las carreras disponibles
+// - Esto asegura que el usuario solo pueda seleccionar carreras online cuando corresponde
+watch(() => [props.formData?.extranjero, props.formData?.residencia_chilena], () => {
+    // Si hay una carrera seleccionada que no es online y ahora debe filtrarse, limpiar la selección
+    if (esExtranjeroFueraPais.value && carreraSeleccionada.value) {
+        const modalidad = carreraSeleccionada.value.modalidad_programa?.toLowerCase().trim()
+        if (modalidad !== 'online') {
+            // Limpiar la selección si la carrera actual no es online
+            carreraSeleccionada.value = null
+            formData.value.carrera = ''
+            formData.value.carreraId = 0
+            touched.value.carrera = false
+        }
+    }
+
+    // Re-aplicar el filtro a las carreras disponibles
+    if (filteredCarreras.value.length > 0 || carrerasVigentes.value.length > 0) {
+        filteredCarreras.value = aplicarFiltroModalidad(carrerasVigentes.value)
+    }
+}, { deep: true })
 
 // Método para manejar cambios en financiamiento
 const handleFinancingChange = () => {
@@ -444,8 +514,11 @@ defineExpose({
 onMounted(async () => {
     await inicializarCarreras()
     await cargarDeciles()
-    // Inicializar las carreras filtradas con todas las carreras vigentes
-    filteredCarreras.value = carrerasVigentes.value
+    // JPS: Inicializar las carreras filtradas aplicando el filtro de modalidad
+    // Modificación: Aplicar filtro de modalidad desde el inicio si es extranjero fuera del país
+    // Funcionamiento: Al montar el componente, se aplica el filtro de modalidad para que solo
+    // se muestren carreras online si corresponde
+    filteredCarreras.value = aplicarFiltroModalidad(carrerasVigentes.value)
     // Detectar si es móvil basándose en touch support y tamaño de pantalla
     handleMobileResize()
     window.addEventListener('resize', handleMobileResize)
@@ -454,7 +527,16 @@ onMounted(async () => {
     if (props.formData?.carreraId && props.formData.carreraId > 0) {
         const carrera = carrerasVigentes.value.find(c => c.id === props.formData.carreraId)
         if (carrera) {
-            carreraSeleccionada.value = carrera
+            // JPS: Verificar que la carrera seleccionada sea válida según el filtro de modalidad
+            // Si es extranjero fuera del país y la carrera no es online, no seleccionarla
+            if (esExtranjeroFueraPais.value) {
+                const modalidad = carrera.modalidad_programa?.toLowerCase().trim()
+                if (modalidad === 'online') {
+                    carreraSeleccionada.value = carrera
+                }
+            } else {
+                carreraSeleccionada.value = carrera
+            }
         }
     }
 })
@@ -514,6 +596,18 @@ onUnmounted(() => {
                             <p class="text-sm text-gray-500 mt-1">
                                 Busca por nombre de carrera, facultad o área
                             </p>
+                            <!-- JPS: Mensaje informativo cuando es extranjero fuera del país -->
+                            <!-- Modificación: Mostrar mensaje indicando que solo se muestran carreras online -->
+                            <!-- Funcionamiento: Se muestra solo cuando esExtranjeroFueraPais es true -->
+                            <Message
+                                v-if="esExtranjeroFueraPais"
+                                severity="info"
+                                variant="simple"
+                                size="small"
+                                class="mt-2"
+                            >
+                                Como extranjero que resides fuera del país, solo puedes acceder a carreras en modalidad online.
+                            </Message>
                             <div class="career-suggestions">
                                 <span class="suggestions-label">Ejemplos:</span>
                                 <Tag v-for="carrera in carrerasSugeridas" :key="carrera" :value="carrera"
