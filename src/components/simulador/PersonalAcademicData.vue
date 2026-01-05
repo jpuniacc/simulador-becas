@@ -920,7 +920,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                                 id="identificacion"
                                 v-model="formData.identificacion"
                                 type="text"
-                                placeholder="Rut provisorio/Pasaporte"
+                                placeholder="Rut provisorio/Pasaporte/DNI"
                                 class="form-input"
                                 :invalid="(submitted || touched.identificacion) && (!formData.identificacion || formData.identificacion.trim() === '')"
                                 @blur="touched.identificacion = true"
@@ -1070,6 +1070,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 </div>
 
                 <!-- Año de Egreso (solo para egresados) -->
+                 <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
                 <div v-if="isEgresado" class="form-field">
                     <FloatLabel>
                         <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
@@ -1078,8 +1079,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- Ranking de Notas (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field">
+                <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
+                <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
+                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
                     <FloatLabel>
                         <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
                             class="form-input" />
@@ -1087,8 +1090,10 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </FloatLabel>
                 </div>
 
-                <!-- NEM (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field">
+                <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
+                <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
+                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
                     <FloatLabel>
                         <InputText
                             id="nem"
@@ -1237,10 +1242,20 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 
 :deep(.colegio-button) {
     @apply w-full justify-start;
+    border-color: var(--p-primary-500) !important;
+    color: var(--p-primary-700) !important;
+}
+
+:deep(.colegio-button:hover) {
+    background-color: var(--p-primary-100) !important;
+    border-color: var(--p-primary-700) !important;
+    color: var(--p-primary-900) !important;
 }
 
 .colegio-selected {
-    @apply flex items-center justify-center p-4 border-2 border-gray-200 rounded-lg bg-gray-50;
+    @apply flex items-center justify-center p-4 border-2 rounded-lg;
+    border-color: var(--p-primary-300);
+    background-color: var(--p-primary-100);
 }
 
 .colegio-info {
@@ -1248,7 +1263,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .colegio-icon {
-    @apply w-5 h-5 text-gray-600 flex-shrink-0;
+    @apply w-5 h-5 flex-shrink-0;
+    color: var(--p-primary-700);
 }
 
 .colegio-details {
@@ -1256,11 +1272,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .colegio-nombre {
-    @apply font-medium text-gray-900 truncate;
+    @apply font-medium truncate;
+    color: var(--p-primary-900);
 }
 
 .colegio-location {
-    @apply text-sm text-gray-600 mt-1;
+    @apply text-sm mt-1;
+    color: var(--p-primary-700);
 }
 
 :deep(.colegio-change-button) {
@@ -1268,14 +1286,14 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 :deep(.colegio-completed .p-button) {
-    background-color: #10b981 !important;
-    border-color: #10b981 !important;
+    background-color: var(--p-primary-500) !important;
+    border-color: var(--p-primary-700) !important;
     color: white !important;
 }
 
 :deep(.colegio-completed .p-button:hover) {
-    background-color: #059669 !important;
-    border-color: #059669 !important;
+    background-color: var(--p-primary-700) !important;
+    border-color: var(--p-primary-900) !important;
 }
 
 
@@ -1309,13 +1327,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .consentimiento-label.consentimiento-checked {
-    border-color: #10b981;
-    background-color: #ecfdf5;
+    border-color: var(--p-primary-500);
+    background-color: var(--p-primary-100);
 }
 
 .dark .consentimiento-label.consentimiento-checked {
-    border-color: #059669;
-    background-color: #064e3b;
+    border-color: var(--p-primary-700);
+    background-color: var(--p-primary-500);
 }
 
 .consentimiento-checkbox {
@@ -1327,13 +1345,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 :deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
-    border-color: #10b981 !important;
-    background-color: #10b981 !important;
+    border-color: var(--p-primary-700) !important;
+    background-color: var(--p-primary-500) !important;
 }
 
 .dark :deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
-    border-color: #059669 !important;
-    background-color: #059669 !important;
+    border-color: var(--p-primary-700) !important;
+    background-color: var(--p-primary-500) !important;
 }
 
 :deep(.consentimiento-checkbox .p-checkbox-icon) {
@@ -1345,12 +1363,14 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .consentimiento-title {
-    @apply text-sm font-medium text-gray-900 mb-1.5;
+    @apply text-sm font-medium mb-1.5;
+    color: var(--p-primary-900);
     line-height: 1.5;
 }
 
 .consentimiento-subtitle {
-    @apply text-sm text-gray-600 font-normal;
+    @apply text-sm font-normal;
+    color: var(--p-primary-900);
     line-height: 1.5;
     margin-left: calc(-1.25rem - 0.75rem);
     padding-left: calc(1.25rem + 0.75rem);

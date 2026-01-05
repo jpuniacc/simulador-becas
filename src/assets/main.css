@@ -80,13 +80,13 @@
 /* --- estilos para stepper - pasos completados --- */
 /* Número del paso */
 .p-step-number[data-p~="completed"] {
-  color: var(--p-stepper-step-title-active-color) !important;
+  color: var(--p-primary-500) !important;
 }
 
 /* Texto del paso (título) */
 .p-step[data-p~="completed"] .p-step-title,
 .p-step-header[data-p~="completed"] .p-step-title {
-  color: var(--p-stepper-step-title-active-color) !important;
+  color: var(--p-primary-500) !important;
 }
 
 
@@ -97,7 +97,7 @@
   background-color: var(--p-button-primary-background) !important;
   color: #ffffff !important;
   box-shadow: none !important;
-  border-radius: 8px; 
+  border-radius: 8px;
   transition: none !important;
   border: none !important;
   outline: none !important;
@@ -259,7 +259,7 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Evitar zoom automático en móviles al enfocar inputs */
   input[type="text"],
   input[type="email"],
@@ -281,3 +281,96 @@ body {
   line-height: 1.5;
   margin-top: 0.25rem;
 }
+
+
+.uniacc-theme, body  {
+  --p-primary-900: #1E3F56; /* darkest */
+  --p-primary-700: #305F7B;
+  --p-primary-500: #4D98C5; /* 🎯 primary */
+  --p-primary-300: #7AB2D4;
+  --p-primary-100: #B5D9EB; /* lightest */
+
+  /* Core */
+  --p-primary-color: var(--p-primary-500);
+  --p-primary-contrast-color: #ffffff;
+
+  /* Highlight & selection */
+  --p-highlight-bg: var(--p-primary-100);
+  --p-highlight-color: var(--p-primary-900);
+
+  /* Focus */
+  --p-focus-ring-color: var(--p-primary-300);
+
+  --p-button-primary-background: var(--p-primary-500);
+  --p-button-primary-border-color: var(--p-primary-500);
+
+  --p-button-primary-hover-background: var(--p-primary-700);
+  --p-button-primary-hover-border-color: var(--p-primary-700);
+
+  --p-button-primary-active-background: var(--p-primary-900);
+  --p-button-primary-active-border-color: var(--p-primary-900);
+
+  --p-checkbox-checked-background: var(--p-primary-500);
+  --p-checkbox-checked-border-color: var(--p-primary-500);
+
+  --p-radio-checked-background: var(--p-primary-500);
+  --p-radio-checked-border-color: var(--p-primary-500);
+
+  --p-stepper-step-number-active-background: var(--p-primary-500);
+  --p-stepper-step-number-active-color: #ffffff;
+
+  --p-stepper-step-title-active-color: var(--p-primary-700);
+
+
+  --p-checkbox-hover-border-color: var(--p-primary-300);
+  --p-checkbox-hover-background: transparent;
+  --p-checkbox-checked-hover-background: var(--p-primary-700);
+  --p-checkbox-checked-hover-border-color: var(--p-primary-700);
+
+  --p-input-focus-border-color: var(--p-primary-500);
+  --p-input-focus-ring-color: var(--p-primary-300);
+  --p-inputtext-focus-border-color: var(--p-primary-500);
+  --p-dropdown-focus-border-color: var(--p-primary-500);
+  --p-floatlabel-active-color: var(--p-primary-700);
+  --p-floatlabel-focus-color: var(--p-primary-500);
+
+  --p-datepicker-date-selected-background: var(--p-primary-500);
+--p-datepicker-date-selected-color: #ffffff;
+
+--p-datepicker-date-selected-hover-background: var(--p-primary-700);
+--p-datepicker-date-selected-hover-color: #ffffff;
+--p-datepicker-date-today-border-color: var(--p-primary-500);
+--p-datepicker-date-today-color: var(--p-primary-700);
+
+--p-button-text-success-color: var(--p-primary-500);
+--p-button-text-success-hover-color: var(--p-primary-700);
+
+
+.p-step:has(~ .p-step-active) .p-stepper-separator {
+  background: var(--p-primary-500) !important;
+}
+
+.p-select-option.p-select-option-selected {
+  background: var(--p-primary-500) !important;
+  color: #ffffff !important;
+}
+
+/* forzar fecha seleccionada en el datepicker */
+  .p-datepicker {
+    --p-datepicker-date-selected-background: var(--p-primary-500) !important;
+    --p-datepicker-date-selected-color: #ffffff !important;
+  }
+
+  .p-datepicker {
+    --p-datepicker-date-selected-hover-background: var(--p-primary-700) !important;
+    --p-datepicker-date-selected-hover-color: #ffffff !important;
+  }
+
+  .p-datepicker.p-component {
+    --p-datepicker-date-selected-background: var(--p-primary-500);
+  }
+
+}
+
+
+
