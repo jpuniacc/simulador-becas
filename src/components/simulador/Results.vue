@@ -6,10 +6,12 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Message from 'primevue/message'
 import OverlayPanel from 'primevue/overlaypanel'
 import Drawer from 'primevue/drawer'
+import Dialog from 'primevue/dialog'
 import Slider from 'primevue/slider'
 import Select from 'primevue/select'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useDescuentosStore } from '@/stores/descuentosStore'
+import { useBecasStore, type BecasInformativas } from '@/stores/becasStore'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
@@ -32,6 +34,7 @@ const props = defineProps<Props>()
 // Store y servicios
 const simuladorStore = useSimuladorStore()
 const descuentosStore = useDescuentosStore()
+const becasStore = useBecasStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
 const { enviarCRM } = useCRM()
 
@@ -50,6 +53,8 @@ const descuentosInfoIconRef = ref<HTMLElement | null>(null)
 let descuentosHideTimeout: ReturnType<typeof setTimeout> | null = null
 const numeroCuotas = ref(10)
 const tipoPago = ref<string | null>(null)
+const showBecaInfoDialog = ref(false)
+const selectedBecaInfo = ref<BecasInformativas | null>(null)
 
 // Opciones para el tipo de pago
 const opcionesTipoPago = [
@@ -115,6 +120,8 @@ onMounted(() => {
   // Cargar descuentos de pago anticipado y modo de pago
   descuentosStore.cargarDescuentosPagoAnticipado()
   descuentosStore.cargarDescuentosModoPago()
+  // Cargar becas informativas
+  becasStore.cargarBecasInformativas()
 
   // Detectar si es móvil basándose en touch support y tamaño de pantalla
   handleMobileResize()
@@ -139,6 +146,11 @@ const carreraInfo = computed(() => {
 // Computed para becas aplicadas (internas)
 const becasAplicadas = computed(() => {
   return calculoBecas.value?.becas_aplicadas || []
+})
+
+// Computed para becas informativas
+const becasInformativas = computed(() => {
+  return becasStore.becasInformativas || []
 })
 
 // Computed para arancel después de becas internas
@@ -553,6 +565,17 @@ const keepDescuentosInfoVisible = () => {
   }
 }
 
+// Métodos para mostrar/ocultar dialog de beca informativa
+const openBecaInfoDialog = (beca: any) => {
+  selectedBecaInfo.value = beca
+  showBecaInfoDialog.value = true
+}
+
+const closeBecaInfoDialog = () => {
+  showBecaInfoDialog.value = false
+  selectedBecaInfo.value = null
+}
+
 // Método para obtener el texto del badge del proceso de evaluación
 const getProcesoEvaluacionBadge = (proceso: string): string => {
   switch (proceso) {
@@ -959,6 +982,47 @@ defineExpose({
           </div>
         </template>
         </Card>
+
+      <!-- Becas Adicionales (Informativas) -->
+      <Card v-if="becasInformativas.length > 0" class="becas-adicionales-card">
+        <template #content>
+          <div class="benefits-section">
+            <h3 class="benefits-section-title">
+              <Award class="w-6 h-6" />
+              Becas Adicionales
+            </h3>
+
+            <!-- Becas Informativas -->
+            <div class="benefits-subsection">
+              <p class="becas-informativas-texto">
+                Te invitamos a consultar por otras becas aplicables si ya eres parte de la familia UNIACC
+              </p>
+              <div class="benefits-grid">
+                <div v-for="beca in becasInformativas" :key="beca.id" class="benefit-card benefit-card-interno benefit-card-compact">
+                  <div class="benefit-header">
+                    <div class="benefit-icon">
+                      <Award class="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div class="benefit-info">
+                      <h4 class="benefit-title">{{ beca.nombre }}</h4>
+                    </div>
+                  </div>
+                  <div v-if="beca.descripcion" class="benefit-description-compact">
+                    <p class="description-text-compact">{{ beca.descripcion }}</p>
+                  </div>
+                  <div class="benefit-action">
+                    <Button label="Ver más" icon="pi pi-arrow-right" iconPos="right"
+                      @click="openBecaInfoDialog(beca)"
+                      class="ver-mas-button"
+                      outlined
+                      severity="secondary" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </Card>
       </div>
       <!-- Fin versión Desktop -->
 
@@ -1294,7 +1358,40 @@ defineExpose({
             </AccordionContent>
           </AccordionItem>
 
-          <!-- Item 6: Mensaje de Contacto -->
+          <!-- Item 6: Becas Adicionales -->
+          <AccordionItem v-if="becasInformativas.length > 0" value="additional-benefits" class="mobile-accordion-item">
+            <AccordionTrigger class="mobile-accordion-trigger">
+              <div class="flex items-center gap-2">
+                <Award class="w-5 h-5" />
+                <span class="font-semibold">Becas Adicionales</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div class="space-y-3">
+                <p class="becas-informativas-texto-mobile mb-3">
+                  Te invitamos a consultar por otras becas aplicables si ya eres parte de la familia UNIACC
+                </p>
+                <div v-for="beca in becasInformativas" :key="`mobile-beca-info-${beca.id}`" class="mobile-card bg-white border border-blue-200 rounded-lg p-4">
+                  <div class="flex items-start gap-3 mb-3">
+                    <Award class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div class="flex-1">
+                      <h4 class="font-semibold text-sm mb-1">{{ beca.nombre }}</h4>
+                    </div>
+                  </div>
+                  <div v-if="beca.descripcion" class="text-xs text-gray-600 mb-3">
+                    <p class="line-clamp-3">{{ beca.descripcion }}</p>
+                  </div>
+                  <Button label="Ver más" icon="pi pi-arrow-right" iconPos="right"
+                    @click="openBecaInfoDialog(beca)"
+                    class="w-full"
+                    outlined
+                    severity="secondary" />
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <!-- Item 7: Mensaje de Contacto -->
           <AccordionItem v-if="descuentoPorcentualTotal > 0" value="contact-message" class="mobile-accordion-item">
             <AccordionTrigger class="mobile-accordion-trigger">
               <div class="flex items-center gap-2">
@@ -1404,6 +1501,49 @@ defineExpose({
         </ul>
       </div>
     </OverlayPanel>
+
+    <!-- Dialog para información completa de beca informativa -->
+    <Dialog v-model:visible="showBecaInfoDialog" :style="{ width: '90vw', maxWidth: '800px' }"
+      :modal="true" :closable="true" :draggable="false"
+      :header="selectedBecaInfo?.nombre || 'Información de Beca'"
+      class="beca-info-dialog">
+      <template #header>
+        <div class="dialog-header-content">
+          <Award class="w-6 h-6 text-blue-600 mr-2" />
+          <span class="dialog-header-title">{{ selectedBecaInfo?.nombre || 'Información de Beca' }}</span>
+        </div>
+      </template>
+      <div v-if="selectedBecaInfo" class="beca-info-dialog-content">
+        <div v-if="selectedBecaInfo.descripcion" class="beca-info-field">
+          <span class="beca-info-label">Descripción:</span>
+          <p class="beca-info-description">{{ selectedBecaInfo.descripcion }}</p>
+        </div>
+        <div v-if="selectedBecaInfo.porcentajes" class="beca-info-field">
+          <div class="beca-info-section-header">
+            <FileText class="w-5 h-5 text-blue-600 mr-2" />
+            <span class="beca-info-label">Porcentajes:</span>
+          </div>
+          <ul class="beca-info-list">
+            <li v-for="(porcentaje, index) in (Array.isArray(selectedBecaInfo.porcentajes) ? selectedBecaInfo.porcentajes : [selectedBecaInfo.porcentajes])"
+              :key="index" class="beca-info-list-item">
+              {{ porcentaje }}
+            </li>
+          </ul>
+        </div>
+        <div v-if="selectedBecaInfo.requisitos" class="beca-info-field">
+          <div class="beca-info-section-header">
+            <FileText class="w-5 h-5 text-blue-600 mr-2" />
+            <span class="beca-info-label">Requisitos:</span>
+          </div>
+          <ul class="beca-info-list">
+            <li v-for="(requisito, index) in (Array.isArray(selectedBecaInfo.requisitos) ? selectedBecaInfo.requisitos : [selectedBecaInfo.requisitos])"
+              :key="index" class="beca-info-list-item">
+              {{ requisito }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </Dialog>
 
     <!-- Drawer para información del CAE -->
     <Drawer v-model:visible="showCaeDialog" position="bottom" :style="{ height: 'auto', maxHeight: '80vh' }"
@@ -2974,6 +3114,149 @@ defineExpose({
   .desktop-version {
     display: block !important;
   }
+}
+
+/* Estilos para texto informativo de becas informativas */
+.becas-informativas-texto {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 0.95rem;
+  color: #4B5563;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.becas-informativas-texto-mobile {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: #4B5563;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Estilos para cards compactas de becas informativas */
+.benefit-card-compact {
+  @apply flex flex-col;
+  min-height: 180px;
+}
+
+.benefit-description-compact {
+  @apply mt-3 mb-4 flex-1;
+}
+
+.description-text-compact {
+  @apply text-sm text-gray-600;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.benefit-action {
+  @apply mt-auto pt-3 border-t border-gray-200;
+}
+
+.ver-mas-button {
+  @apply w-full;
+}
+
+/* Estilos para dialog de información de beca */
+:deep(.beca-info-dialog) {
+  border-radius: 12px;
+}
+
+:deep(.beca-info-dialog .p-dialog-header) {
+  @apply pb-4 border-b border-gray-200;
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
+}
+
+:deep(.beca-info-dialog .p-dialog-content) {
+  padding: 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.dialog-header-content {
+  @apply flex items-center;
+}
+
+.dialog-header-title {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #1A3B66;
+}
+
+.beca-info-dialog-content {
+  @apply space-y-6;
+}
+
+.beca-info-field {
+  @apply space-y-3;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.beca-info-field:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.beca-info-label {
+  display: block;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1A3B66;
+  margin-bottom: 0.75rem;
+}
+
+.beca-info-value {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  color: #4B5563;
+}
+
+.beca-info-description {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
+  color: #374151;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.beca-info-section-header {
+  @apply flex items-center;
+  margin-bottom: 1rem;
+}
+
+.beca-info-section-header .beca-info-label {
+  margin-bottom: 0;
+}
+
+.beca-info-list {
+  list-style: disc;
+  padding-left: 2rem;
+  margin: 0;
+}
+
+.beca-info-list-item {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
+  color: #374151;
+  line-height: 1.7;
+  margin-bottom: 0.75rem;
+}
+
+.beca-info-list-item:last-child {
+  margin-bottom: 0;
 }
 
 </style>

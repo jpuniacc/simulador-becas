@@ -37,8 +37,7 @@ export function useProspectos() {
         genero: form.genero ? (form.genero as ProspectoInsert['genero']) : null,
         rut: form.tipoIdentificacion === 'rut' ? (form.identificacion || null) : null,
         pasaporte: form.tipoIdentificacion === 'pasaporte' ? (form.identificacion || null) : null,
-        region_pais: regionPais,
-        pais: pais,
+        anio_nacimiento: form.anio_nacimiento ?? null,
 
         // Académicos
         curso: form.nivelEducativo || 'No especificado',
