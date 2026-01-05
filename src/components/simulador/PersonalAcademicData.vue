@@ -1242,10 +1242,20 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 
 :deep(.colegio-button) {
     @apply w-full justify-start;
+    border-color: var(--p-primary-500) !important;
+    color: var(--p-primary-700) !important;
+}
+
+:deep(.colegio-button:hover) {
+    background-color: var(--p-primary-100) !important;
+    border-color: var(--p-primary-700) !important;
+    color: var(--p-primary-900) !important;
 }
 
 .colegio-selected {
-    @apply flex items-center justify-center p-4 border-2 border-gray-200 rounded-lg bg-gray-50;
+    @apply flex items-center justify-center p-4 border-2 rounded-lg;
+    border-color: var(--p-primary-300);
+    background-color: var(--p-primary-100);
 }
 
 .colegio-info {
@@ -1253,7 +1263,8 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .colegio-icon {
-    @apply w-5 h-5 text-gray-600 flex-shrink-0;
+    @apply w-5 h-5 flex-shrink-0;
+    color: var(--p-primary-700);
 }
 
 .colegio-details {
@@ -1261,11 +1272,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .colegio-nombre {
-    @apply font-medium text-gray-900 truncate;
+    @apply font-medium truncate;
+    color: var(--p-primary-900);
 }
 
 .colegio-location {
-    @apply text-sm text-gray-600 mt-1;
+    @apply text-sm mt-1;
+    color: var(--p-primary-700);
 }
 
 :deep(.colegio-change-button) {
@@ -1273,14 +1286,14 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 :deep(.colegio-completed .p-button) {
-    background-color: #10b981 !important;
-    border-color: #10b981 !important;
+    background-color: var(--p-primary-500) !important;
+    border-color: var(--p-primary-700) !important;
     color: white !important;
 }
 
 :deep(.colegio-completed .p-button:hover) {
-    background-color: #059669 !important;
-    border-color: #059669 !important;
+    background-color: var(--p-primary-700) !important;
+    border-color: var(--p-primary-900) !important;
 }
 
 
@@ -1314,13 +1327,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .consentimiento-label.consentimiento-checked {
-    border-color: #10b981;
-    background-color: #ecfdf5;
+    border-color: var(--p-primary-500);
+    background-color: var(--p-primary-100);
 }
 
 .dark .consentimiento-label.consentimiento-checked {
-    border-color: #059669;
-    background-color: #064e3b;
+    border-color: var(--p-primary-700);
+    background-color: var(--p-primary-500);
 }
 
 .consentimiento-checkbox {
@@ -1332,13 +1345,13 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 :deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
-    border-color: #10b981 !important;
-    background-color: #10b981 !important;
+    border-color: var(--p-primary-700) !important;
+    background-color: var(--p-primary-500) !important;
 }
 
 .dark :deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
-    border-color: #059669 !important;
-    background-color: #059669 !important;
+    border-color: var(--p-primary-700) !important;
+    background-color: var(--p-primary-500) !important;
 }
 
 :deep(.consentimiento-checkbox .p-checkbox-icon) {
@@ -1350,12 +1363,14 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
 }
 
 .consentimiento-title {
-    @apply text-sm font-medium text-gray-900 mb-1.5;
+    @apply text-sm font-medium mb-1.5;
+    color: var(--p-primary-900);
     line-height: 1.5;
 }
 
 .consentimiento-subtitle {
-    @apply text-sm text-gray-600 font-normal;
+    @apply text-sm font-normal;
+    color: var(--p-primary-900);
     line-height: 1.5;
     margin-left: calc(-1.25rem - 0.75rem);
     padding-left: calc(1.25rem + 0.75rem);
