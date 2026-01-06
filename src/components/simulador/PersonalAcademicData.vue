@@ -183,7 +183,7 @@ const anioNacimientoValue = computed({
 
 // Constantes para el rango de años de nacimiento
 const anioMinimo = 1900
-const anioActual = new Date().getFullYear()
+const anioActual = new Date().getFullYear() - 15 // solo mayores de 15 años
 const minDate = new Date(anioMinimo, 0, 1) // 1 de enero del año mínimo
 const maxDate = new Date(anioActual, 11, 31) // 31 de diciembre del año actual
 const yearRange = `${anioMinimo}:${anioActual}` // Rango de años para ocultar los que están fuera
