@@ -70,7 +70,16 @@ export function useProspectos() {
         consentimiento_contacto: form.consentimiento_contacto ?? false,
 
         // Segmentación
-        segmentacion: segmentacion || null
+        segmentacion: segmentacion || null,
+
+        // JPS: URL de origen del navegador
+        // Modificación: Capturar la URL completa del navegador al momento de insertar el prospecto
+        // Funcionamiento:
+        // - Verifica que window esté disponible (para evitar errores en SSR o contextos sin navegador)
+        // - Captura window.location.href que contiene la URL completa (protocolo + host + path + query + hash)
+        // - Si window no está disponible, se guarda null
+        // - Esto permite rastrear desde qué página/URL el usuario inició el proceso de simulación
+        url_origen: typeof window !== 'undefined' ? window.location.href : null
       }
 
       const { data, error: insertError } = await supabase
