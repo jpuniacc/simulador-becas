@@ -10,7 +10,19 @@ export function useProspectos() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const insertarProspecto = async (form: FormData, segmentacion?: string): Promise<ProspectoRow | null> => {
+  // Tipo para becas aplicadas
+  type BecaAplicada = {
+    beca: {
+      id: number
+      nombre?: string
+      [key: string]: any
+    }
+    descuento_aplicado?: number
+    monto_descuento?: number
+    [key: string]: any
+  }
+
+  const insertarProspecto = async (form: FormData, segmentacion?: string, becasAplicadas?: BecaAplicada[]): Promise<ProspectoRow | null> => {
     console.log('**********DATOS PROSPECTO***************')
     console.log(form);
     console.log('**********************************')
@@ -27,6 +39,12 @@ export function useProspectos() {
         regionPais = region || null
         pais = countryCode || null
       }
+
+      // Extraer ID de la beca aplicada (solo puede haber una)
+      // Si hay becas aplicadas, guardar el ID de la primera (y única) beca
+      const becaId: string | null = becasAplicadas && becasAplicadas.length > 0 && becasAplicadas[0]?.beca?.id != null
+        ? String(becasAplicadas[0].beca.id)
+        : null
 
       const payload: ProspectoInsert = {
         // Básicos
@@ -65,6 +83,9 @@ export function useProspectos() {
         area_interes: form.area || null,
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
+
+        // Beca aplicada (solo puede haber una)
+        beca: becaId,
 
         // Consentimiento
         consentimiento_contacto: form.consentimiento_contacto ?? false,
