@@ -69,6 +69,11 @@ const isSliderDisabled = computed(() => {
   return tipoPago.value === 'contado'
 })
 
+// Computed para el texto de cuota/cuotas según el número
+const textoCuota = computed(() => {
+  return numeroCuotas.value === 1 ? 'cuota' : 'cuotas'
+})
+
 // Watcher para cambiar el número de cuotas cuando se selecciona "Al contado"
 watch(tipoPago, (newValue) => {
   if (newValue === 'contado') {
@@ -836,7 +841,7 @@ defineExpose({
                 optionValue="value" placeholder="Seleccione un medio de pago" class="payment-select" />
             </div>
             <div class="payment-control-group">
-              <label for="numeroCuotas" class="payment-label">Número de cuotas: <span class="slider-value">{{
+              <label for="numeroCuotas" class="payment-label">Número de {{ textoCuota }}: <span class="slider-value">{{
                 numeroCuotas }}</span></label>
 
               <div class="slider-container">
@@ -856,7 +861,7 @@ defineExpose({
             <template #content>
               <div class="text-center first-column-content h-full flex flex-col justify-center">
                 <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Arancel Original</div>
-                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
+                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} {{ textoCuota }} de</div>
                 <div class="text-2xl font-bold text-gray-900 first-column-value">
                   {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
                 </div>
@@ -867,7 +872,7 @@ defineExpose({
             <template #content>
               <div class="text-center first-column-content h-full flex flex-col justify-center">
                 <div class="text-sm text-black-700 mb-2 first-column-label font-bold">Matrícula</div>
-                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} cuotas de</div>
+                <div class="text-sm text-gray-600 mb-0 font-semibold">{{ numeroCuotas }} {{ textoCuota }} de</div>
                 <div class="text-2xl font-bold text-gray-900 first-column-value">
                   {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
                 </div>
@@ -889,7 +894,7 @@ defineExpose({
           <template #content>
             <div>
               <div class="final-label">Total Final a Pagar en Plan de</div>
-              <div class="final-cuotas">{{ numeroCuotas }} cuotas de</div>
+              <div class="final-cuotas">{{ numeroCuotas }} {{ textoCuota }} de</div>
             </div>
             <div class="final-value">
               {{ formatCurrency(valorMensual) }}
@@ -1239,7 +1244,7 @@ defineExpose({
                   </div>
                   <div class="space-y-2">
                     <label for="numeroCuotasMobile" class="block text-sm font-semibold">
-                      Número de cuotas: <span class="slider-value">{{ numeroCuotas }}</span>
+                      Número de {{ textoCuota }}: <span class="slider-value">{{ numeroCuotas }}</span>
                     </label>
                     <Slider id="numeroCuotasMobile" v-model="numeroCuotas" :min="1" :max="12" :disabled="isSliderDisabled" class="w-full" />
                   </div>
@@ -1262,7 +1267,7 @@ defineExpose({
                 <ShadcnCard class="mobile-card bg-gray-100">
                   <CardContent class="p-4 text-center">
                     <div class="text-sm font-bold text-gray-700 mb-1">Arancel Original</div>
-                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} {{ textoCuota }} de</div>
                     <div class="text-xl font-bold text-gray-900">
                       {{ formatCurrency(calculoBecas?.arancel_base / numeroCuotas || 0) }}
                     </div>
@@ -1273,7 +1278,7 @@ defineExpose({
                 <ShadcnCard class="mobile-card bg-gray-100">
                   <CardContent class="p-4 text-center">
                     <div class="text-sm font-bold text-gray-700 mb-1">Matrícula</div>
-                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xs text-gray-600 mb-2">{{ numeroCuotas }} {{ textoCuota }} de</div>
                     <div class="text-xl font-bold text-gray-900">
                       {{ formatCurrency(carreraInfo?.matricula / numeroCuotas || 0) }}
                     </div>
@@ -1294,7 +1299,7 @@ defineExpose({
                 <ShadcnCard class="mobile-card bg-green-200">
                   <CardContent class="p-4 text-center">
                     <div class="text-sm font-bold text-green-600 mb-1">Total Final a Pagar en Plan de</div>
-                    <div class="text-xs text-green-600 mb-2">{{ numeroCuotas }} cuotas de</div>
+                    <div class="text-xs text-green-600 mb-2">{{ numeroCuotas }} {{ textoCuota }} de</div>
                     <div class="text-2xl font-bold text-green-600 mb-3">
                       {{ formatCurrency(valorMensual) }}
                     </div>
