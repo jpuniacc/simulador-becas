@@ -14,6 +14,7 @@ export interface FormData {
   genero: 'Masculino' | 'Femenino' | 'Otro' | 'Prefiero no decir' | ''
   anio_nacimiento: number | null
   consentimiento_contacto: boolean
+  interesPostgrado: boolean
 
   // Datos Académicos
   nivelEducativo: 'Educación media incompleta' | 'Educación media completa' | 'Educación superior incompleta' | 'Educación superior completa' | ''

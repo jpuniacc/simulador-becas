@@ -35,7 +35,9 @@ const formData = ref<Partial<FormData>>({
     rendioPAES: false,
     planeaUsarCAE: false,
     usaBecasEstado: false,
-    decil: null
+    decil: null,
+    consentimiento_contacto: false,
+    interesPostgrado: false
 });
 
 // Route para acceder a los query parameters

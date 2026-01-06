@@ -608,6 +608,16 @@ onUnmounted(() => {
                             >
                                 Como extranjero que resides fuera del país, solo puedes acceder a carreras en modalidad online.
                             </Message>
+                            <!-- Mensaje informativo cuando tiene interés en postgrados -->
+                            <Message
+                                v-if="props.formData?.interesPostgrado"
+                                severity="info"
+                                variant="simple"
+                                size="small"
+                                class="mt-2"
+                            >
+                                También puedes explorar nuestra oferta de programas de postgrado para continuar tu desarrollo profesional.
+                            </Message>
                             <div class="career-suggestions">
                                 <span class="suggestions-label">Ejemplos:</span>
                                 <Tag v-for="carrera in carrerasSugeridas" :key="carrera" :value="carrera"

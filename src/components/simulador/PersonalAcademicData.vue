@@ -11,6 +11,7 @@ import Checkbox from 'primevue/checkbox'
 import OverlayPanel from 'primevue/overlaypanel'
 import DatePicker from 'primevue/datepicker'
 import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
+import InlineSuggestion from '@/components/simulador/InlineSuggestion.vue'
 import type { FormData } from '@/types/simulador'
 import type { Region, Comuna, Colegio } from '@/composables/useColegios'
 import { School } from 'lucide-vue-next'
@@ -105,7 +106,8 @@ const formData = ref<Partial<FormData>>({
     ranking: props.formData?.ranking || null,
     nem: props.formData?.nem || null,
     anio_nacimiento: props.formData?.anio_nacimiento || null,
-    consentimiento_contacto: props.formData?.consentimiento_contacto || false
+    consentimiento_contacto: props.formData?.consentimiento_contacto || false,
+    interesPostgrado: props.formData?.interesPostgrado || false
 })
 
 // Computed para verificar si es egresado (completó educación media)
@@ -728,7 +730,8 @@ watch(() => props.formData, (newData) => {
             formData.value.ranking !== (newData.ranking || null) ||
             formData.value.nem !== (newData.nem || null) ||
             formData.value.anio_nacimiento !== (newData.anio_nacimiento || null) ||
-            formData.value.consentimiento_contacto !== (newData.consentimiento_contacto || false)
+            formData.value.consentimiento_contacto !== (newData.consentimiento_contacto || false) ||
+            formData.value.interesPostgrado !== (newData.interesPostgrado || false)
 
         if (hasChanges) {
             isUpdatingFromProps.value = true
@@ -750,7 +753,8 @@ watch(() => props.formData, (newData) => {
                 ranking: newData.ranking || null,
                 nem: newData.nem || null,
                 anio_nacimiento: newData.anio_nacimiento || null,
-                consentimiento_contacto: newData.consentimiento_contacto || false
+                consentimiento_contacto: newData.consentimiento_contacto || false,
+                interesPostgrado: newData.interesPostgrado || false
             }
             // Resetear el flag después de un pequeño delay
             setTimeout(() => {
@@ -1069,43 +1073,55 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </OverlayPanel>
                 </div>
 
-                <!-- Año de Egreso (solo para egresados) -->
-                 <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
-                <div v-if="isEgresado" class="form-field">
-                    <FloatLabel>
-                        <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
-                            :useGrouping="false" class="form-input" />
-                        <label for="añoEgreso">Año de Egreso (Opcional)</label>
-                    </FloatLabel>
-                </div>
+                <!-- solo mostrar si es egresado y no termino la educacion superior -->
+                <template v-if="isEgresado && formData.nivelEducativo !== 'Educación superior completa'">
+                  <!-- Año de Egreso (solo para egresados) -->
+                  <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
+                  <div v-if="isEgresado" class="form-field">
+                      <FloatLabel>
+                          <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
+                              :useGrouping="false" class="form-input" />
+                          <label for="añoEgreso">Año de Egreso (Opcional)</label>
+                      </FloatLabel>
+                  </div>
 
-                <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
-                <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
-                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
-                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
-                    <FloatLabel>
-                        <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
-                            class="form-input" />
-                        <label for="ranking">Ranking de Notas (Opcional)</label>
-                    </FloatLabel>
-                </div>
+                  <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
+                  <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
+                  <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                  <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
+                      <FloatLabel>
+                          <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
+                              class="form-input" />
+                          <label for="ranking">Ranking de Notas (Opcional)</label>
+                      </FloatLabel>
+                  </div>
 
-                <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
-                <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
-                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
-                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
-                    <FloatLabel>
-                        <InputText
-                            id="nem"
-                            v-model="nemValue"
-                            class="form-input"
-                            placeholder="Ej 5,5"
-                            maxlength="3"
-                            @input="handleNEMInput"
-                            @keydown="handleNEMKeydown"
-                        />
-                        <label for="nem">NEM (Opcional)</label>
-                    </FloatLabel>
+                  <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
+                  <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
+                  <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                  <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
+                      <FloatLabel>
+                          <InputText
+                              id="nem"
+                              v-model="nemValue"
+                              class="form-input"
+                              placeholder="Ej 5,5"
+                              maxlength="3"
+                              @input="handleNEMInput"
+                              @keydown="handleNEMKeydown"
+                          />
+                          <label for="nem">NEM (Opcional)</label>
+                      </FloatLabel>
+                  </div>
+                </template>
+
+                <!-- si completo la educacion superior es candidato a programa de postgrado -->
+                <div v-if="isEgresado && formData.nivelEducativo === 'Educación superior completa' && !esExtranjero && !resideFueraPais" class="form-field interes-postgrado-field">
+                    <InlineSuggestion
+                      v-model="formData.interesPostgrado"
+                      variant="primary"
+                      title="Dado tu nivel educativo"
+                      description="¿te gustaría conocer nuestra oferta de postgrados?" />
                 </div>
 
                 <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera Y (no es extranjero O es extranjero pero reside en Chile)) -->
