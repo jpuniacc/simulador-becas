@@ -136,7 +136,9 @@ export function useCRM() {
       rut,
       telefono,
       carrera: codigoCarrera,
-      origen: 2,
+      // origen: 2,
+      //JPS se cambia el origen de 2 a 4 a solicitud de Innovadev
+      origen: 4,
       User_Agent: userAgent || ''
     }
   }

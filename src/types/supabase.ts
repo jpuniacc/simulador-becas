@@ -1915,6 +1915,7 @@ export type Database = {
           segmentacion: string | null
           telefono: string | null
           updated_at: string | null
+          url_origen: string | null
         }
         Insert: {
           anio_nacimiento?: number | null
@@ -1949,6 +1950,7 @@ export type Database = {
           segmentacion?: string | null
           telefono?: string | null
           updated_at?: string | null
+          url_origen?: string | null
         }
         Update: {
           anio_nacimiento?: number | null
@@ -1983,6 +1985,7 @@ export type Database = {
           segmentacion?: string | null
           telefono?: string | null
           updated_at?: string | null
+          url_origen?: string | null
         }
         Relationships: [
           {
