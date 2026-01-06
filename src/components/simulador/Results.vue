@@ -327,7 +327,7 @@ const handleSimulate = async () => {
         // Ejecutar ambas llamadas en paralelo
         const userAgent = navigator.userAgent
         const [prospectoResult, crmResult] = await Promise.allSettled([
-            insertarProspecto(simuladorStore.formData as FormData, 'pregrado'),
+            insertarProspecto(simuladorStore.formData as FormData, 'pregrado', becasAplicadas.value),
             enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
         ])
 
