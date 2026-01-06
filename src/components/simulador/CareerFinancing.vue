@@ -555,12 +555,12 @@ onUnmounted(() => {
             <div class="form-grid">
                 <!-- Selección de Carrera -->
                 <div class="form-field carrera-field">
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <div class="carrera-container">
                         <div class="flex items-start space-x-3 mb-4">
-                            <GraduationCap class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                            <GraduationCap class="carrera-icon mt-0.5 flex-shrink-0" />
                             <div>
-                                <h3 class="text-lg font-semibold text-green-900">Carrera de Interés</h3>
-                                <p class="text-sm text-green-700 mt-1">
+                                <h3 class="carrera-title">Carrera de Interés</h3>
+                                <p class="carrera-subtitle mt-1">
                                     Selecciona la carrera que te interesa para personalizar tus beneficios
                                 </p>
                             </div>
@@ -586,14 +586,14 @@ onUnmounted(() => {
                                 autocomplete="off"
                             >
                                 <template #option="slotProps">
-                                    <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
-                                        <div class="font-medium text-gray-900">{{ slotProps.option.nombre_programa }}</div>
-                                        <div class="text-sm text-gray-500">{{ slotProps.option.nivel_academico }} - {{ slotProps.option.modalidad_programa }}</div>
-                                        <div class="text-xs text-blue-600 mt-1">{{ slotProps.option.duracion_programa }}</div>
+                                    <div class="carrera-option-item">
+                                        <div class="carrera-option-nombre">{{ slotProps.option.nombre_programa }}</div>
+                                        <div class="carrera-option-details">{{ slotProps.option.nivel_academico }} - {{ slotProps.option.modalidad_programa }}</div>
+                                        <div class="carrera-option-duracion mt-1">{{ slotProps.option.duracion_programa }}</div>
                                     </div>
                                 </template>
                             </Autocomplete>
-                            <p class="text-sm text-gray-500 mt-1">
+                            <p class="carrera-help-text mt-1">
                                 Busca por nombre de carrera, facultad o área
                             </p>
                             <!-- JPS: Mensaje informativo cuando es extranjero fuera del país -->
@@ -611,7 +611,7 @@ onUnmounted(() => {
                             <div class="career-suggestions">
                                 <span class="suggestions-label">Ejemplos:</span>
                                 <Tag v-for="carrera in carrerasSugeridas" :key="carrera" :value="carrera"
-                                    severity="success" class="suggestion-tag"
+                                    severity="info" class="suggestion-tag"
                                     @click="seleccionarCarreraSugerida(carrera)" />
                             </div>
                         </div>
@@ -838,7 +838,8 @@ onUnmounted(() => {
 }
 
 .suggestions-label {
-    @apply text-sm font-medium text-gray-600 mr-1;
+    @apply text-sm font-medium mr-1;
+    color: var(--p-primary-700);
 }
 
 .suggestion-tag {
@@ -847,6 +848,58 @@ onUnmounted(() => {
 
 .suggestion-tag:hover {
     @apply brightness-95;
+}
+
+/* Estilos para contenedor de carrera con tema UNIACC */
+.carrera-container {
+    @apply rounded-lg p-6;
+    background-color: var(--p-primary-100);
+    border: 1px solid var(--p-primary-300);
+}
+
+.carrera-icon {
+    @apply w-5 h-5;
+    color: var(--p-primary-700);
+}
+
+.carrera-title {
+    @apply text-lg font-semibold;
+    color: var(--p-primary-900);
+}
+
+.carrera-subtitle {
+    @apply text-sm;
+    color: var(--p-primary-700);
+}
+
+/* Estilos para opciones del autocomplete */
+.carrera-option-item {
+    @apply px-4 py-3 cursor-pointer border-b last:border-b-0;
+    border-color: var(--p-primary-100);
+}
+
+.carrera-option-item:hover {
+    background-color: var(--p-primary-100);
+}
+
+.carrera-option-nombre {
+    @apply font-medium;
+    color: var(--p-primary-900);
+}
+
+.carrera-option-details {
+    @apply text-sm;
+    color: var(--p-primary-700);
+}
+
+.carrera-option-duracion {
+    @apply text-xs;
+    color: var(--p-primary-500);
+}
+
+.carrera-help-text {
+    @apply text-sm;
+    color: var(--p-primary-700);
 }
 
 .option-card {

@@ -17,7 +17,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="app" class="app">
+  <div id="app" class="app uniacc-theme">
     <!-- Router View -->
     <RouterView />
     <!-- Toast de PrimeVue -->
