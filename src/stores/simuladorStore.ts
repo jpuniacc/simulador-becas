@@ -55,7 +55,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
     tieneRUT: undefined,
     tipoIdentificacion: '',
     identificacion: '',
-    nacionalidad: '',
     fechaNacimiento: '',
     genero: '',
     nivelEducativo: '', // Obligatorio seleccionar
@@ -263,12 +262,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Acciones de datos del formulario
   const updateFormData = (data: Partial<FormData>) => {
-    console.log('updateFormData recibió:', data)
-    console.log('formData antes de actualizar:', formData.value)
-
     formData.value = { ...formData.value, ...data }
-
-    console.log('formData después de actualizar:', formData.value)
 
     // Si se actualiza el colegio, actualizar comuna y región de residencia
     if (data.colegio) {
@@ -279,7 +273,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
         formData.value.comunaResidencia = colegioSeleccionado.comunaNombre
         formData.value.regionResidencia = colegioSeleccionado.regionNombre // Usar la región real del colegio
         formData.value.regionId = (colegioSeleccionado as any).region_id // Usar el ID de la región
-        console.log('regionId actualizado en formData:', formData.value.regionId)
       }
     }
 
@@ -299,7 +292,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
       tieneRUT: undefined,
       tipoIdentificacion: '',
       identificacion: '',
-      nacionalidad: '',
       fechaNacimiento: '',
       genero: '',
       nivelEducativo: '', // Obligatorio seleccionar
@@ -429,9 +421,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
   // Simulación
   const simulate = async (): Promise<SimulationResults> => {
-    console.log('=== INICIO DE SIMULATE ===')
-    console.log('canSimulate.value:', canSimulate.value)
-    console.log('formData en simulate:', formData.value)
 
 
     if (!canSimulate.value) {

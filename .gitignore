@@ -29,4 +29,10 @@ coverage
 
 *.tsbuildinfo
 
+# Ignorar .env local pero mantener .env.production, .env.development, .env.qa
 .env
+.env.local
+.env.*.local
+
+# Los archivos .env.production, .env.development y .env.qa SÍ se deben versionar
+# para que cada rama tenga su configuración correcta

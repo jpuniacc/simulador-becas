@@ -22,6 +22,7 @@ import type { SimulationResults } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
 import { useSimuladorStore } from '@/stores/simuladorStore'
 import { useProspectos } from '@/composables/useProspectos'
+import { useCRM } from '@/composables/useCRM'
 import html2pdf from 'html2pdf.js'
 
 // Props
@@ -42,6 +43,7 @@ const emit = defineEmits<{
 // Store
 const simuladorStore = useSimuladorStore()
 const { insertarProspecto, error: insertError } = useProspectos()
+const { createJSONcrm, enviarCRM } = useCRM()
 
 // Ref para el elemento a capturar
 const pdfContentRef = ref<HTMLElement | null>(null)
@@ -79,7 +81,7 @@ const becasEstadoAplicadas = computed(() => {
 // Computed para becas del estado con montos calculados
 const becasEstadoConMontos = computed(() => {
   if (!calculoBecas.value || becasEstadoAplicadas.value.length === 0) return []
-  
+
   let arancelActual = calculoBecas.value.arancel_base
   const becasConMontos = becasEstadoAplicadas.value.map(becaEstado => {
     let montoDescuento = 0
@@ -94,7 +96,7 @@ const becasEstadoConMontos = computed(() => {
       monto_descuento: montoDescuento
     }
   })
-  
+
   return becasConMontos
 })
 
@@ -300,20 +302,20 @@ const handleExportPDF = async () => {
       margin: [10, 10, 10, 10],
       filename: 'simulacion-uniacc.pdf',
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { 
+      html2canvas: {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
         letterRendering: true
       },
-      jsPDF: { 
-        unit: 'mm', 
-        format: 'a4', 
-        orientation: 'portrait',
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait' as const,
         compress: true
       },
-      pagebreak: { 
+      pagebreak: {
         mode: ['avoid-all', 'css', 'legacy'],
         before: '.page-break-before',
         after: '.page-break-after',
@@ -328,11 +330,32 @@ const handleExportPDF = async () => {
   }
 }
 
-// Guardar prospecto al montar el step de resultados
+// JPS: Guardar prospecto al montar el step de resultados
+// Modificación: Ejecutar primero el envío al CRM para obtener la respuesta
+// Funcionamiento: Se envía primero al CRM (si hay consentimiento), se obtiene la respuesta, y luego se guarda el prospecto
+// con la respuesta del CRM incluida en el campo respuesta_crm
 onMounted(async () => {
   try {
-    // Insertar usando los datos actuales del formulario
-    await insertarProspecto(formData.value)
+    // Generar el JSON del CRM si hay consentimiento de contacto
+    let crmJson = null
+    let respuestaCRM = null
+    
+    if (formData.value.consentimiento_contacto) {
+      const userAgent = navigator.userAgent
+      const carreraInfoValue = carreraInfo.value
+      crmJson = createJSONcrm(formData.value, carreraInfoValue, userAgent)
+      
+      // Enviar al CRM para obtener la respuesta
+      try {
+        respuestaCRM = await enviarCRM(formData.value, carreraInfoValue, userAgent)
+      } catch (error) {
+        console.warn('No se pudo enviar al CRM:', error)
+        // Continuar aunque falle el CRM, pero sin respuesta
+      }
+    }
+
+    // Insertar usando los datos actuales del formulario con la respuesta del CRM
+    await insertarProspecto(formData.value, undefined, undefined, crmJson, respuestaCRM)
     if (insertError.value) {
       console.warn('No se pudo guardar el prospecto:', insertError.value)
     }
@@ -392,7 +415,7 @@ onMounted(async () => {
               <Calendar class="w-4 h-4" />
               <span>{{ carreraInfo.duracion_programa }}</span>
             </div>
-            
+
           </div>
         </div>
       </div>
@@ -436,7 +459,7 @@ onMounted(async () => {
                   {{ formatCurrency(calculoBecas.arancel_base) }}
                 </td>
               </tr>
-              
+
               <!-- Sección: Beneficios del Estado -->
               <template v-if="becasEstadoConMontos.length > 0">
                 <tr class="table-row section-header-row">
@@ -457,7 +480,7 @@ onMounted(async () => {
                   </td>
                   <td class="table-cell text-center">
                     <span class="badge-type badge-estado">
-                      {{ becaEstado.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' : 
+                      {{ becaEstado.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' :
                          becaEstado.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
                     </span>
                   </td>
@@ -485,7 +508,7 @@ onMounted(async () => {
                   </td>
                 </tr>
               </template>
-              
+
               <!-- Sección: Beneficios Internos -->
               <template v-if="becasAplicadas.length > 0">
                 <tr class="table-row section-header-row">
@@ -506,7 +529,7 @@ onMounted(async () => {
                   </td>
                   <td class="table-cell text-center">
                     <span class="badge-type">
-                      {{ beca.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' : 
+                      {{ beca.beca.tipo_descuento === 'porcentaje' ? 'Porcentaje' :
                          beca.beca.tipo_descuento === 'monto_fijo' ? 'Monto Fijo' : 'Mixto' }}
                     </span>
                   </td>
@@ -534,7 +557,7 @@ onMounted(async () => {
                   </td>
                 </tr>
               </template>
-              
+
               <!-- Sección: Arancel Referencia CAE -->
               <template v-if="arancelReferenciaCae > 0">
                 <tr class="table-row section-header-row">
@@ -570,7 +593,7 @@ onMounted(async () => {
                   </td>
                 </tr>
               </template>
-              
+
               <!-- Mensaje si no hay beneficios del estado elegibles pero el usuario marcó que usa -->
               <template v-if="formData.usaBecasEstado && becasEstadoElegibles.length > 0 && becasEstadoAplicadas.length === 0">
                 <tr class="table-row section-header-row">
@@ -584,7 +607,7 @@ onMounted(async () => {
                   </td>
                 </tr>
               </template>
-              
+
               <!-- Total descuentos -->
               <tr class="table-row discount-total-row">
                 <td class="table-cell font-semibold" colspan="3">
@@ -594,7 +617,7 @@ onMounted(async () => {
                   -{{ formatCurrency(descuentoTotalRealConCae) }}
                 </td>
               </tr>
-              
+
               <!-- Arancel final -->
               <tr class="table-row final-row">
                 <td class="table-cell font-bold text-lg" colspan="3">

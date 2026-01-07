@@ -97,7 +97,6 @@ const isStep2ButtonBlocked = ref(false);
 // Handler para actualizar formData desde el componente hijo
 const handleFormDataUpdate = (data: Partial<FormData>) => {
     formData.value = { ...formData.value, ...data };
-    console.log('formData', formData.value)
 };
 
 // Handler para cambios en la validación del paso 1
@@ -129,7 +128,7 @@ const getMissingFieldsStep1 = (): string[] => {
     if (!formData.value.colegio?.trim() && formData.value.tieneRUT !== false) {
         missing.push('Colegio')
     }
-    if (formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte' && !formData.value.paisPasaporte?.trim()) {
+    if (formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte' && !(formData.value as any).paisPasaporte?.trim()) {
         missing.push('País de Origen')
     }
 

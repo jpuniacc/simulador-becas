@@ -36,7 +36,7 @@ const simuladorStore = useSimuladorStore()
 const descuentosStore = useDescuentosStore()
 const becasStore = useBecasStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
-const { enviarCRM } = useCRM()
+const { enviarCRM, createJSONcrm } = useCRM()
 
 // Estado
 const isLoading = ref(false)
@@ -324,22 +324,34 @@ const handleSimulate = async () => {
 
     await simuladorStore.simulate()
 
-        // Ejecutar ambas llamadas en paralelo
+        // JPS: Ejecutar primero el envío al CRM para obtener la respuesta
+        // Modificación: Cambiar el orden para ejecutar primero enviarCRM y luego insertarProspecto con la respuesta
+        // Funcionamiento: Se envía primero al CRM, se obtiene la respuesta, y luego se guarda el prospecto
+        // con la respuesta del CRM incluida en el campo respuesta_crm
         const userAgent = navigator.userAgent
-        const [prospectoResult, crmResult] = await Promise.allSettled([
-            insertarProspecto(simuladorStore.formData as FormData, 'pregrado'),
-            enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
-        ])
+        const crmJson = createJSONcrm(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
 
-    if (prospectoResult.status === 'rejected') {
-      console.warn('No se pudo guardar el prospecto:', prospectoResult.reason)
-    } else if (!prospectoResult.value && prospectoError.value) {
-      console.warn('No se pudo guardar el prospecto:', prospectoError.value)
-    }
+        // Enviar primero al CRM para obtener la respuesta
+        let respuestaCRM = null
+        try {
+          respuestaCRM = await enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
+        } catch (error) {
+          console.warn('No se pudo enviar al CRM:', error)
+          // Continuar aunque falle el CRM, pero sin respuesta
+        }
 
-    if (crmResult.status === 'rejected') {
-      console.warn('No se pudo enviar al CRM:', crmResult.reason)
-    }
+        // Guardar el prospecto con la respuesta del CRM (si existe)
+        try {
+          await insertarProspecto(
+            simuladorStore.formData as FormData, 
+            'pregrado', 
+            becasAplicadas.value, 
+            crmJson,
+            respuestaCRM
+          )
+        } catch (error) {
+          console.warn('No se pudo guardar el prospecto:', error)
+        }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Error al realizar la simulación'
     console.error('Error en simulación:', err)
@@ -1410,7 +1422,7 @@ defineExpose({
                   <div class="text-sm text-gray-700">
                     <p class="font-bold mb-2">¿Te gustó la simulación?</p>
                     <p class="mb-2">Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b></p>
-                    <p>Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="text-blue-600 underline">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b></p>
+                    <p>Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="text-blue-600 underline">admision@uniacc.cl</a> o llámanos al <a href="tel:+56226406100" class="text-blue-600 underline font-bold">+56 22 640 6100</a> ó al <a href="tel:+56226406151" class="text-blue-600 underline font-bold">+56 22 640 6151</a></p>
                   </div>
                 </CardContent>
               </ShadcnCard>

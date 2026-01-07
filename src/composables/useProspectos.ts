@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import type { FormData } from '@/types/simulador'
+import { logger } from '@/utils/logger'
 
 type ProspectoInsert = Database['public']['Tables']['prospectos']['Insert']
 type ProspectoRow = Database['public']['Tables']['prospectos']['Row']
@@ -10,23 +11,59 @@ export function useProspectos() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const insertarProspecto = async (form: FormData, segmentacion?: string): Promise<ProspectoRow | null> => {
-    console.log('**********DATOS PROSPECTO***************')
-    console.log(form);
-    console.log('**********************************')
+  // Tipo para becas aplicadas
+  type BecaAplicada = {
+    beca: {
+      id: string | number
+      nombre?: string
+      [key: string]: any
+    }
+    descuento_aplicado?: number
+    monto_descuento?: number
+    [key: string]: any
+  }
+
+  // Tipo para respuesta del CRM
+  type RespuestaCRM = {
+    cod_respuesta?: number
+    des_respuesta?: string
+    _crmEndpointUrl?: string
+    [key: string]: any
+  }
+
+  const insertarProspecto = async (
+    form: FormData, 
+    segmentacion?: string, 
+    becasAplicadas?: BecaAplicada[], 
+    prospectoCrm?: Record<string, any> | null,
+    respuestaCRM?: RespuestaCRM | null
+  ): Promise<ProspectoRow | null> => {
+    // JPS: Logging seguro con ofuscación de datos sensibles
+    // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
+    // Funcionamiento: El logger detecta campos sensibles en formData y los reemplaza con asteriscos
+    logger.prospecto('Insertando prospecto', { form, segmentacion, becasAplicadas })
+    
     loading.value = true
     error.value = null
     try {
       // Extraer región y país del campo paisPasaporte si existe
       // El formato es "REGION-PAIS" (ej: "LA-AR")
+      // Nota: paisPasaporte puede no existir en FormData, usar casting seguro
       let regionPais: string | null = null
       let pais: string | null = null
 
-      if (form.paisPasaporte) {
-        const [region, countryCode] = form.paisPasaporte.split('-')
+      const formAny = form as any
+      if (formAny.paisPasaporte) {
+        const [region, countryCode] = formAny.paisPasaporte.split('-')
         regionPais = region || null
         pais = countryCode || null
       }
+
+      // Extraer ID de la beca aplicada (solo puede haber una)
+      // Si hay becas aplicadas, guardar el ID de la primera (y única) beca
+      const becaId: string | null = becasAplicadas && becasAplicadas.length > 0 && becasAplicadas[0]?.beca?.id != null
+        ? String(becasAplicadas[0].beca.id)
+        : null
 
       const payload: ProspectoInsert = {
         // Básicos
@@ -66,6 +103,9 @@ export function useProspectos() {
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
 
+        // Beca aplicada (solo puede haber una)
+        beca: becaId,
+
         // Consentimiento
         consentimiento_contacto: form.consentimiento_contacto ?? false,
 
@@ -97,7 +137,23 @@ export function useProspectos() {
         first_touch_url: form.first_touch_url || null,
         first_touch_timestamp: form.first_touch_timestamp || null,
         last_touch_url: form.last_touch_url || null,
-        last_touch_timestamp: form.last_touch_timestamp || null
+        last_touch_timestamp: form.last_touch_timestamp || null,
+
+        // JSON del CRM enviado al sistema de CRM
+        prospecto_crm: prospectoCrm || null,
+
+        // JPS: Respuesta del CRM
+        // Modificación: Guardar la respuesta del CRM con URL real del endpoint, código y descripción
+        // Funcionamiento: Se guarda un objeto JSON con:
+        // - URL_Endpoint_crm: URL real del CRM usado (ej: https://crmadmision.uniacc.cl/webservice/formulario_web.php)
+        //   NO se guarda la URL del proxy, sino la URL real del servidor CRM
+        // - codigo_respuesta_crm: Código de respuesta del CRM (cod_respuesta)
+        // - descripcion_respuesta: Descripción de la respuesta (des_respuesta)
+        respuesta_crm: respuestaCRM ? {
+          URL_Endpoint_crm: respuestaCRM._crmEndpointUrl || null,
+          codigo_respuesta_crm: respuestaCRM.cod_respuesta ?? null,
+          descripcion_respuesta: respuestaCRM.des_respuesta || null
+        } : null
       }
 
       const { data, error: insertError } = await supabase
@@ -107,10 +163,12 @@ export function useProspectos() {
         .single()
 
       if (insertError) throw insertError
+      
+      logger.prospecto('Prospecto insertado correctamente', { id: data.id })
       return data
     } catch (e: any) {
       error.value = e?.message || 'Error al insertar prospecto'
-      console.error('Error insertarProspecto:', e)
+      logger.error('Error insertarProspecto:', e)
       return null
     } finally {
       loading.value = false
