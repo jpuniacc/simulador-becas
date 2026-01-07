@@ -40,22 +40,43 @@ export const useCarrerasStore = defineStore('carreras', () => {
   })
 
   // Acciones
-  const cargarCarreras = async (versionSimulador: number = 1) => {
+  // Puede recibir un número único o un array de números para buscar carreras por version_simulador
+  // Si es un array, hace un equivalente a SQL IN (ej: [10, 11] trae carreras con version_simulador 10 o 11)
+  const cargarCarreras = async (versionSimulador: number | number[] = 10) => {
     try {
       loading.value = true
       error.value = null
 
-      const { data, error: supabaseError } = await supabase
+      // Construir la consulta base
+      let query = supabase
         .from('carreras_uniacc')
         .select('*')
-        .eq('version_simulador', versionSimulador)
-        .order('nombre_programa')
+
+      // Si es un array, usar .in() para hacer un SQL IN
+      if (Array.isArray(versionSimulador)) {
+        if (versionSimulador.length > 0) {
+          query = query.in('version_simulador', versionSimulador)
+          console.log('Cargando carreras con version_simulador en:', versionSimulador)
+        } else {
+          // Si el array está vacío, usar el valor por defecto
+          query = query.eq('version_simulador', 10)
+          console.log('Array vacío, usando versión por defecto: 10')
+        }
+      } else {
+        // Si es un número único, usar .eq()
+        query = query.eq('version_simulador', versionSimulador)
+        console.log('Cargando carreras con version_simulador:', versionSimulador)
+      }
+
+      // Ordenar y ejecutar
+      const { data, error: supabaseError } = await query.order('nombre_programa')
 
       if (supabaseError) {
         throw supabaseError
       }
 
       carreras.value = data || []
+      console.log('Carreras cargadas en store:', carreras.value.length)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Error al cargar carreras'
       console.error('Error cargando carreras:', err)

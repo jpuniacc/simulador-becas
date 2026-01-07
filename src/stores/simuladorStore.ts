@@ -432,8 +432,11 @@ export const useSimuladorStore = defineStore('simulador', () => {
 
     try {
       // Cargar datos necesarios si no están cargados
+      // Si tiene interés en postgrado, cargar carreras de versiones 10 y 11 (pregrado y postgrado)
+      // Si no, cargar solo versión 10 (pregrado)
       if (carrerasStore.carreras.length === 0) {
-        await carrerasStore.cargarCarreras(10)
+        const versiones = formData.value.interesPostgrado ? [10, 11] : 10
+        await carrerasStore.cargarCarreras(versiones)
       }
       if (becasStore.becas.length === 0) {
         console.log('🚀 simulate - Cargando becas')
