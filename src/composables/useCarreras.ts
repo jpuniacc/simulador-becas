@@ -17,18 +17,42 @@ export function useCarreras() {
   })
 
   // Función para inicializar carreras
-  const inicializar = async (version?: number) => {
+  // Puede recibir un número único o un array de números para buscar carreras por version_simulador
+  // Si es un array, hace un equivalente a SQL IN (ej: [10, 11] trae carreras con version_simulador 10 o 11)
+  const inicializar = async (version?: number | number[]) => {
     try {
       loading.value = true
       error.value = null
-      const versionSimulador = version ?? 10
+
+      // Valor por defecto si no se pasa nada
+      const versionDefault = 10
+
       console.log('Inicializando carreras desde Supabase...')
 
-      const { data, error: supabaseError } = await supabase
+      // Construir la consulta base
+      let query = supabase
         .from('carreras_uniacc')
         .select('*')
-        .eq('version_simulador', versionSimulador)
-        .order('nombre_programa')
+
+      // Si es un array, usar .in() para hacer un SQL IN
+      if (Array.isArray(version)) {
+        if (version.length > 0) {
+          query = query.in('version_simulador', version)
+          console.log('Buscando carreras con version_simulador en:', version)
+        } else {
+          // Si el array está vacío, usar el valor por defecto
+          query = query.eq('version_simulador', versionDefault)
+          console.log('Array vacío, usando versión por defecto:', versionDefault)
+        }
+      } else {
+        // Si es un número único o undefined, usar .eq()
+        const versionSimulador = version ?? versionDefault
+        query = query.eq('version_simulador', versionSimulador)
+        console.log('Buscando carreras con version_simulador:', versionSimulador)
+      }
+
+      // Ordenar y ejecutar
+      const { data, error: supabaseError } = await query.order('nombre_programa')
 
       if (supabaseError) {
         throw supabaseError
@@ -36,7 +60,9 @@ export function useCarreras() {
 
       carreras.value = data || []
       console.log('Carreras cargadas:', carreras.value.length)
-      console.log('Primera carrera:', carreras.value[0])
+      if (carreras.value.length > 0) {
+        console.log('Primera carrera:', carreras.value[0])
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Error al cargar carreras'
       console.error('Error cargando carreras:', err)

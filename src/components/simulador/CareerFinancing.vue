@@ -377,6 +377,23 @@ watch(() => piensaUsarFinanciamiento.value, (newValue) => {
     }
 })
 
+// Watcher para recargar carreras cuando cambie interesPostgrado
+// Si el usuario marca interés en postgrado, se cargan carreras de versiones 10 y 11
+// Si desmarca, se cargan solo carreras de versión 10
+watch(() => props.formData?.interesPostgrado, async (newValue, oldValue) => {
+    // Solo recargar si el valor realmente cambió
+    if (newValue !== oldValue) {
+        // Limpiar selección actual si cambia el tipo de carreras disponibles
+        carreraSeleccionada.value = null
+        formData.value.carrera = ''
+        formData.value.carreraId = 0
+        touched.value.carrera = false
+
+        // Recargar carreras con las versiones apropiadas
+        await recargarCarreras()
+    }
+})
+
 // JPS: Watcher para actualizar el filtro cuando cambien extranjero o residencia_chilena
 // Modificación: Agregar watcher que reacciona a cambios en extranjero y residencia_chilena
 // Funcionamiento:
@@ -510,9 +527,24 @@ defineExpose({
     getMissingFields
 })
 
+// Función helper para determinar qué versiones de carreras cargar
+// Si interesPostgrado es true, carga versiones 10 y 11 (pregrado y postgrado)
+// Si es false o undefined, carga solo versión 10 (pregrado)
+const obtenerVersionesCarreras = (): number | number[] => {
+    return props.formData?.interesPostgrado ? [10, 11] : 10
+}
+
+// Función para recargar carreras según el estado de interesPostgrado
+const recargarCarreras = async () => {
+    const versiones = obtenerVersionesCarreras()
+    await inicializarCarreras(versiones)
+    filteredCarreras.value = aplicarFiltroModalidad(carrerasVigentes.value)
+}
+
 // Lifecycle
 onMounted(async () => {
-    await inicializarCarreras()
+    // Cargar carreras según si tiene interés en postgrado
+    await recargarCarreras()
     await cargarDeciles()
     // JPS: Inicializar las carreras filtradas aplicando el filtro de modalidad
     // Modificación: Aplicar filtro de modalidad desde el inicio si es extranjero fuera del país
@@ -586,10 +618,15 @@ onUnmounted(() => {
                                 autocomplete="off"
                             >
                                 <template #option="slotProps">
-                                    <div class="carrera-option-item">
-                                        <div class="carrera-option-nombre">{{ slotProps.option.nombre_programa }}</div>
-                                        <div class="carrera-option-details">{{ slotProps.option.nivel_academico }} - {{ slotProps.option.modalidad_programa }}</div>
-                                        <div class="carrera-option-duracion mt-1">{{ slotProps.option.duracion_programa }}</div>
+                                    <div class="carrera-option-item" :class="{ 'carrera-postgrado': slotProps.option.version_simulador === 11 }">
+                                        <div class="carrera-option-content">
+                                            <div class="carrera-option-info">
+                                                <div class="carrera-option-nombre">{{ slotProps.option.nombre_programa }}</div>
+                                                <div class="carrera-option-details">{{ slotProps.option.nivel_academico }} - {{ slotProps.option.modalidad_programa }}</div>
+                                                <div class="carrera-option-duracion mt-1">{{ slotProps.option.duracion_programa }}</div>
+                                            </div>
+                                            <GraduationCap v-if="slotProps.option.version_simulador === 11" class="carrera-postgrado-icon" />
+                                        </div>
                                     </div>
                                 </template>
                             </Autocomplete>
@@ -886,10 +923,49 @@ onUnmounted(() => {
 .carrera-option-item {
     @apply px-4 py-3 cursor-pointer border-b last:border-b-0;
     border-color: var(--p-primary-100);
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .carrera-option-item:hover {
     background-color: var(--p-primary-100);
+}
+
+/* Estilos para carreras de postgrado (versión 11) */
+.carrera-option-item.carrera-postgrado {
+    border-left: 4px solid var(--p-tertiary-500);
+    background-color: rgba(255, 173, 128, 0.15); /* --p-tertiary-100 con opacidad */
+    border-color: var(--p-tertiary-100);
+}
+
+.carrera-option-item.carrera-postgrado:hover {
+    background-color: var(--p-tertiary-100);
+    border-left-color: var(--p-tertiary-300);
+}
+
+.carrera-option-content {
+    @apply flex items-center justify-between gap-3;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.carrera-option-info {
+    @apply flex-1;
+}
+
+.carrera-postgrado-icon {
+    @apply flex-shrink-0;
+    width: 20px;
+    height: 20px;
+    color: var(--p-tertiary-500);
+    opacity: 0.9;
+}
+
+.carrera-option-item.carrera-postgrado:hover .carrera-postgrado-icon {
+    opacity: 1;
+    transform: scale(1.1);
+    transition: all 0.2s ease;
 }
 
 .carrera-option-nombre {
@@ -897,14 +973,27 @@ onUnmounted(() => {
     color: var(--p-primary-900);
 }
 
+.carrera-option-item.carrera-postgrado .carrera-option-nombre {
+    color: #1A3B66;
+    font-weight: 600;
+}
+
 .carrera-option-details {
     @apply text-sm;
     color: var(--p-primary-700);
 }
 
+.carrera-option-item.carrera-postgrado .carrera-option-details {
+    color: #4A5568;
+}
+
 .carrera-option-duracion {
     @apply text-xs;
     color: var(--p-primary-500);
+}
+
+.carrera-option-item.carrera-postgrado .carrera-option-duracion {
+    color: #718096;
 }
 
 .carrera-help-text {
@@ -987,9 +1076,20 @@ onUnmounted(() => {
 :deep(.carrera-autocomplete .p-autocomplete-panel) {
     @apply border border-gray-200 rounded-lg shadow-lg;
     max-height: 15rem;
+    width: 100%;
 }
 
 :deep(.carrera-autocomplete .p-autocomplete-items) {
     padding: 0;
+    width: 100%;
+}
+
+:deep(.carrera-autocomplete .p-autocomplete-items-wrapper) {
+    width: 100%;
+}
+
+:deep(.carrera-autocomplete .p-autocomplete-item) {
+    width: 100%;
+    box-sizing: border-box;
 }
 </style>
