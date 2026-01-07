@@ -13,7 +13,7 @@ export function useProspectos() {
   // Tipo para becas aplicadas
   type BecaAplicada = {
     beca: {
-      id: number
+      id: string | number
       nombre?: string
       [key: string]: any
     }
@@ -31,11 +31,13 @@ export function useProspectos() {
     try {
       // Extraer región y país del campo paisPasaporte si existe
       // El formato es "REGION-PAIS" (ej: "LA-AR")
+      // Nota: paisPasaporte puede no existir en FormData, usar casting seguro
       let regionPais: string | null = null
       let pais: string | null = null
 
-      if (form.paisPasaporte) {
-        const [region, countryCode] = form.paisPasaporte.split('-')
+      const formAny = form as any
+      if (formAny.paisPasaporte) {
+        const [region, countryCode] = formAny.paisPasaporte.split('-')
         regionPais = region || null
         pais = countryCode || null
       }

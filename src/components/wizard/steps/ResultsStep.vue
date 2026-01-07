@@ -312,7 +312,7 @@ const handleExportPDF = async () => {
       jsPDF: {
         unit: 'mm',
         format: 'a4',
-        orientation: 'portrait',
+        orientation: 'portrait' as const,
         compress: true
       },
       pagebreak: {
@@ -337,8 +337,8 @@ onMounted(async () => {
     let crmJson = null
     if (formData.value.consentimiento_contacto) {
       const userAgent = navigator.userAgent
-      const carreraInfo = carreraInfoComputed.value
-      crmJson = createJSONcrm(formData.value, carreraInfo, userAgent)
+      const carreraInfoValue = carreraInfo.value
+      crmJson = createJSONcrm(formData.value, carreraInfoValue, userAgent)
     }
 
     // Insertar usando los datos actuales del formulario

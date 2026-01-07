@@ -51,7 +51,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
     tieneRUT: undefined,
     tipoIdentificacion: '',
     identificacion: '',
-    nacionalidad: '',
     fechaNacimiento: '',
     genero: '',
     nivelEducativo: '', // Obligatorio seleccionar
@@ -287,7 +286,6 @@ export const useSimuladorStore = defineStore('simulador', () => {
       tieneRUT: undefined,
       tipoIdentificacion: '',
       identificacion: '',
-      nacionalidad: '',
       fechaNacimiento: '',
       genero: '',
       nivelEducativo: '', // Obligatorio seleccionar

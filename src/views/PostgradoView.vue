@@ -35,7 +35,6 @@ const formData = ref<Partial<FormData & { carreraInteres: string; carreraInteres
     identificacion: '',
     tipoIdentificacion: 'rut',
     tieneRUT: true,
-    paisPasaporte: '',
     nivelEducativo: '',
     regionResidencia: '',
     comunaResidencia: '',
