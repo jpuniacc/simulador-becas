@@ -1919,6 +1919,7 @@ export type Database = {
           objetivo: Json | null
           paes: boolean | null
           pasaporte: string | null
+          prospecto_crm: Json | null
           rango_ingreso: string | null
           ranking: number | null
           region: string | null
@@ -1971,6 +1972,7 @@ export type Database = {
           objetivo?: Json | null
           paes?: boolean | null
           pasaporte?: string | null
+          prospecto_crm?: Json | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
@@ -2023,6 +2025,7 @@ export type Database = {
           objetivo?: Json | null
           paes?: boolean | null
           pasaporte?: string | null
+          prospecto_crm?: Json | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null

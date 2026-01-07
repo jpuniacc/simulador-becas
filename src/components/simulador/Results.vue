@@ -36,7 +36,7 @@ const simuladorStore = useSimuladorStore()
 const descuentosStore = useDescuentosStore()
 const becasStore = useBecasStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
-const { enviarCRM } = useCRM()
+const { enviarCRM, createJSONcrm } = useCRM()
 
 // Estado
 const isLoading = ref(false)
@@ -324,10 +324,13 @@ const handleSimulate = async () => {
 
     await simuladorStore.simulate()
 
-        // Ejecutar ambas llamadas en paralelo
+        // Generar el JSON del CRM antes de las llamadas paralelas
         const userAgent = navigator.userAgent
+        const crmJson = createJSONcrm(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
+
+        // Ejecutar ambas llamadas en paralelo
         const [prospectoResult, crmResult] = await Promise.allSettled([
-            insertarProspecto(simuladorStore.formData as FormData, 'pregrado', becasAplicadas.value),
+            insertarProspecto(simuladorStore.formData as FormData, 'pregrado', becasAplicadas.value, crmJson),
             enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
         ])
 

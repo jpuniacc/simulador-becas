@@ -13,6 +13,7 @@ import MultipleCareerPostgrado from '@/components/postgrado/MultipleCareerPostgr
 import PersonalAcademicData from '@/components/simulador/PersonalAcademicData.vue';
 import ResultsPostgrado from '@/components/postgrado/ResultsPostgrado.vue';
 import { useProspectos } from '@/composables/useProspectos';
+import { useCRM } from '@/composables/useCRM';
 import { validateEmail, validateRUT } from '@/utils/validation';
 import { MODO_CARRERA_POSTGRADO } from '@/utils/config';
 import type { FormData } from '@/types/simulador';
@@ -52,6 +53,7 @@ const personalDataRef = ref<InstanceType<typeof PersonalAcademicData> | null>(nu
 
 // Composables
 const { insertarProspecto, loading: prospectoLoading } = useProspectos();
+const { createJSONcrm } = useCRM();
 
 // Toast de PrimeVue
 const toast = useToast();
@@ -174,7 +176,15 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 
     // Insertar prospecto en la base de datos
     try {
-        const prospecto = await insertarProspecto(formData.value as FormData, 'postgrado');
+        // Generar el JSON del CRM si hay consentimiento de contacto
+        let crmJson = null
+        if (formData.value.consentimiento_contacto) {
+            const userAgent = navigator.userAgent
+            // Para postgrado no hay carreraInfo, pasar null
+            crmJson = createJSONcrm(formData.value as FormData, null, userAgent)
+        }
+        
+        const prospecto = await insertarProspecto(formData.value as FormData, 'postgrado', undefined, crmJson);
         if (prospecto) {
             console.log('Prospecto insertado correctamente:', prospecto);
         } else {

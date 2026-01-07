@@ -53,9 +53,9 @@ const isSearching = ref(false)
 // Computed
 const stepTitle = computed(() => {
   switch (currentStep.value) {
-    case 'region': return 'Selecciona tu Región'
-    case 'comuna': return 'Selecciona tu Comuna'
-    case 'colegio': return 'Selecciona tu Colegio'
+    case 'region': return 'Selecciona la Región'
+    case 'comuna': return 'Selecciona la Comuna'
+    case 'colegio': return 'Selecciona el Colegio'
     default: return ''
   }
 })
@@ -96,13 +96,28 @@ const filteredOptions = computed(() => {
       break
   }
 
-  if (!searchTerm.value) return options
+  // Filtrar si hay término de búsqueda
+  const filtered = searchTerm.value
+    ? options.filter(option => {
+        const searchKey = currentStep.value === 'region' ? 'region_nombre' :
+                         currentStep.value === 'comuna' ? 'comuna_nombre' : 'nombre'
+        return option[searchKey].toLowerCase().includes(searchTerm.value.toLowerCase())
+      })
+    : options
 
-  return options.filter(option => {
-    const searchKey = currentStep.value === 'region' ? 'region_nombre' :
-                     currentStep.value === 'comuna' ? 'comuna_nombre' : 'nombre'
-    return option[searchKey].toLowerCase().includes(searchTerm.value.toLowerCase())
-  })
+  // Si estamos en el paso de regiones, ordenar para que Región Metropolitana aparezca primero
+  if (currentStep.value === 'region') {
+    return [...filtered].sort((a, b) => {
+      const aIsMetro = a.region_id === 13 || a.region_nombre.toLowerCase().includes('metropolitana')
+      const bIsMetro = b.region_id === 13 || b.region_nombre.toLowerCase().includes('metropolitana')
+
+      if (aIsMetro && !bIsMetro) return -1
+      if (!aIsMetro && bIsMetro) return 1
+      return 0
+    })
+  }
+
+  return filtered
 })
 
 // Métodos

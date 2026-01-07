@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:netlify": "netlify dev",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
@@ -38,6 +39,8 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@netlify/functions": "^2.4.1",
+    "netlify-cli": "^17.0.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.16.5",

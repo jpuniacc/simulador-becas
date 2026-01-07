@@ -260,7 +260,7 @@ onUnmounted(() => {
                 :regions="regiones"
                 :disabled="colegiosLoading"
                 :error="colegiosError || undefined"
-                placeholder="Selecciona tu región"
+                placeholder="Selecciona Región"
                 @change="handleRegionChange"
               />
             </div>
@@ -271,7 +271,7 @@ onUnmounted(() => {
                 v-model="comunaSeleccionada"
                 :comunas="comunasFiltradas"
                 :disabled="colegiosLoading"
-                placeholder="Selecciona tu comuna"
+                placeholder="Selecciona Comuna"
                 @change="handleComunaChange"
               />
             </div>
@@ -282,7 +282,7 @@ onUnmounted(() => {
                 v-model="colegioSeleccionado"
                 :colegios="colegiosFiltrados"
                 :disabled="colegiosLoading"
-                placeholder="Selecciona tu colegio"
+                placeholder="Selecciona Colegio"
                 @change="handleColegioChange"
                 @search="handleColegioSearch"
               />

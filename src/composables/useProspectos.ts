@@ -22,7 +22,7 @@ export function useProspectos() {
     [key: string]: any
   }
 
-  const insertarProspecto = async (form: FormData, segmentacion?: string, becasAplicadas?: BecaAplicada[]): Promise<ProspectoRow | null> => {
+  const insertarProspecto = async (form: FormData, segmentacion?: string, becasAplicadas?: BecaAplicada[], prospectoCrm?: Record<string, any> | null): Promise<ProspectoRow | null> => {
     console.log('**********DATOS PROSPECTO***************')
     console.log(form);
     console.log('**********************************')
@@ -100,7 +100,10 @@ export function useProspectos() {
         // - Captura window.location.href que contiene la URL completa (protocolo + host + path + query + hash)
         // - Si window no está disponible, se guarda null
         // - Esto permite rastrear desde qué página/URL el usuario inició el proceso de simulación
-        url_origen: typeof window !== 'undefined' ? window.location.href : null
+        url_origen: typeof window !== 'undefined' ? window.location.href : null,
+
+        // JSON del CRM enviado al sistema de CRM
+        prospecto_crm: prospectoCrm || null
       }
 
       const { data, error: insertError } = await supabase
