@@ -45,13 +45,17 @@ export const handler = async (event: NetlifyEvent) => {
 
     let crmUrl: string
     if (isMain) {
-      // MAIN: usar CRM de producción
-      crmUrl = process.env.CRM_URL_MAIN ||
+      // MAIN: usar CRM de producción desde variable de entorno
+      // JPS: Usar VITE_CRM_URL si está disponible, sino usar fallbacks
+      crmUrl = process.env.VITE_CRM_URL ||
+               process.env.CRM_URL_MAIN ||
                process.env.VITE_API_MANTIS_WEB ||
                'https://crmadmision.uniacc.cl/webservice/formulario_web.php'
     } else {
-      // QA o fallback: usar CRM de QA
-      crmUrl = process.env.CRM_URL_QA ||
+      // QA o fallback: usar CRM de QA desde variable de entorno
+      // JPS: Usar VITE_CRM_URL si está disponible, sino usar fallbacks
+      crmUrl = process.env.VITE_CRM_URL ||
+               process.env.CRM_URL_QA ||
                process.env.VITE_API_MANTIS_WEB ||
                process.env.CRM_URL ||
                'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'

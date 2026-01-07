@@ -16,6 +16,10 @@ const getCRMUrl = () => {
   // Obtener URL del CRM desde variable de entorno
   const crmUrlFromEnv = import.meta.env.VITE_CRM_URL
 
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/4fa6e95d-58ca-48d6-a873-5972d948adca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCRM.ts:17',message:'getCRMUrl entry',data:{crmUrlFromEnv,hasWindow:typeof window !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   if (typeof window === 'undefined') {
     // SSR: usar URL de QA por defecto
     return crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
@@ -26,26 +30,46 @@ const getCRMUrl = () => {
   const isQA = hostname === 'simuladorqa.uniacc.cl'
   const isMain = hostname === 'simulador.uniacc.cl'
 
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/4fa6e95d-58ca-48d6-a873-5972d948adca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCRM.ts:30',message:'hostname detection',data:{hostname,isLocalhost,isQA,isMain},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+
   // Dev/QA (localhost): usar proxy de Vite que redirige a VITE_CRM_URL
   // El proxy está configurado en vite.config.ts para usar VITE_CRM_URL
   if (isLocalhost) {
-    return '/crm/webservice/formulario_web.php'
+    const result = '/crm/webservice/formulario_web.php'
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/4fa6e95d-58ca-48d6-a873-5972d948adca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCRM.ts:35',message:'returning localhost proxy',data:{result},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return result
   }
 
   // QA (simuladorqa.uniacc.cl): usar Netlify Function como proxy
   // La función detectará el hostname y usará endpoint de QA
   if (isQA) {
-    return '/.netlify/functions/crm-proxy'
+    const result = '/.netlify/functions/crm-proxy'
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/4fa6e95d-58ca-48d6-a873-5972d948adca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCRM.ts:42',message:'returning QA proxy',data:{result},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return result
   }
 
-  // MAIN (simulador.uniacc.cl): usar URL directa desde variable de entorno
-  // En producción se envía directamente a https://crmadmision.uniacc.cl
+  // MAIN (simulador.uniacc.cl): usar Netlify Function como proxy para evitar CORS
+  // La función detectará el hostname y usará endpoint de producción
   if (isMain) {
-    return crmUrlFromEnv || 'https://crmadmision.uniacc.cl/webservice/formulario_web.php'
+    const result = '/.netlify/functions/crm-proxy'
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/4fa6e95d-58ca-48d6-a873-5972d948adca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCRM.ts:50',message:'returning MAIN proxy',data:{result,crmUrlFromEnv},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return result
   }
 
   // Fallback: usar variable de entorno o URL de QA por defecto
-  return crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  const result = crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/4fa6e95d-58ca-48d6-a873-5972d948adca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useCRM.ts:56',message:'returning fallback',data:{result},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  return result
 }
 
 interface JSONCRM {
