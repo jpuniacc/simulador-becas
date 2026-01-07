@@ -1923,6 +1923,7 @@ export type Database = {
           rango_ingreso: string | null
           ranking: number | null
           region: string | null
+          respuesta_crm: Json | null
           rut: string | null
           segmentacion: string | null
           telefono: string | null
@@ -1976,6 +1977,7 @@ export type Database = {
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
+          respuesta_crm?: Json | null
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null
@@ -2029,6 +2031,7 @@ export type Database = {
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
+          respuesta_crm?: Json | null
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null

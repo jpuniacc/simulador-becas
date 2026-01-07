@@ -23,7 +23,21 @@ export function useProspectos() {
     [key: string]: any
   }
 
-  const insertarProspecto = async (form: FormData, segmentacion?: string, becasAplicadas?: BecaAplicada[], prospectoCrm?: Record<string, any> | null): Promise<ProspectoRow | null> => {
+  // Tipo para respuesta del CRM
+  type RespuestaCRM = {
+    cod_respuesta?: number
+    des_respuesta?: string
+    _crmEndpointUrl?: string
+    [key: string]: any
+  }
+
+  const insertarProspecto = async (
+    form: FormData, 
+    segmentacion?: string, 
+    becasAplicadas?: BecaAplicada[], 
+    prospectoCrm?: Record<string, any> | null,
+    respuestaCRM?: RespuestaCRM | null
+  ): Promise<ProspectoRow | null> => {
     // JPS: Logging seguro con ofuscación de datos sensibles
     // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
     // Funcionamiento: El logger detecta campos sensibles en formData y los reemplaza con asteriscos
@@ -108,7 +122,20 @@ export function useProspectos() {
         url_origen: typeof window !== 'undefined' ? window.location.href : null,
 
         // JSON del CRM enviado al sistema de CRM
-        prospecto_crm: prospectoCrm || null
+        prospecto_crm: prospectoCrm || null,
+
+        // JPS: Respuesta del CRM
+        // Modificación: Guardar la respuesta del CRM con URL real del endpoint, código y descripción
+        // Funcionamiento: Se guarda un objeto JSON con:
+        // - URL_Endpoint_crm: URL real del CRM usado (ej: https://crmadmision.uniacc.cl/webservice/formulario_web.php)
+        //   NO se guarda la URL del proxy, sino la URL real del servidor CRM
+        // - codigo_respuesta_crm: Código de respuesta del CRM (cod_respuesta)
+        // - descripcion_respuesta: Descripción de la respuesta (des_respuesta)
+        respuesta_crm: respuestaCRM ? {
+          URL_Endpoint_crm: respuestaCRM._crmEndpointUrl || null,
+          codigo_respuesta_crm: respuestaCRM.cod_respuesta ?? null,
+          descripcion_respuesta: respuestaCRM.des_respuesta || null
+        } : null
       }
 
       const { data, error: insertError } = await supabase

@@ -43,7 +43,7 @@ const emit = defineEmits<{
 // Store
 const simuladorStore = useSimuladorStore()
 const { insertarProspecto, error: insertError } = useProspectos()
-const { createJSONcrm } = useCRM()
+const { createJSONcrm, enviarCRM } = useCRM()
 
 // Ref para el elemento a capturar
 const pdfContentRef = ref<HTMLElement | null>(null)
@@ -330,19 +330,32 @@ const handleExportPDF = async () => {
   }
 }
 
-// Guardar prospecto al montar el step de resultados
+// JPS: Guardar prospecto al montar el step de resultados
+// Modificación: Ejecutar primero el envío al CRM para obtener la respuesta
+// Funcionamiento: Se envía primero al CRM (si hay consentimiento), se obtiene la respuesta, y luego se guarda el prospecto
+// con la respuesta del CRM incluida en el campo respuesta_crm
 onMounted(async () => {
   try {
     // Generar el JSON del CRM si hay consentimiento de contacto
     let crmJson = null
+    let respuestaCRM = null
+    
     if (formData.value.consentimiento_contacto) {
       const userAgent = navigator.userAgent
       const carreraInfoValue = carreraInfo.value
       crmJson = createJSONcrm(formData.value, carreraInfoValue, userAgent)
+      
+      // Enviar al CRM para obtener la respuesta
+      try {
+        respuestaCRM = await enviarCRM(formData.value, carreraInfoValue, userAgent)
+      } catch (error) {
+        console.warn('No se pudo enviar al CRM:', error)
+        // Continuar aunque falle el CRM, pero sin respuesta
+      }
     }
 
-    // Insertar usando los datos actuales del formulario
-    await insertarProspecto(formData.value, undefined, undefined, crmJson)
+    // Insertar usando los datos actuales del formulario con la respuesta del CRM
+    await insertarProspecto(formData.value, undefined, undefined, crmJson, respuestaCRM)
     if (insertError.value) {
       console.warn('No se pudo guardar el prospecto:', insertError.value)
     }

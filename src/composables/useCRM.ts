@@ -4,6 +4,31 @@ import type { FormData } from '@/types/simulador'
 import type { Carrera } from '@/stores/carrerasStore'
 import { logger } from '@/utils/logger'
 
+// JPS: Función para obtener la URL real del CRM (no la del proxy)
+// Modificación: Retornar la URL real del CRM según el ambiente, no la URL del proxy
+// Funcionamiento: Determina la URL real del CRM que se usará, independientemente de si se usa proxy o no
+// Esta URL es la que se guarda en la base de datos para tracking
+const getCRMUrlReal = () => {
+  // Obtener URL del CRM desde variable de entorno
+  const crmUrlFromEnv = import.meta.env.VITE_CRM_URL
+
+  if (typeof window === 'undefined') {
+    // SSR: usar URL de QA por defecto
+    return crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  }
+
+  const hostname = window.location.hostname
+  const isMain = hostname === 'simulador.uniacc.cl'
+
+  // MAIN (producción): URL de producción
+  if (isMain) {
+    return crmUrlFromEnv || 'https://crmadmision.uniacc.cl/webservice/formulario_web.php'
+  }
+
+  // QA/DEV: URL de QA
+  return crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+}
+
 // JPS: Función para determinar la URL del CRM según el ambiente de ejecución
 // Modificación: Usar variables de entorno desde archivos .env según la rama
 // Funcionamiento:
@@ -129,7 +154,17 @@ export function useCRM() {
 
       logger.crm('Respuesta recibida del CRM', response.data)
 
-      return response.data
+      // JPS: Retornar respuesta completa con URL real del CRM
+      // Modificación: Retornar objeto con respuesta del CRM y URL real del endpoint (no la del proxy)
+      // Funcionamiento: Esto permite guardar la respuesta completa en la tabla prospectos
+      // incluyendo la URL real del CRM que se usó (obtenida de VITE_CRM_URL o determinada por ambiente)
+      // La URL real se obtiene usando getCRMUrlReal() que retorna la URL real, no la del proxy
+      const crmUrlReal = getCRMUrlReal()
+
+      return {
+        ...response.data,
+        _crmEndpointUrl: crmUrlReal // URL real del CRM (ej: https://crmadmision.uniacc.cl/webservice/formulario_web.php)
+      }
     } catch (e: any) {
       error.value = e?.response?.data?.des_respuesta || e?.message || 'Error al enviar mensaje al CRM'
 

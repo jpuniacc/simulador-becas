@@ -52,7 +52,7 @@ const personalDataRef = ref<InstanceType<typeof PersonalAcademicData> | null>(nu
 
 // Composables
 const { insertarProspecto, loading: prospectoLoading } = useProspectos();
-const { createJSONcrm } = useCRM();
+const { createJSONcrm, enviarCRM } = useCRM();
 
 // Toast de PrimeVue
 const toast = useToast();
@@ -172,17 +172,36 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     // Activar el paso 3
     activateCallback('3');
 
-    // Insertar prospecto en la base de datos
+    // JPS: Ejecutar primero el envío al CRM para obtener la respuesta
+    // Modificación: Cambiar el orden para ejecutar primero enviarCRM y luego insertarProspecto con la respuesta
+    // Funcionamiento: Se envía primero al CRM (si hay consentimiento), se obtiene la respuesta, y luego se guarda el prospecto
+    // con la respuesta del CRM incluida en el campo respuesta_crm
     try {
         // Generar el JSON del CRM si hay consentimiento de contacto
         let crmJson = null
+        let respuestaCRM = null
+        
         if (formData.value.consentimiento_contacto) {
             const userAgent = navigator.userAgent
             // Para postgrado no hay carreraInfo, pasar null
             crmJson = createJSONcrm(formData.value as FormData, null, userAgent)
+            
+            // Enviar al CRM para obtener la respuesta
+            try {
+                respuestaCRM = await enviarCRM(formData.value as FormData, null, userAgent)
+            } catch (error) {
+                console.warn('No se pudo enviar al CRM:', error)
+                // Continuar aunque falle el CRM, pero sin respuesta
+            }
         }
         
-        const prospecto = await insertarProspecto(formData.value as FormData, 'postgrado', undefined, crmJson);
+        const prospecto = await insertarProspecto(
+            formData.value as FormData, 
+            'postgrado', 
+            undefined, 
+            crmJson,
+            respuestaCRM
+        );
         if (prospecto) {
             console.log('Prospecto insertado correctamente:', prospecto);
         } else {

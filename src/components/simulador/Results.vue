@@ -324,25 +324,34 @@ const handleSimulate = async () => {
 
     await simuladorStore.simulate()
 
-        // Generar el JSON del CRM antes de las llamadas paralelas
+        // JPS: Ejecutar primero el envío al CRM para obtener la respuesta
+        // Modificación: Cambiar el orden para ejecutar primero enviarCRM y luego insertarProspecto con la respuesta
+        // Funcionamiento: Se envía primero al CRM, se obtiene la respuesta, y luego se guarda el prospecto
+        // con la respuesta del CRM incluida en el campo respuesta_crm
         const userAgent = navigator.userAgent
         const crmJson = createJSONcrm(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
 
-        // Ejecutar ambas llamadas en paralelo
-        const [prospectoResult, crmResult] = await Promise.allSettled([
-            insertarProspecto(simuladorStore.formData as FormData, 'pregrado', becasAplicadas.value, crmJson),
-            enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
-        ])
+        // Enviar primero al CRM para obtener la respuesta
+        let respuestaCRM = null
+        try {
+          respuestaCRM = await enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
+        } catch (error) {
+          console.warn('No se pudo enviar al CRM:', error)
+          // Continuar aunque falle el CRM, pero sin respuesta
+        }
 
-    if (prospectoResult.status === 'rejected') {
-      console.warn('No se pudo guardar el prospecto:', prospectoResult.reason)
-    } else if (!prospectoResult.value && prospectoError.value) {
-      console.warn('No se pudo guardar el prospecto:', prospectoError.value)
-    }
-
-    if (crmResult.status === 'rejected') {
-      console.warn('No se pudo enviar al CRM:', crmResult.reason)
-    }
+        // Guardar el prospecto con la respuesta del CRM (si existe)
+        try {
+          await insertarProspecto(
+            simuladorStore.formData as FormData, 
+            'pregrado', 
+            becasAplicadas.value, 
+            crmJson,
+            respuestaCRM
+          )
+        } catch (error) {
+          console.warn('No se pudo guardar el prospecto:', error)
+        }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Error al realizar la simulación'
     console.error('Error en simulación:', err)
