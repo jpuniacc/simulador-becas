@@ -2,17 +2,30 @@
 import { RouterView } from 'vue-router'
 import { onMounted } from 'vue'
 import Toast from 'primevue/toast'
+import { useSEO } from './composables/useSEO'
+import { useStructuredData } from './composables/useStructuredData'
+import { useCampaignTracking } from './composables/useCampaignTracking'
+import { useSimuladorStore } from './stores/simuladorStore'
+
+// Composables
+const { initialize: initializeSEO } = useSEO()
+const { injectAllSchemas } = useStructuredData()
+const { initialize: initializeCampaignTracking } = useCampaignTracking()
+const simuladorStore = useSimuladorStore()
 
 // Lifecycle
 onMounted(() => {
-  // Configuración global de la aplicación
-  document.title = 'Simulador de Becas UNIACC'
+  // Inicializar tracking de campañas
+  initializeCampaignTracking()
+  
+  // Inicializar datos de campaña en el store
+  simuladorStore.initializeCampaignData()
 
-  // Configurar meta tags
-  const metaDescription = document.querySelector('meta[name="description"]')
-  if (metaDescription) {
-    metaDescription.setAttribute('content', 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito')
-  }
+  // Inicializar SEO
+  initializeSEO()
+
+  // Inyectar structured data
+  injectAllSchemas()
 })
 </script>
 

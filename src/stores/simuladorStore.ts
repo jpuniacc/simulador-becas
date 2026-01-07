@@ -24,11 +24,15 @@ import { useSimulation } from '../composables/useSimulation'
 import { useDecilCalculation } from '../composables/useDecilCalculation'
 import { useCarrerasStore } from './carrerasStore'
 import { useBecasStore, type CalculoBecas } from './becasStore'
+import { useCampaignTracking } from '../composables/useCampaignTracking'
 
 export const useSimuladorStore = defineStore('simulador', () => {
   // Integrar stores de carreras y becas
   const carrerasStore = useCarrerasStore()
   const becasStore = useBecasStore()
+
+  // Tracking de campañas
+  const campaignTracking = useCampaignTracking()
 
   // Estado del wizard
   const currentStep = ref(0)
@@ -246,6 +250,14 @@ export const useSimuladorStore = defineStore('simulador', () => {
       3: false,
       4: true,
       5: false
+    }
+  }
+
+  // Inicializar datos de campaña en formData
+  const initializeCampaignData = () => {
+    const campaignData = campaignTracking.getCampaignData()
+    if (Object.keys(campaignData).length > 0) {
+      formData.value = { ...formData.value, ...campaignData }
     }
   }
 
@@ -676,6 +688,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
     reset,
     validateStep,
     validateCurrentStep,
+    initializeCampaignData,
 
     // Simulación
     simulate,

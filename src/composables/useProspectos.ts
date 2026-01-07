@@ -79,7 +79,25 @@ export function useProspectos() {
         // - Captura window.location.href que contiene la URL completa (protocolo + host + path + query + hash)
         // - Si window no está disponible, se guarda null
         // - Esto permite rastrear desde qué página/URL el usuario inició el proceso de simulación
-        url_origen: typeof window !== 'undefined' ? window.location.href : null
+        url_origen: typeof window !== 'undefined' ? window.location.href : null,
+
+        // Parámetros UTM y de campaña
+        utm_source: form.utm_source || null,
+        utm_medium: form.utm_medium || null,
+        utm_campaign: form.utm_campaign || null,
+        utm_term: form.utm_term || null,
+        utm_content: form.utm_content || null,
+        campaign_id: form.campaign_id || null,
+        ad_id: form.ad_id || null,
+        gclid: form.gclid || null,
+        fbclid: form.fbclid || null,
+        msclkid: form.msclkid || null,
+        ttclid: form.ttclid || null,
+        li_fat_id: form.li_fat_id || null,
+        first_touch_url: form.first_touch_url || null,
+        first_touch_timestamp: form.first_touch_timestamp || null,
+        last_touch_url: form.last_touch_url || null,
+        last_touch_timestamp: form.last_touch_timestamp || null
       }
 
       const { data, error: insertError } = await supabase

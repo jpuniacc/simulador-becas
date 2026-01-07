@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import { updateSEO } from '../composables/useSEO'
+import { injectAllSchemas } from '../composables/useStructuredData'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -10,18 +12,20 @@ const router = createRouter({
       component: HomeView,
       meta: {
         title: 'Inicio - Simulador de Becas UNIACC',
-        description: 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito'
+        description: 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito. Calcula tu arancel con descuentos en solo minutos.',
+        keywords: ['simulador becas', 'UNIACC', 'becas universitarias', 'descuentos', 'arancel'],
+        type: 'website'
       }
     },
-    // {
-    //   path: '/elige-tu-camino',
-    //   name: 'elige-tu-camino',
-    //   component: () => import('../views/Segmentation.vue'),
-    //   meta: {
-    //     title: 'Elige tu camino - UNIACC',
-    //     description: 'Elige tu camino hacia la universidad en UNIACC'
-    //   }
-    // },
+    {
+      path: '/elige-tu-camino',
+      name: 'elige-tu-camino',
+      component: () => import('../views/Segmentation.vue'),
+      meta: {
+        title: 'Elige tu camino - UNIACC',
+        description: 'Elige tu camino hacia la universidad en UNIACC'
+      }
+    },
     {
       path: '/postgrado',
       name: 'postgrado',
@@ -37,7 +41,9 @@ const router = createRouter({
       component: () => import('../views/Simulador2View.vue'),
       meta: {
         title: 'Simulador de Becas - UNIACC',
-        description: 'Simula tus beneficios y becas disponibles en UNIACC en solo 5 minutos'
+        description: 'Simula tus beneficios y becas disponibles en UNIACC en solo 5 minutos. Calcula tu arancel con descuentos y beneficios especiales.',
+        keywords: ['simulador becas', 'calcular arancel', 'becas UNIACC', 'beneficios estudiantiles'],
+        type: 'website'
       }
     },
     {
@@ -101,28 +107,55 @@ const router = createRouter({
   }
 })
 
-// Guard de navegación para actualizar el título de la página
+// Guard de navegación para actualizar SEO
 router.beforeEach((to, from, next) => {
-  // Actualizar título de la página
-  if (to.meta.title) {
-    document.title = to.meta.title as string
-  }
-
-  // Actualizar meta description
-  if (to.meta.description) {
-    const metaDescription = document.querySelector('meta[name="description"]')
-    if (metaDescription) {
-      metaDescription.setAttribute('content', to.meta.description as string)
-    }
+  // Actualizar SEO desde meta de la ruta
+  const meta = to.meta as Record<string, any>
+  if (meta) {
+    updateSEO({
+      title: meta.title as string,
+      description: meta.description as string,
+      image: meta.image as string,
+      type: meta.type as string || 'website',
+      canonical: meta.canonical as string,
+      robots: meta.robots as string,
+      keywords: meta.keywords as string[]
+    })
   }
 
   next()
 })
 
-// Guard de navegación para analytics (preparación futura)
+// Guard de navegación para analytics y tracking
 router.afterEach((to, from) => {
-  // Aquí podrías agregar analytics de navegación
-  console.log(`Navegación: ${from.path} → ${to.path}`)
+  // Trackear navegación en GTM (si dataLayer está disponible)
+  if (typeof window !== 'undefined' && (window as any).dataLayer) {
+    // Obtener datos de campaña desde localStorage si están disponibles
+    let campaignData = {}
+    try {
+      const stored = localStorage.getItem('simulador-campaign-data')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        const { expiresAt, ...data } = parsed
+        campaignData = data
+      }
+    } catch (e) {
+      // Ignorar errores de parsing
+    }
+
+    ;(window as any).dataLayer.push({
+      event: 'page_view',
+      page_path: to.path,
+      page_url: window.location.href,
+      page_title: to.meta.title as string,
+      campaign_data: campaignData
+    })
+  }
+
+  // Log para debugging (remover en producción si es necesario)
+  if (import.meta.env.DEV) {
+    console.log(`Navegación: ${from.path} → ${to.path}`)
+  }
 })
 
 export default router
