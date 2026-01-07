@@ -97,7 +97,6 @@ const isStep2ButtonBlocked = ref(false);
 // Handler para actualizar formData desde el componente hijo
 const handleFormDataUpdate = (data: Partial<FormData>) => {
     formData.value = { ...formData.value, ...data };
-    console.log('formData', formData.value)
 };
 
 // Handler para cambios en la validación del paso 1

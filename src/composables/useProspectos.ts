@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import type { FormData } from '@/types/simulador'
+import { logger } from '@/utils/logger'
 
 type ProspectoInsert = Database['public']['Tables']['prospectos']['Insert']
 type ProspectoRow = Database['public']['Tables']['prospectos']['Row']
@@ -23,9 +24,11 @@ export function useProspectos() {
   }
 
   const insertarProspecto = async (form: FormData, segmentacion?: string, becasAplicadas?: BecaAplicada[], prospectoCrm?: Record<string, any> | null): Promise<ProspectoRow | null> => {
-    console.log('**********DATOS PROSPECTO***************')
-    console.log(form);
-    console.log('**********************************')
+    // JPS: Logging seguro con ofuscación de datos sensibles
+    // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
+    // Funcionamiento: El logger detecta campos sensibles en formData y los reemplaza con asteriscos
+    logger.prospecto('Insertando prospecto', { form, segmentacion, becasAplicadas })
+    
     loading.value = true
     error.value = null
     try {
@@ -115,10 +118,12 @@ export function useProspectos() {
         .single()
 
       if (insertError) throw insertError
+      
+      logger.prospecto('Prospecto insertado correctamente', { id: data.id })
       return data
     } catch (e: any) {
       error.value = e?.message || 'Error al insertar prospecto'
-      console.error('Error insertarProspecto:', e)
+      logger.error('Error insertarProspecto:', e)
       return null
     } finally {
       loading.value = false

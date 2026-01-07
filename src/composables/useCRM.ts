@@ -2,20 +2,23 @@ import { ref } from 'vue'
 import axios from 'axios'
 import type { FormData } from '@/types/simulador'
 import type { Carrera } from '@/stores/carrerasStore'
+import { logger } from '@/utils/logger'
 
 // JPS: Función para determinar la URL del CRM según el ambiente de ejecución
-// Modificación: Detección dinámica del ambiente (dev local, QA producción, MAIN producción) para resolver problemas de CORS
+// Modificación: Usar variables de entorno desde archivos .env según la rama
 // Funcionamiento:
-// - Dev (localhost): retorna '/crm/webservice/formulario_web.php' que usa el proxy de Vite configurado en vite.config.ts
-//   El proxy redirige las peticiones a http://crmadmision-qa.uniacc.cl evitando errores de CORS desde localhost
-// - QA (simuladorqa.uniacc.cl) - Producción: usa Netlify Function como proxy '/.netlify/functions/crm-proxy' para evitar CORS
-//   La función proxy detectará que es QA y usará el endpoint de QA
-// - MAIN (simulador.uniacc.cl) - Producción: usa Netlify Function como proxy '/.netlify/functions/crm-proxy' para evitar CORS
-//   La función proxy detectará que es MAIN y usará el endpoint de producción
+// - MAIN (producción): VITE_CRM_URL apunta a https://crmadmision.uniacc.cl (desde .env.production)
+// - DEV/QA (localhost): VITE_CRM_URL apunta a http://crmadmision-qa.uniacc.cl (desde .env.development o .env.qa)
+//   En localhost se usa proxy de Vite que redirige a la URL configurada en VITE_CRM_URL
+// - En producción (simulador.uniacc.cl): se envía directamente a VITE_CRM_URL sin proxy
 // La detección se hace en tiempo de ejecución en cada petición, no al cargar el módulo
 const getCRMUrl = () => {
+  // Obtener URL del CRM desde variable de entorno
+  const crmUrlFromEnv = import.meta.env.VITE_CRM_URL
+
   if (typeof window === 'undefined') {
-    return 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+    // SSR: usar URL de QA por defecto
+    return crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
   }
 
   const hostname = window.location.hostname
@@ -23,25 +26,26 @@ const getCRMUrl = () => {
   const isQA = hostname === 'simuladorqa.uniacc.cl'
   const isMain = hostname === 'simulador.uniacc.cl'
 
-  // Dev (localhost): usar proxy de Vite (que apunta a QA)
+  // Dev/QA (localhost): usar proxy de Vite que redirige a VITE_CRM_URL
+  // El proxy está configurado en vite.config.ts para usar VITE_CRM_URL
   if (isLocalhost) {
     return '/crm/webservice/formulario_web.php'
   }
 
-  // QA (simuladorqa.uniacc.cl) - Producción: usar Netlify Function como proxy
+  // QA (simuladorqa.uniacc.cl): usar Netlify Function como proxy
   // La función detectará el hostname y usará endpoint de QA
   if (isQA) {
     return '/.netlify/functions/crm-proxy'
   }
 
-  // MAIN (simulador.uniacc.cl) - Producción: usar Netlify Function como proxy
-  // La función detectará el hostname y usará endpoint de producción
+  // MAIN (simulador.uniacc.cl): usar URL directa desde variable de entorno
+  // En producción se envía directamente a https://crmadmision.uniacc.cl
   if (isMain) {
-    return '/.netlify/functions/crm-proxy'
+    return crmUrlFromEnv || 'https://crmadmision.uniacc.cl/webservice/formulario_web.php'
   }
 
   // Fallback: usar variable de entorno o URL de QA por defecto
-  return import.meta.env.VITE_API_MANTIS_WEB || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  return crmUrlFromEnv || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
 }
 
 interface JSONCRM {
@@ -63,24 +67,35 @@ export function useCRM() {
   const enviarCRM = async (formData: FormData, carreraInfo?: Carrera | null, userAgent?: string): Promise<any> => {
     // Verificar consentimiento de contacto
     if (!formData.consentimiento_contacto) {
-      console.log('Envío al CRM omitido: consentimiento_contacto es false')
+      logger.crm('Envío al CRM omitido: consentimiento_contacto es false')
       return { skipped: true, reason: 'No hay consentimiento de contacto' }
     }
 
     loading.value = true
     error.value = null
 
+    // JPS: Obtener la URL del CRM según el ambiente actual en tiempo de ejecución
+    // Modificación: La URL se determina dinámicamente en cada petición, no al cargar el módulo
+    // Funcionamiento: Esto permite que la misma build funcione en diferentes ambientes (localhost, QA/DEV, producción)
+    // sin necesidad de recompilar, detectando automáticamente el dominio desde donde se ejecuta la aplicación
+    const crmUrl = getCRMUrl()
+
     try {
       // Construir el JSON usando createJSONcrm
       const data = createJSONcrm(formData, carreraInfo, userAgent)
 
-      // JPS: Obtener la URL del CRM según el ambiente actual en tiempo de ejecución
-      // Modificación: La URL se determina dinámicamente en cada petición, no al cargar el módulo
-      // Funcionamiento: Esto permite que la misma build funcione en diferentes ambientes (localhost, QA/DEV, producción)
-      // sin necesidad de recompilar, detectando automáticamente el dominio desde donde se ejecuta la aplicación
-      const crmUrl = getCRMUrl()
-      console.log('CRM_URL', crmUrl)
-      console.log('data CRM', data)
+      // JPS: Logging seguro con ofuscación de datos sensibles
+      // Modificación: Usar logger.crm() que ofusca automáticamente RUT, email, teléfono y URLs de endpoints
+      // Funcionamiento: El logger detecta campos sensibles y los reemplaza con asteriscos manteniendo formato parcial
+      logger.crm('Enviando datos al CRM', { crmUrl, data })
+
+      // JPS: Log adicional para debugging - mostrar URL real que se está usando
+      // En localhost: crmUrl será '/crm/webservice/formulario_web.php' (proxy de Vite)
+      // El proxy redirige a la URL configurada en VITE_CRM_URL
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        const targetUrl = import.meta.env.VITE_CRM_URL || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+        logger.info('[DEBUG] En localhost, el proxy de Vite redirigirá a:', targetUrl)
+      }
 
       const response = await axios.post(crmUrl, data, {
         headers: {
@@ -88,12 +103,27 @@ export function useCRM() {
         }
       })
 
-      console.log('response CRM', response.data)
+      logger.crm('Respuesta recibida del CRM', response.data)
 
       return response.data
     } catch (e: any) {
       error.value = e?.response?.data?.des_respuesta || e?.message || 'Error al enviar mensaje al CRM'
-      console.error('Error enviarCRM:', e)
+
+      // JPS: Logging detallado del error para debugging
+      // Modificación: Agregar información sobre el error del CRM de QA
+      // Funcionamiento: Muestra el status code, la respuesta del servidor y la URL que se intentó usar
+      logger.error('Error enviarCRM:', {
+        message: e?.message,
+        status: e?.response?.status,
+        statusText: e?.response?.statusText,
+        responseData: e?.response?.data,
+        crmUrl: crmUrl,
+        // En localhost, mostrar que el proxy redirige a la URL configurada en VITE_CRM_URL
+        targetUrl: (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+          ? `${import.meta.env.VITE_CRM_URL || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'} (vía proxy Vite)`
+          : crmUrl
+      })
+
       throw e
     } finally {
       loading.value = false
