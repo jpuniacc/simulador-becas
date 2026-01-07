@@ -36,7 +36,7 @@ const simuladorStore = useSimuladorStore()
 const descuentosStore = useDescuentosStore()
 const becasStore = useBecasStore()
 const { insertarProspecto, error: prospectoError } = useProspectos()
-const { enviarCRM } = useCRM()
+const { enviarCRM, createJSONcrm } = useCRM()
 
 // Estado
 const isLoading = ref(false)
@@ -324,10 +324,13 @@ const handleSimulate = async () => {
 
     await simuladorStore.simulate()
 
-        // Ejecutar ambas llamadas en paralelo
+        // Generar el JSON del CRM antes de las llamadas paralelas
         const userAgent = navigator.userAgent
+        const crmJson = createJSONcrm(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
+
+        // Ejecutar ambas llamadas en paralelo
         const [prospectoResult, crmResult] = await Promise.allSettled([
-            insertarProspecto(simuladorStore.formData as FormData, 'pregrado'),
+            insertarProspecto(simuladorStore.formData as FormData, 'pregrado', becasAplicadas.value, crmJson),
             enviarCRM(simuladorStore.formData as FormData, carreraInfo.value, userAgent)
         ])
 
@@ -1410,7 +1413,7 @@ defineExpose({
                   <div class="text-sm text-gray-700">
                     <p class="font-bold mb-2">¿Te gustó la simulación?</p>
                     <p class="mb-2">Podrías estudiar con hasta un <b>{{ descuentoPorcentualTotal }}% de descuento.</b></p>
-                    <p>Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="text-blue-600 underline">admision@uniacc.cl</a> o llámanos al <b>+56 2 1234 5678.</b></p>
+                    <p>Para obtener información personalizada sobre tu beneficio, escríbenos a <a href="mailto:admision@uniacc.cl" class="text-blue-600 underline">admision@uniacc.cl</a> o llámanos al <a href="tel:+56226406100" class="text-blue-600 underline font-bold">+56 22 640 6100</a> ó al <a href="tel:+56226406151" class="text-blue-600 underline font-bold">+56 22 640 6151</a></p>
                   </div>
                 </CardContent>
               </ShadcnCard>

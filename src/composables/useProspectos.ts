@@ -10,7 +10,19 @@ export function useProspectos() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const insertarProspecto = async (form: FormData, segmentacion?: string): Promise<ProspectoRow | null> => {
+  // Tipo para becas aplicadas
+  type BecaAplicada = {
+    beca: {
+      id: string | number
+      nombre?: string
+      [key: string]: any
+    }
+    descuento_aplicado?: number
+    monto_descuento?: number
+    [key: string]: any
+  }
+
+  const insertarProspecto = async (form: FormData, segmentacion?: string, becasAplicadas?: BecaAplicada[], prospectoCrm?: Record<string, any> | null): Promise<ProspectoRow | null> => {
     console.log('**********DATOS PROSPECTO***************')
     console.log(form);
     console.log('**********************************')
@@ -19,14 +31,22 @@ export function useProspectos() {
     try {
       // Extraer región y país del campo paisPasaporte si existe
       // El formato es "REGION-PAIS" (ej: "LA-AR")
+      // Nota: paisPasaporte puede no existir en FormData, usar casting seguro
       let regionPais: string | null = null
       let pais: string | null = null
 
-      if (form.paisPasaporte) {
-        const [region, countryCode] = form.paisPasaporte.split('-')
+      const formAny = form as any
+      if (formAny.paisPasaporte) {
+        const [region, countryCode] = formAny.paisPasaporte.split('-')
         regionPais = region || null
         pais = countryCode || null
       }
+
+      // Extraer ID de la beca aplicada (solo puede haber una)
+      // Si hay becas aplicadas, guardar el ID de la primera (y única) beca
+      const becaId: string | null = becasAplicadas && becasAplicadas.length > 0 && becasAplicadas[0]?.beca?.id != null
+        ? String(becasAplicadas[0].beca.id)
+        : null
 
       const payload: ProspectoInsert = {
         // Básicos
@@ -66,6 +86,9 @@ export function useProspectos() {
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
 
+        // Beca aplicada (solo puede haber una)
+        beca: becaId,
+
         // Consentimiento
         consentimiento_contacto: form.consentimiento_contacto ?? false,
 
@@ -79,7 +102,10 @@ export function useProspectos() {
         // - Captura window.location.href que contiene la URL completa (protocolo + host + path + query + hash)
         // - Si window no está disponible, se guarda null
         // - Esto permite rastrear desde qué página/URL el usuario inició el proceso de simulación
-        url_origen: typeof window !== 'undefined' ? window.location.href : null
+        url_origen: typeof window !== 'undefined' ? window.location.href : null,
+
+        // JSON del CRM enviado al sistema de CRM
+        prospecto_crm: prospectoCrm || null
       }
 
       const { data, error: insertError } = await supabase

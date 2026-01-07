@@ -16,7 +16,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   regions: () => [],
-  placeholder: 'Selecciona tu región',
+  placeholder: 'Selecciona la Región',
   disabled: false,
   error: '',
   class: ''
@@ -35,10 +35,24 @@ const selectedRegion = ref<Region | null>(props.modelValue || null)
 
 // Computed
 const filteredRegions = computed(() => {
-  if (!searchTerm.value) return props.regions || []
-  return (props.regions || []).filter(region =>
-    region.region_nombre.toLowerCase().includes(searchTerm.value.toLowerCase())
-  )
+  const regions = props.regions || []
+
+  // Filtrar si hay término de búsqueda
+  const filtered = searchTerm.value
+    ? regions.filter(region =>
+        region.region_nombre.toLowerCase().includes(searchTerm.value.toLowerCase())
+      )
+    : regions
+
+  // Ordenar: Región Metropolitana primero (ID 13 o nombre contiene "Metropolitana")
+  return [...filtered].sort((a, b) => {
+    const aIsMetro = a.region_id === 13 || a.region_nombre.toLowerCase().includes('metropolitana')
+    const bIsMetro = b.region_id === 13 || b.region_nombre.toLowerCase().includes('metropolitana')
+
+    if (aIsMetro && !bIsMetro) return -1
+    if (!aIsMetro && bIsMetro) return 1
+    return 0
+  })
 })
 
 const displayValue = computed(() => {

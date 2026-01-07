@@ -1883,12 +1883,15 @@ export type Database = {
       }
       prospectos: {
         Row: {
+          ad_id: string | null
           anio_nacimiento: number | null
           año_egreso: number | null
           apellido: string
           area_interes: string | null
+          beca: string | null
           becas_estado: boolean | null
           cae: boolean | null
+          campaign_id: string | null
           carrera: number | null
           carreratitulo: string | null
           colegio: string | null
@@ -1899,31 +1902,49 @@ export type Database = {
           curso: string
           decil: string | null
           email: string
+          fbclid: string | null
+          first_touch_timestamp: string | null
+          first_touch_url: string | null
+          gclid: string | null
           genero: string | null
           id: string
+          last_touch_timestamp: string | null
+          last_touch_url: string | null
+          li_fat_id: string | null
           matematica1: number | null
           modalidadpreferencia: Json | null
+          msclkid: string | null
           nem: number | null
           nombre: string
           objetivo: Json | null
           paes: boolean | null
           pasaporte: string | null
+          prospecto_crm: Json | null
           rango_ingreso: string | null
           ranking: number | null
           region: string | null
           rut: string | null
           segmentacion: string | null
           telefono: string | null
+          ttclid: string | null
           updated_at: string | null
           url_origen: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
+          ad_id?: string | null
           anio_nacimiento?: number | null
           año_egreso?: number | null
           apellido: string
           area_interes?: string | null
+          beca?: string | null
           becas_estado?: boolean | null
           cae?: boolean | null
+          campaign_id?: string | null
           carrera?: number | null
           carreratitulo?: string | null
           colegio?: string | null
@@ -1934,31 +1955,49 @@ export type Database = {
           curso: string
           decil?: string | null
           email: string
+          fbclid?: string | null
+          first_touch_timestamp?: string | null
+          first_touch_url?: string | null
+          gclid?: string | null
           genero?: string | null
           id?: string
+          last_touch_timestamp?: string | null
+          last_touch_url?: string | null
+          li_fat_id?: string | null
           matematica1?: number | null
           modalidadpreferencia?: Json | null
+          msclkid?: string | null
           nem?: number | null
           nombre: string
           objetivo?: Json | null
           paes?: boolean | null
           pasaporte?: string | null
+          prospecto_crm?: Json | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null
+          ttclid?: string | null
           updated_at?: string | null
           url_origen?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
+          ad_id?: string | null
           anio_nacimiento?: number | null
           año_egreso?: number | null
           apellido?: string
           area_interes?: string | null
+          beca?: string | null
           becas_estado?: boolean | null
           cae?: boolean | null
+          campaign_id?: string | null
           carrera?: number | null
           carreratitulo?: string | null
           colegio?: string | null
@@ -1969,23 +2008,38 @@ export type Database = {
           curso?: string
           decil?: string | null
           email?: string
+          fbclid?: string | null
+          first_touch_timestamp?: string | null
+          first_touch_url?: string | null
+          gclid?: string | null
           genero?: string | null
           id?: string
+          last_touch_timestamp?: string | null
+          last_touch_url?: string | null
+          li_fat_id?: string | null
           matematica1?: number | null
           modalidadpreferencia?: Json | null
+          msclkid?: string | null
           nem?: number | null
           nombre?: string
           objetivo?: Json | null
           paes?: boolean | null
           pasaporte?: string | null
+          prospecto_crm?: Json | null
           rango_ingreso?: string | null
           ranking?: number | null
           region?: string | null
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null
+          ttclid?: string | null
           updated_at?: string | null
           url_origen?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: [
           {

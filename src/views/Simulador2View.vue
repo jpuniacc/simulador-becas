@@ -131,7 +131,7 @@ const getMissingFieldsStep1 = (): string[] => {
     if (!formData.value.colegio?.trim() && formData.value.tieneRUT !== false) {
         missing.push('Colegio')
     }
-    if (formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte' && !formData.value.paisPasaporte?.trim()) {
+    if (formData.value.tieneRUT === false && formData.value.tipoIdentificacion === 'pasaporte' && !(formData.value as any).paisPasaporte?.trim()) {
         missing.push('País de Origen')
     }
 

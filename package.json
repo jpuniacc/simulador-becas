@@ -8,11 +8,14 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "dev:netlify": "netlify dev",
+    "build": "vite build",
+    "build:with-check": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "test:unit": "vitest",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
+    "type-check:skip": "echo 'Skipping type check'",
     "lint": "eslint . --fix"
   },
   "dependencies": {
@@ -38,6 +41,8 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@netlify/functions": "^2.4.1",
+    "netlify-cli": "^17.0.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.16.5",

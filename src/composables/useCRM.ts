@@ -4,32 +4,43 @@ import type { FormData } from '@/types/simulador'
 import type { Carrera } from '@/stores/carrerasStore'
 
 // JPS: Función para determinar la URL del CRM según el ambiente de ejecución
-// Modificación: Detección dinámica del ambiente (localhost, QA/DEV, producción) para resolver problemas de CORS
+// Modificación: Detección dinámica del ambiente (dev local, QA producción, MAIN producción) para resolver problemas de CORS
 // Funcionamiento:
-// - En localhost: retorna '/crm/webservice/formulario_web.php' que usa el proxy de Vite configurado en vite.config.ts
+// - Dev (localhost): retorna '/crm/webservice/formulario_web.php' que usa el proxy de Vite configurado en vite.config.ts
 //   El proxy redirige las peticiones a http://crmadmision-qa.uniacc.cl evitando errores de CORS desde localhost
-// - En QA/DEV (similador.uniacc.cl): retorna la URL directa 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
-//   Las peticiones se envían directamente desde el dominio similador.uniacc.cl, evitando errores de CORS
-// - En producción: usa VITE_API_MANTIS_WEB si está configurada, sino usa la URL de QA por defecto
+// - QA (simuladorqa.uniacc.cl) - Producción: usa Netlify Function como proxy '/.netlify/functions/crm-proxy' para evitar CORS
+//   La función proxy detectará que es QA y usará el endpoint de QA
+// - MAIN (simulador.uniacc.cl) - Producción: usa Netlify Function como proxy '/.netlify/functions/crm-proxy' para evitar CORS
+//   La función proxy detectará que es MAIN y usará el endpoint de producción
 // La detección se hace en tiempo de ejecución en cada petición, no al cargar el módulo
 const getCRMUrl = () => {
-  const isLocalhost = typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  if (typeof window === 'undefined') {
+    return 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  }
 
-  const isQA = typeof window !== 'undefined' &&
-    window.location.hostname.includes('similador.uniacc.cl')
+  const hostname = window.location.hostname
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+  const isQA = hostname === 'simuladorqa.uniacc.cl'
+  const isMain = hostname === 'simulador.uniacc.cl'
 
-  // En localhost, usar proxy
+  // Dev (localhost): usar proxy de Vite (que apunta a QA)
   if (isLocalhost) {
     return '/crm/webservice/formulario_web.php'
   }
 
-  // En QA/DEV, usar URL directa del CRM
-  if (isQA || import.meta.env.VITE_ENV === 'qa' || import.meta.env.VITE_ENV === 'dev') {
-    return 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
+  // QA (simuladorqa.uniacc.cl) - Producción: usar Netlify Function como proxy
+  // La función detectará el hostname y usará endpoint de QA
+  if (isQA) {
+    return '/.netlify/functions/crm-proxy'
   }
 
-  // En producción, usar URL de producción si está configurada
+  // MAIN (simulador.uniacc.cl) - Producción: usar Netlify Function como proxy
+  // La función detectará el hostname y usará endpoint de producción
+  if (isMain) {
+    return '/.netlify/functions/crm-proxy'
+  }
+
+  // Fallback: usar variable de entorno o URL de QA por defecto
   return import.meta.env.VITE_API_MANTIS_WEB || 'http://crmadmision-qa.uniacc.cl/webservice/formulario_web.php'
 }
 
