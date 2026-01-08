@@ -89,14 +89,12 @@ export function useSimulation(
       apellido: formData.apellido,
       email: formData.email,
       nivelEducativo: formData.nivelEducativo,
-      colegio: formData.colegio,
       carrera: formData.carrera
     })
     return formData.nombre &&
            formData.apellido &&
            formData.email &&
            formData.nivelEducativo &&
-           (formData.colegio != '' || formData.tipoIdentificacion == 'pasaporte') &&
            formData.carrera
   })
 

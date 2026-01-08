@@ -665,142 +665,145 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- ToggleSwitch para PAES (solo para egresados) -->
-                <div v-if="isEgresado" class="form-field paes-field">
-                    <label for="rendioPAES" class="form-label">
-                        ¿Rendiste la PAES?
-                    </label>
-                    <SelectButton :options="opcionesPAES" v-model="formData.rendioPAES" optionLabel="label"
-                        optionValue="value" class="paes-select-button"/>
-                    <span v-if="formData.rendioPAES" class="text-sm text-gray-500 mt-2 mb-0 block">
-                        Ingresa tus puntajes PAES en los campos a continuación
-                    </span>
-                </div>
+
+
+                  <!-- ToggleSwitch para PAES (solo para egresados) -->
+                  <div v-if="isEgresado" class="form-field paes-field">
+                      <label for="rendioPAES" class="form-label">
+                          ¿Rendiste la PAES?
+                      </label>
+                      <SelectButton :options="opcionesPAES" v-model="formData.rendioPAES" optionLabel="label"
+                          optionValue="value" class="paes-select-button"/>
+                      <span v-if="formData.rendioPAES" class="text-sm text-gray-500 mt-2 mb-0 block">
+                          Ingresa tus puntajes PAES en los campos a continuación
+                      </span>
+                  </div>
+                  <!-- Comprensión Lectora (solo si rindió PAES) -->
+                  <div v-if="formData.rendioPAES" class="form-field">
+                      <FloatLabel>
+                          <InputNumber id="lenguaje" v-model="lenguajeValue" :min="150" :max="1000" :useGrouping="false"
+                              class="form-input"
+                              :class="{ 'p-invalid': (submitted || touched.paesLenguaje) && formData.rendioPAES && (formData.paes?.lenguaje === null || formData.paes?.lenguaje === undefined) }"
+                              @blur="touched.paesLenguaje = true" />
+                          <label for="lenguaje">Comprensión Lectora *</label>
+                      </FloatLabel>
+                  </div>
+                  <!-- Matemática 1 (solo si rindió PAES) -->
+                  <div v-if="formData.rendioPAES" class="form-field">
+                      <FloatLabel>
+                          <InputNumber id="matematica" v-model="matematicaValue" :min="150" :max="1000"
+                              :useGrouping="false" class="form-input"
+                              :class="{ 'p-invalid': (submitted || touched.paesMatematica) && formData.rendioPAES && (formData.paes?.matematica === null || formData.paes?.matematica === undefined) }"
+                              @blur="touched.paesMatematica = true" />
+                          <label for="matematica">Matemática 1 *</label>
+                      </FloatLabel>
+                  </div>
+
+                  <!-- Pregunta sobre financiamiento del estado -->
+                  <div v-if="isEgresadoOr4to" class="form-field financiamiento-field">
+                      <label for="piensaUsarFinanciamiento" class="form-label">
+                          ¿Piensas usar financiamiento del Estado?
+                      </label>
+                      <SelectButton :options="opcionesFinanciamiento" v-model="piensaUsarFinanciamiento" optionLabel="label"
+                          optionValue="value" class="paes-select-button"/>
+                  </div>
+
+                  <!-- Opciones de financiamiento (solo si piensa usar financiamiento del estado) -->
+                  <div v-if="piensaUsarFinanciamiento" class="form-field financing-options-field">
+                      <h4 class="text-md text-gray-500 mt-2 mb-2 block">
+                          ¿Qué tipo de financiamiento planeas utilizar?
+                          <i
+                              ref="financingIconRef"
+                              class="pi pi-info-circle financing-icon ml-2"
+                              @click.stop="toggleFinancingTooltip"
+                              @mouseenter="!isMobile && showFinancingTooltip($event)"
+                              @mouseleave="!isMobile && hideFinancingTooltip()"
+                          ></i>
+                      </h4>
+                      <OverlayPanel ref="financingTooltipRef" class="custom-tooltip-panel">
+                          <div class="custom-tooltip">
+                              <div class="mb-3">
+                                  <h4 class="tooltip-title">Becas:</h4>
+                                  <p class="tooltip-description">Ayuda directa del Estado para reducir tu arancel.</p>
+                              </div>
+                              <div>
+                                  <h4 class="tooltip-title">CAE:</h4>
+                                  <p class="tooltip-description">Un crédito pensado para estudiantes. Sólo se paga después
+                                      de titular y con ingresos.</p>
+                              </div>
+                          </div>
+                      </OverlayPanel>
+                      <div v-if="(submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado" class="mb-2">
+                          <Message severity="error" variant="simple" size="small">
+                              Debes seleccionar al menos una opción de financiamiento
+                          </Message>
+                      </div>
+                      <div class="options-grid">
+                          <!-- CAE -->
+                          <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE, 'error-border': (submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado }">
+                              <label class="option-label">
+                                  <input v-model="formData.planeaUsarCAE" type="checkbox" @change="handleFinancingChange"
+                                      class="option-checkbox" />
+                                  <div class="option-content">
+                                      <div class="option-icon">
+                                          <TrendingUp class="w-6 h-6" />
+                                      </div>
+                                      <div class="option-text">
+                                          <h5>CAE (Crédito con Aval del Estado)</h5>
+                                          <p>Crédito para financiar tu carrera universitaria</p>
+                                      </div>
+                                  </div>
+                              </label>
+                          </div>
+
+                          <!-- Becas del Estado -->
+                          <div class="option-card" :class="{ 'selected': formData.usaBecasEstado, 'error-border': (submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado }">
+                              <label class="option-label">
+                                  <input v-model="formData.usaBecasEstado" type="checkbox" @change="handleFinancingChange"
+                                      class="option-checkbox" />
+                                  <div class="option-content">
+                                      <div class="option-icon">
+                                          <CheckCircle class="w-6 h-6" />
+                                      </div>
+                                      <div class="option-text">
+                                          <h5>Becas del Estado</h5>
+                                          <p>Becas estatales como Beca Vocación de Profesor, etc.</p>
+                                      </div>
+                                  </div>
+                              </label>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Select de Decil (solo si selecciona alguna opción de financiamiento) -->
+                  <div v-if="showDecilSelection" class="form-field">
+                      <label for="decil" class="form-label decil-label">
+                          Tramo de Renta Mensual *
+                          <i
+                              ref="decilIconRef"
+                              class="pi pi-question-circle decil-icon"
+                              @mouseenter="!isMobile && showDecilTooltip($event)"
+                              @mouseleave="!isMobile && hideDecilTooltip()"
+                              @click="toggleDecilTooltip"
+                          ></i>
+                      </label>
+                      <Dropdown id="decil" v-model="selectedDecilValue" :options="decilesOptions" optionLabel="label"
+                          optionValue="value" placeholder="Selecciona rango" class="form-input w-full"
+                          :class="{ 'p-invalid': (submitted || touched.decil) && showDecilSelection && (formData.decil === null || formData.decil === undefined) }"
+                          :loading="decilesLoading"
+                          @blur="touched.decil = true" />
+                      <small v-if="decilesError" class="p-error">{{ decilesError }}</small>
+                      <OverlayPanel ref="decilTooltipRef" class="custom-tooltip-panel">
+                          <div class="custom-tooltip">
+                              <p>Toma el total de ingresos de tu hogar y divídelos por la cantidad de personas que viven en él</p>
+                          </div>
+                      </OverlayPanel>
+                  </div>
 
 
 
-                <!-- Comprensión Lectora (solo si rindió PAES) -->
-                <div v-if="formData.rendioPAES" class="form-field">
-                    <FloatLabel>
-                        <InputNumber id="lenguaje" v-model="lenguajeValue" :min="150" :max="1000" :useGrouping="false"
-                            class="form-input"
-                            :class="{ 'p-invalid': (submitted || touched.paesLenguaje) && formData.rendioPAES && (formData.paes?.lenguaje === null || formData.paes?.lenguaje === undefined) }"
-                            @blur="touched.paesLenguaje = true" />
-                        <label for="lenguaje">Comprensión Lectora *</label>
-                    </FloatLabel>
-                </div>
 
-                <!-- Matemática 1 (solo si rindió PAES) -->
-                <div v-if="formData.rendioPAES" class="form-field">
-                    <FloatLabel>
-                        <InputNumber id="matematica" v-model="matematicaValue" :min="150" :max="1000"
-                            :useGrouping="false" class="form-input"
-                            :class="{ 'p-invalid': (submitted || touched.paesMatematica) && formData.rendioPAES && (formData.paes?.matematica === null || formData.paes?.matematica === undefined) }"
-                            @blur="touched.paesMatematica = true" />
-                        <label for="matematica">Matemática 1 *</label>
-                    </FloatLabel>
-                </div>
 
-                <!-- Pregunta sobre financiamiento del estado -->
-                <div v-if="isEgresadoOr4to" class="form-field financiamiento-field">
-                    <label for="piensaUsarFinanciamiento" class="form-label">
-                        ¿Piensas usar financiamiento del Estado?
-                    </label>
-                    <SelectButton :options="opcionesFinanciamiento" v-model="piensaUsarFinanciamiento" optionLabel="label"
-                        optionValue="value" class="paes-select-button"/>
-                </div>
-
-                <!-- Opciones de financiamiento (solo si piensa usar financiamiento del estado) -->
-                <div v-if="piensaUsarFinanciamiento" class="form-field financing-options-field">
-                    <h4 class="text-md text-gray-500 mt-2 mb-2 block">
-                        ¿Qué tipo de financiamiento planeas utilizar?
-                        <i
-                            ref="financingIconRef"
-                            class="pi pi-info-circle financing-icon ml-2"
-                            @click.stop="toggleFinancingTooltip"
-                            @mouseenter="!isMobile && showFinancingTooltip($event)"
-                            @mouseleave="!isMobile && hideFinancingTooltip()"
-                        ></i>
-                    </h4>
-                    <OverlayPanel ref="financingTooltipRef" class="custom-tooltip-panel">
-                        <div class="custom-tooltip">
-                            <div class="mb-3">
-                                <h4 class="tooltip-title">Becas:</h4>
-                                <p class="tooltip-description">Ayuda directa del Estado para reducir tu arancel.</p>
-                            </div>
-                            <div>
-                                <h4 class="tooltip-title">CAE:</h4>
-                                <p class="tooltip-description">Un crédito pensado para estudiantes. Sólo se paga después
-                                    de titular y con ingresos.</p>
-                            </div>
-                        </div>
-                    </OverlayPanel>
-                    <div v-if="(submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado" class="mb-2">
-                        <Message severity="error" variant="simple" size="small">
-                            Debes seleccionar al menos una opción de financiamiento
-                        </Message>
-                    </div>
-                    <div class="options-grid">
-                        <!-- CAE -->
-                        <div class="option-card" :class="{ 'selected': formData.planeaUsarCAE, 'error-border': (submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado }">
-                            <label class="option-label">
-                                <input v-model="formData.planeaUsarCAE" type="checkbox" @change="handleFinancingChange"
-                                    class="option-checkbox" />
-                                <div class="option-content">
-                                    <div class="option-icon">
-                                        <TrendingUp class="w-6 h-6" />
-                                    </div>
-                                    <div class="option-text">
-                                        <h5>CAE (Crédito con Aval del Estado)</h5>
-                                        <p>Crédito para financiar tu carrera universitaria</p>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-
-                        <!-- Becas del Estado -->
-                        <div class="option-card" :class="{ 'selected': formData.usaBecasEstado, 'error-border': (submitted || touched.financiamiento) && piensaUsarFinanciamiento && !formData.planeaUsarCAE && !formData.usaBecasEstado }">
-                            <label class="option-label">
-                                <input v-model="formData.usaBecasEstado" type="checkbox" @change="handleFinancingChange"
-                                    class="option-checkbox" />
-                                <div class="option-content">
-                                    <div class="option-icon">
-                                        <CheckCircle class="w-6 h-6" />
-                                    </div>
-                                    <div class="option-text">
-                                        <h5>Becas del Estado</h5>
-                                        <p>Becas estatales como Beca Vocación de Profesor, etc.</p>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Select de Decil (solo si selecciona alguna opción de financiamiento) -->
-                <div v-if="showDecilSelection" class="form-field">
-                    <label for="decil" class="form-label decil-label">
-                        Tramo de Renta Mensual *
-                        <i
-                            ref="decilIconRef"
-                            class="pi pi-question-circle decil-icon"
-                            @mouseenter="!isMobile && showDecilTooltip($event)"
-                            @mouseleave="!isMobile && hideDecilTooltip()"
-                            @click="toggleDecilTooltip"
-                        ></i>
-                    </label>
-                    <Dropdown id="decil" v-model="selectedDecilValue" :options="decilesOptions" optionLabel="label"
-                        optionValue="value" placeholder="Selecciona rango" class="form-input w-full"
-                        :class="{ 'p-invalid': (submitted || touched.decil) && showDecilSelection && (formData.decil === null || formData.decil === undefined) }"
-                        :loading="decilesLoading"
-                        @blur="touched.decil = true" />
-                    <small v-if="decilesError" class="p-error">{{ decilesError }}</small>
-                    <OverlayPanel ref="decilTooltipRef" class="custom-tooltip-panel">
-                        <div class="custom-tooltip">
-                            <p>Toma el total de ingresos de tu hogar y divídelos por la cantidad de personas que viven en él</p>
-                        </div>
-                    </OverlayPanel>
-                </div>
             </div>
         </form>
     </div>

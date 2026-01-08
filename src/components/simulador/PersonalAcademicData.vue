@@ -603,6 +603,12 @@ watch(() => formData.value.telefono, (newPhone) => {
 const isFormValid = computed(() => {
     const isEspecializacion = props.modo === 'especializacion'
 
+    // Verificar si el colegio es requerido
+    // No es requerido si: es especialización, usa pasaporte, o tiene educación superior completa
+    const colegioNoRequerido = isEspecializacion ||
+                                mostrarPasaporte.value ||
+                                formData.value.nivelEducativo === 'Educación superior completa'
+
     const hasRequiredFields =
         formData.value.nombre?.trim() !== '' &&
         formData.value.apellido?.trim() !== '' &&
@@ -612,8 +618,8 @@ const isFormValid = computed(() => {
         formData.value.anio_nacimiento !== null &&
         // Nivel educativo solo es requerido si NO es especialización
         (isEspecializacion || formData.value.nivelEducativo !== '') &&
-        // Colegio solo es requerido si NO usa pasaporte Y NO es especialización
-        (isEspecializacion || mostrarPasaporte.value || formData.value.colegio?.trim() !== '')
+        // Colegio solo es requerido si NO es especialización, NO usa pasaporte, y NO tiene educación superior completa
+        (colegioNoRequerido || formData.value.colegio?.trim() !== '')
 
     const isEmailValid = formData.value.email ? validateEmail(formData.value.email) : false
     // Validar RUT solo si tieneRUT es true, si es pasaporte solo verificar que no esté vacío
@@ -1125,7 +1131,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 </div>
 
                 <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera Y (no es extranjero O es extranjero pero reside en Chile)) -->
-                <div v-if="(!esExtranjero || (esExtranjero && !resideFueraPais))" class="form-field colegio-field">
+                <div v-if="((!esExtranjero || (esExtranjero && !resideFueraPais))) && formData.nivelEducativo !== 'Educación superior completa'" class="form-field colegio-field">
                     <div class="flex flex-col gap-1">
                         <label for="colegio" class="colegio-label">
                             Colegio *
@@ -1149,7 +1155,7 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                             </div>
                         </div>
                         <Message
-                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')"
+                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '') && formData.nivelEducativo !== 'Educación superior completa'"
                             severity="error"
                             variant="simple"
                             size="small"
