@@ -180,12 +180,12 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
         // Generar el JSON del CRM si hay consentimiento de contacto
         let crmJson = null
         let respuestaCRM = null
-        
+
         if (formData.value.consentimiento_contacto) {
             const userAgent = navigator.userAgent
             // Para postgrado no hay carreraInfo, pasar null
             crmJson = createJSONcrm(formData.value as FormData, null, userAgent)
-            
+
             // Enviar al CRM para obtener la respuesta
             try {
                 respuestaCRM = await enviarCRM(formData.value as FormData, null, userAgent)
@@ -194,11 +194,11 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                 // Continuar aunque falle el CRM, pero sin respuesta
             }
         }
-        
+
         const prospecto = await insertarProspecto(
-            formData.value as FormData, 
-            'postgrado', 
-            undefined, 
+            formData.value as FormData,
+            'postgrado',
+            undefined,
             crmJson,
             respuestaCRM
         );
@@ -219,7 +219,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
             <h1>Programas Postgrado UNIACC</h1>
         </div>
         <div class="content-container">
-            <Stepper value="1" linear class="w-full sm:basis-[30rem] md:basis-[40rem] lg:basis-[50rem]">
+            <Stepper value="1" linear class="w-full sm:basis-[40rem] md:basis-[50rem] lg:basis-[72rem]">
                 <StepList class="stepper-header sticky top-0 z-10 bg-white py-4">
                     <Step value="1">
                         <!-- Corto en móvil -->
@@ -402,7 +402,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 
 .header-container {
     width: 100%;
-    max-width: 50rem;
+    max-width: 72rem;
     background-color: #000000;
     color: #ffffff;
     padding: 2rem;
@@ -435,7 +435,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 
 .content-container {
     width: 100%;
-    max-width: 50rem;
+    max-width: 72rem;
     display: flex;
     justify-content: center;
 }
