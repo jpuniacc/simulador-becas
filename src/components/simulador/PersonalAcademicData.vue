@@ -20,7 +20,7 @@ import { formatRUT, cleanRUT } from '@/utils/formatters'
 // Props
 interface Props {
     formData?: Partial<FormData>
-    modo?: 'primera_carrera' | 'especializacion'
+    modo?: 'primera_carrera' | 'especializacion' | 'postgrado'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -599,7 +599,7 @@ watch(() => formData.value.telefono, (newPhone) => {
 
 // Computed para verificar si el formulario es válido
 const isFormValid = computed(() => {
-    const isEspecializacion = props.modo === 'especializacion'
+    const isEspecializacion = props.modo === 'postgrado'
 
     const hasRequiredFields =
         formData.value.nombre?.trim() !== '' &&
@@ -1109,39 +1109,41 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                 </div>
 
                 <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera Y (no es extranjero O es extranjero pero reside en Chile)) -->
-                <div v-if="(!esExtranjero || (esExtranjero && !resideFueraPais))" class="form-field colegio-field">
-                    <div class="flex flex-col gap-1">
-                        <label for="colegio" class="colegio-label">
-                            Colegio *
-                        </label>
-                        <div class="colegio-selection-container">
-                            <Button v-if="!formData.colegio" label="Seleccionar Colegio" icon="pi pi-map-marker"
-                                @click="openSchoolModal" class="colegio-button" outlined />
-                            <div v-else class="colegio-selected">
-                                <div class="colegio-info">
-                                    <School class="colegio-icon" />
-                                    <div class="colegio-details">
-                                        <div class="colegio-nombre">{{ formData.colegio }}</div>
-                                        <div class="colegio-location">
-                                            {{ formData.comunaResidencia }}{{ formData.regionResidencia ? `,
-                                            ${formData.regionResidencia}` : '' }}
+                <template v-if="props.modo !== 'postgrado'">
+                    <div v-if="(!esExtranjero || (esExtranjero && !resideFueraPais))" class="form-field colegio-field">
+                        <div class="flex flex-col gap-1">
+                            <label for="colegio" class="colegio-label">
+                                Colegio *
+                            </label>
+                            <div class="colegio-selection-container">
+                                <Button v-if="!formData.colegio" label="Seleccionar Colegio" icon="pi pi-map-marker"
+                                    @click="openSchoolModal" class="colegio-button" outlined />
+                                <div v-else class="colegio-selected">
+                                    <div class="colegio-info">
+                                        <School class="colegio-icon" />
+                                        <div class="colegio-details">
+                                            <div class="colegio-nombre">{{ formData.colegio }}</div>
+                                            <div class="colegio-location">
+                                                {{ formData.comunaResidencia }}{{ formData.regionResidencia ? `,
+                                                ${formData.regionResidencia}` : '' }}
+                                            </div>
                                         </div>
                                     </div>
+                                    <Button label="Cambiar" icon="pi pi-pencil" @click="openSchoolModal"
+                                        class="colegio-change-button colegio-completed" severity="success" text />
                                 </div>
-                                <Button label="Cambiar" icon="pi pi-pencil" @click="openSchoolModal"
-                                    class="colegio-change-button colegio-completed" severity="success" text />
                             </div>
+                            <Message
+                                v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')"
+                                severity="error"
+                                variant="simple"
+                                size="small"
+                            >
+                                Colegio es requerido
+                            </Message>
                         </div>
-                        <Message
-                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')"
-                            severity="error"
-                            variant="simple"
-                            size="small"
-                        >
-                            Colegio es requerido
-                        </Message>
                     </div>
-                </div>
+                </template>
 
                 <!-- Campo Consentimiento de Contacto -->
                 <div class="form-field consentimiento-field">

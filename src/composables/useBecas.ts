@@ -40,6 +40,8 @@ export interface BecasUniacc {
   becas_incompatibles: string[] | null
   activa: boolean
   prioridad: number
+  requiere_institucion: boolean
+  institucion_requerida: string | null
   created_at: string
   updated_at: string
 }
@@ -261,6 +263,14 @@ export function useBecas() {
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`
+    }
+
+    // 14. Verificar institución requerida
+    if (beca.requiere_institucion && beca.institucion_requerida) {
+      if (!formData.institucionId || formData.institucionId !== beca.institucion_requerida) {
+        elegible = false
+        razon = `Requiere institución específica`
+      }
     }
 
     // Si es elegible, calcular descuento

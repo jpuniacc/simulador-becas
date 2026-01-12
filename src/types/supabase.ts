@@ -165,6 +165,7 @@ export type Database = {
           edad_requerida: number | null
           es_combinable: boolean | null
           id: string
+          institucion_requerida: string | null
           max_anos_egreso: number | null
           max_anos_paes: number | null
           modalidades_aplicables: Json
@@ -181,6 +182,7 @@ export type Database = {
           requiere_documentacion: Json | null
           requiere_extranjeria: boolean | null
           requiere_genero: string | null
+          requiere_institucion: boolean | null
           requiere_nem: boolean | null
           requiere_paes: boolean | null
           requiere_ranking: boolean | null
@@ -208,6 +210,7 @@ export type Database = {
           edad_requerida?: number | null
           es_combinable?: boolean | null
           id?: string
+          institucion_requerida?: string | null
           max_anos_egreso?: number | null
           max_anos_paes?: number | null
           modalidades_aplicables: Json
@@ -224,6 +227,7 @@ export type Database = {
           requiere_documentacion?: Json | null
           requiere_extranjeria?: boolean | null
           requiere_genero?: string | null
+          requiere_institucion?: boolean | null
           requiere_nem?: boolean | null
           requiere_paes?: boolean | null
           requiere_ranking?: boolean | null
@@ -251,6 +255,7 @@ export type Database = {
           edad_requerida?: number | null
           es_combinable?: boolean | null
           id?: string
+          institucion_requerida?: string | null
           max_anos_egreso?: number | null
           max_anos_paes?: number | null
           modalidades_aplicables?: Json
@@ -267,6 +272,7 @@ export type Database = {
           requiere_documentacion?: Json | null
           requiere_extranjeria?: boolean | null
           requiere_genero?: string | null
+          requiere_institucion?: boolean | null
           requiere_nem?: boolean | null
           requiere_paes?: boolean | null
           requiere_ranking?: boolean | null
@@ -744,6 +750,30 @@ export type Database = {
           fecha_termino?: string | null
           id?: string
           nombre?: string | null
+        }
+        Relationships: []
+      }
+      instituciones_superior: {
+        Row: {
+          estado: string | null
+          funcionamiento: string | null
+          id: string
+          nombre: string
+          tipo_institucion: string
+        }
+        Insert: {
+          estado?: string | null
+          funcionamiento?: string | null
+          id?: string
+          nombre: string
+          tipo_institucion: string
+        }
+        Update: {
+          estado?: string | null
+          funcionamiento?: string | null
+          id?: string
+          nombre?: string
+          tipo_institucion?: string
         }
         Relationships: []
       }

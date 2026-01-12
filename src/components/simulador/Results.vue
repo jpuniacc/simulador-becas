@@ -145,7 +145,9 @@ const formData = computed(() => simuladorStore.formData)
 // Computed para información de la carrera
 const carreraInfo = computed(() => {
   if (!formData.value.carreraId) return null
-  return simuladorStore.carrerasStore.obtenerCarreraPorId(formData.value.carreraId)
+  const carrera = simuladorStore.carrerasStore.obtenerCarreraPorId(formData.value.carreraId)
+  console.log('Carrera:', carrera)
+  return carrera
 })
 
 // Computed para becas aplicadas (internas)
@@ -343,9 +345,9 @@ const handleSimulate = async () => {
         // Guardar el prospecto con la respuesta del CRM (si existe)
         try {
           await insertarProspecto(
-            simuladorStore.formData as FormData, 
-            'pregrado', 
-            becasAplicadas.value, 
+            simuladorStore.formData as FormData,
+            'pregrado',
+            becasAplicadas.value,
             crmJson,
             respuestaCRM
           )

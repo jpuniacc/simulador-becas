@@ -424,7 +424,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
     try {
       // Cargar datos necesarios si no están cargados
       if (carrerasStore.carreras.length === 0) {
-        await carrerasStore.cargarCarreras(10)
+        await carrerasStore.cargarCarreras()
       }
       if (becasStore.becas.length === 0) {
         console.log('🚀 simulate - Cargando becas')

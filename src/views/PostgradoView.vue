@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import Stepper from 'primevue/stepper';
 import StepList from 'primevue/steplist';
@@ -11,9 +11,7 @@ import Message from 'primevue/message';
 import CareerPostgrado from '@/components/postgrado/CareerPostgrado.vue';
 import MultipleCareerPostgrado from '@/components/postgrado/MultipleCareerPostgrado.vue';
 import PersonalAcademicData from '@/components/simulador/PersonalAcademicData.vue';
-import ResultsPostgrado from '@/components/postgrado/ResultsPostgrado.vue';
-import { useProspectos } from '@/composables/useProspectos';
-import { useCRM } from '@/composables/useCRM';
+import Results from '@/components/simulador/Results.vue';
 import { validateEmail, validateRUT } from '@/utils/validation';
 import { MODO_CARRERA_POSTGRADO } from '@/utils/config';
 import type { FormData } from '@/types/simulador';
@@ -50,9 +48,20 @@ const careerPostgradoRef = ref<InstanceType<typeof CareerPostgrado> | InstanceTy
 // Referencia al componente de datos personales para acceder a la validación
 const personalDataRef = ref<InstanceType<typeof PersonalAcademicData> | null>(null);
 
-// Composables
-const { insertarProspecto, loading: prospectoLoading } = useProspectos();
-const { createJSONcrm, enviarCRM } = useCRM();
+// Referencia al componente de resultados
+const resultsRef = ref<InstanceType<typeof Results> | null>(null);
+
+// Computed para mapear formData a formato que espera Results.vue
+const mappedFormDataForResults = computed(() => {
+    const data = { ...formData.value };
+    // Mapear carreraInteresId a carreraId para Results.vue
+    if (data.carreraInteresId) {
+        (data as any).carreraId = data.carreraInteresId;
+        (data as any).carrera = data.carreraInteres;
+    }
+    return data;
+});
+
 
 // Toast de PrimeVue
 const toast = useToast();
@@ -94,12 +103,8 @@ const getMissingFieldsStep1 = (): string[] => {
         }
     } else {
         // En modo UNICA se requieren campos adicionales del componente CareerPostgrado
-        if (!formData.value.area?.trim()) missing.push('Área de Interés')
-        if (!formData.value.modalidadPreferencia || formData.value.modalidadPreferencia.length === 0) {
-            missing.push('Modalidad de Preferencia')
-        }
         if (!formData.value.objetivo || formData.value.objetivo.length === 0) {
-            missing.push('Objetivo')
+            missing.push('Motivación Académica')
         }
     }
 
@@ -172,43 +177,15 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     // Activar el paso 3
     activateCallback('3');
 
-    // JPS: Ejecutar primero el envío al CRM para obtener la respuesta
-    // Modificación: Cambiar el orden para ejecutar primero enviarCRM y luego insertarProspecto con la respuesta
-    // Funcionamiento: Se envía primero al CRM (si hay consentimiento), se obtiene la respuesta, y luego se guarda el prospecto
-    // con la respuesta del CRM incluida en el campo respuesta_crm
-    try {
-        // Generar el JSON del CRM si hay consentimiento de contacto
-        let crmJson = null
-        let respuestaCRM = null
+    // Esperar a que el componente Results se monte
+    await nextTick();
 
-        if (formData.value.consentimiento_contacto) {
-            const userAgent = navigator.userAgent
-            // Para postgrado no hay carreraInfo, pasar null
-            crmJson = createJSONcrm(formData.value as FormData, null, userAgent)
+    // Esperar un momento adicional para asegurar que el componente esté completamente montado
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Enviar al CRM para obtener la respuesta
-            try {
-                respuestaCRM = await enviarCRM(formData.value as FormData, null, userAgent)
-            } catch (error) {
-                console.warn('No se pudo enviar al CRM:', error)
-                // Continuar aunque falle el CRM, pero sin respuesta
-            }
-        }
-
-        const prospecto = await insertarProspecto(
-            formData.value as FormData,
-            'postgrado',
-            undefined,
-            crmJson,
-            respuestaCRM
-        );
-        if (prospecto) {
-            console.log('Prospecto insertado correctamente:', prospecto);
-        } else {
-            console.error('Error al insertar prospecto');
-        }
-    } catch (error) {
-        console.error('Error al insertar prospecto:', error);
+    // Llamar a simulate en el componente Results
+    if (resultsRef.value && 'simulate' in resultsRef.value && typeof resultsRef.value.simulate === 'function') {
+        await resultsRef.value.simulate();
     }
 };
 </script>
@@ -216,7 +193,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 <template>
     <div class="main-container">
         <div class="header-container">
-            <h1>Programas Postgrado UNIACC</h1>
+            <h1>Postgrado Advance UNIACC</h1>
         </div>
         <div class="content-container">
             <Stepper value="1" linear class="w-full sm:basis-[40rem] md:basis-[50rem] lg:basis-[72rem]">
@@ -305,7 +282,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                             <PersonalAcademicData
                                 ref="personalDataRef"
                                 :form-data="formData"
-                                modo="especializacion"
+                                modo="postgrado"
                                 @update:form-data="handleFormDataUpdate"
                                 @validation-change="handleValidationChangeStep2"
                             />
@@ -365,13 +342,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="3">
                         <div class="flex flex-col">
-                            <div v-if="prospectoLoading" class="text-gray-600 mb-4">
-                                Guardando información...
-                            </div>
-                            <ResultsPostgrado
-                                :area="formData.area || ''"
-                                :modalidad-preferencia="formData.modalidadPreferencia && formData.modalidadPreferencia.length > 0 ? formData.modalidadPreferencia : null"
-                            />
+                            <Results ref="resultsRef" :form-data="mappedFormDataForResults" />
                         </div>
                         <div class="pt-6">
                             <Button
