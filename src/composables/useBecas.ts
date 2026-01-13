@@ -11,6 +11,16 @@ export interface BecasUniacc {
   descripcion: string
   descuento_porcentaje: number | null
   descuento_monto_fijo: number | null
+  descuento_mixto: {
+    default: number
+    rules: Array<{
+      when: {
+        nivel_academico?: string[]
+        modalidad_programa?: string[]
+      }
+      porcentaje: number
+    }>
+  } | null
   tipo_descuento: 'porcentaje' | 'monto_fijo' | 'mixto'
   requiere_nem: boolean
   nem_minimo: number | null
@@ -97,7 +107,53 @@ export function useBecas() {
   const errorEstado = ref<string | null>(null)
 
   // Integrar con useCarreras para obtener aranceles
-  const { obtenerArancelCarrera, obtenerCarreraPorId } = useCarreras()
+  const { obtenerArancelCarrera, obtenerCarreraPorId, obtenerNivelYModalidad } = useCarreras()
+
+  // Función para resolver descuento mixto basado en reglas
+  // Evalúa dinámicamente todas las condiciones del objeto 'when' sin hardcodear campos
+  const resuelveDescuentoMixto = (
+    descuentoMixto: BecasUniacc['descuento_mixto'],
+    contextoCarrera: Record<string, string>
+  ): number => {
+    if (!descuentoMixto) {
+      return 0
+    }
+
+    // Recorrer las reglas en orden
+    for (const rule of descuentoMixto.rules) {
+      let cumpleTodasLasCondiciones = true
+
+      // Iterar dinámicamente sobre todas las keys del objeto 'when'
+      for (const campo in rule.when) {
+        const valoresEsperados = rule.when[campo as keyof typeof rule.when]
+
+        // Si el campo tiene valores esperados (array no vacío)
+        if (valoresEsperados && Array.isArray(valoresEsperados) && valoresEsperados.length > 0) {
+          // Obtener el valor actual del contexto de la carrera
+          const valorActual = contextoCarrera[campo] || ''
+
+          // Verificar si el valor actual coincide con alguno de los valores esperados
+          const cumpleCondicion = valoresEsperados.some(valorEsperado =>
+            valorEsperado.trim().toLowerCase() === valorActual.trim().toLowerCase()
+          )
+
+          // Si no cumple esta condición, la regla completa no se cumple
+          if (!cumpleCondicion) {
+            cumpleTodasLasCondiciones = false
+            break // Salir del loop de campos, esta regla no aplica
+          }
+        }
+      }
+
+      // Si todas las condiciones se cumplen, devolver el porcentaje de esta regla
+      if (cumpleTodasLasCondiciones) {
+        return rule.porcentaje
+      }
+    }
+
+    // Si ninguna regla coincide, devolver el default
+    return descuentoMixto.default
+  }
 
   // Cargar becas desde Supabase
   const cargarBecas = async () => {
@@ -365,6 +421,13 @@ export function useBecas() {
         descuento_aplicado = beca.descuento_porcentaje
       } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto_fijo) {
         monto_descuento = beca.descuento_monto_fijo
+      } else if (beca.tipo_descuento === 'mixto' && beca.descuento_mixto && formData.carreraId) {
+        // Obtener la carrera y extraer su contexto (nivel, modalidad, etc.)
+        const carrera = obtenerCarreraPorId(formData.carreraId)
+        if (carrera) {
+          const contextoCarrera = obtenerNivelYModalidad(carrera)
+          descuento_aplicado = resuelveDescuentoMixto(beca.descuento_mixto, contextoCarrera)
+        }
       }
     }
 
@@ -432,10 +495,15 @@ export function useBecas() {
 
       // Aplicar descuento
       let montoDescuento = 0
-      if (beca.tipo_descuento === 'porcentaje' && beca.descuento_porcentaje) {
-        montoDescuento = (arancelActual * beca.descuento_porcentaje) / 100
-      } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto_fijo) {
-        montoDescuento = beca.descuento_monto_fijo
+      if (beca.tipo_descuento === 'porcentaje' && becaElegible.descuento_aplicado > 0) {
+        // Usar el descuento_aplicado calculado en verificarElegibilidad
+        montoDescuento = (arancelActual * becaElegible.descuento_aplicado) / 100
+      } else if (beca.tipo_descuento === 'mixto' && becaElegible.descuento_aplicado > 0) {
+        // Para descuento mixto, usar el porcentaje resuelto dinámicamente
+        montoDescuento = (arancelActual * becaElegible.descuento_aplicado) / 100
+      } else if (beca.tipo_descuento === 'monto_fijo' && becaElegible.monto_descuento > 0) {
+        // Usar el monto_descuento calculado en verificarElegibilidad
+        montoDescuento = becaElegible.monto_descuento
       }
 
       // Actualizar arancel

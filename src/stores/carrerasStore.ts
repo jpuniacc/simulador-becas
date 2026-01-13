@@ -125,6 +125,14 @@ export const useCarrerasStore = defineStore('carreras', () => {
     }
   }
 
+  // Función para extraer nivel académico y modalidad de una carrera
+  const obtenerNivelYModalidad = (carrera: Carrera): Record<string, string> => {
+    return {
+      nivel_academico: carrera.nivel_academico || '',
+      modalidad_programa: carrera.modalidad_programa || ''
+    }
+  }
+
   return {
     // Estado
     carreras,
@@ -141,6 +149,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre,
     obtenerCarreraPorId,
-    obtenerCostosCarrera
+    obtenerCostosCarrera,
+    obtenerNivelYModalidad
   }
 })

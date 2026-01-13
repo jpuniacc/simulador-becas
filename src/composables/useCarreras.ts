@@ -77,6 +77,14 @@ export function useCarreras() {
     return carrerasVigentes.value.find(c => c.id === idCarrera)
   }
 
+  // Función para extraer nivel académico y modalidad de una carrera
+  const obtenerNivelYModalidad = (carrera: Carrera): Record<string, string> => {
+    return {
+      nivel_academico: carrera.nivel_academico || '',
+      modalidad_programa: carrera.modalidad_programa || ''
+    }
+  }
+
   // Computed para carreras con aranceles definidos
   const carrerasConArancel = computed(() => {
     return carrerasVigentes.value.filter(carrera =>
@@ -114,6 +122,7 @@ export function useCarreras() {
     obtenerArancelCarrera,
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre,
-    obtenerCarreraPorId
+    obtenerCarreraPorId,
+    obtenerNivelYModalidad
   }
 }

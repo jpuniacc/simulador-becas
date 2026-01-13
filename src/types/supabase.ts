@@ -158,6 +158,7 @@ export type Database = {
           cupos_disponibles: number | null
           cupos_utilizados: number | null
           descripcion: string | null
+          descuento_mixto: Json | null
           descuento_monto_fijo: number | null
           descuento_porcentaje: number | null
           duracion_meses: number | null
@@ -203,6 +204,7 @@ export type Database = {
           cupos_disponibles?: number | null
           cupos_utilizados?: number | null
           descripcion?: string | null
+          descuento_mixto?: Json | null
           descuento_monto_fijo?: number | null
           descuento_porcentaje?: number | null
           duracion_meses?: number | null
@@ -248,6 +250,7 @@ export type Database = {
           cupos_disponibles?: number | null
           cupos_utilizados?: number | null
           descripcion?: string | null
+          descuento_mixto?: Json | null
           descuento_monto_fijo?: number | null
           descuento_porcentaje?: number | null
           duracion_meses?: number | null
