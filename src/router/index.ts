@@ -32,6 +32,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/diplomados',
+      name: 'diplomados',
+      component: () => import('../views/DiplomadosView.vue'),
+      meta: {
+        title: 'Cursos y Diplomados - UNIACC',
+        description: 'Cursos y Diplomados en UNIACC'
+      }
+    },
+    {
       path: '/simulador',
       name: 'simulador',
       component: () => import('../views/Simulador2View.vue'),

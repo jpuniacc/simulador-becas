@@ -21,7 +21,13 @@ export interface BecasUniacc {
   requiere_beca_estado: boolean | null
   requiere_region_especifica: boolean
   region_excluida: string | null
+  region_requerida: string | null
   requiere_genero: 'Masculino' | 'Femenino' | null
+  requiere_nacionalidad: boolean | null
+  nacionalidad_requerida: string | null
+  requiere_extranjeria: boolean | null
+  requiere_residencia_chile: boolean | null
+  edad_requerida: number | null
   carreras_aplicables: string[] | null
   programas_excluidos: string[] | null
   max_anos_egreso: number | null
@@ -161,7 +167,7 @@ export function useBecas() {
     // 2. Verificar PAES
     if (beca.requiere_paes && beca.paes_minimo) {
       const puntajePAES = formData.paes?.matematica || formData.paes?.lenguaje || 0
-      if (!puntajePAES || puntajePAES < beca.paes_minimo) {
+      if (!formData.rendioPAES || puntajePAES < beca.paes_minimo) {
         elegible = false
         razon = `Requiere PAES mínimo ${beca.paes_minimo}`
       }
@@ -175,25 +181,19 @@ export function useBecas() {
       }
     }
 
-    // 4. Verificar beca estado
-    if (beca.requiere_beca_estado !== null && beca.requiere_beca_estado !== undefined) {
-      if (formData.usaBecasEstado !== beca.requiere_beca_estado) {
+    // 4. Verificar región
+    if (beca.requiere_region_especifica) {
+      // Si requiere región específica y no hay región de residencia, no es elegible
+      if (!formData.regionResidencia || formData.regionResidencia.trim() === '') {
         elegible = false
-        razon = beca.requiere_beca_estado
-          ? 'Requiere tener beca del estado'
-          : 'No aplica si tiene beca del estado'
-      }
-    }
-
-    // 5. Verificar región
-    if (beca.requiere_region_especifica && beca.region_excluida) {
-      if (formData.regionResidencia === beca.region_excluida) {
+        razon = `Requiere región de residencia`
+      } else if (beca.region_excluida && formData.regionResidencia === beca.region_excluida) {
         elegible = false
         razon = `No aplica para región ${beca.region_excluida}`
       }
     }
 
-    // 6. Verificar género
+    // 5. Verificar género
     if (beca.requiere_genero) {
       if (formData.genero !== beca.requiere_genero) {
         elegible = false
@@ -201,11 +201,50 @@ export function useBecas() {
       }
     }
 
+    // 6. Verificar extranjería y residencia
+    // Verificar si requiere ser extranjero
+    if (beca.requiere_extranjeria !== null && beca.requiere_extranjeria !== undefined) {
+      const esExtranjero = formData.extranjero === true
+      if (beca.requiere_extranjeria && !esExtranjero) {
+        elegible = false
+        razon = `Requiere ser extranjero`
+      } else if (!beca.requiere_extranjeria && esExtranjero) {
+        elegible = false
+        razon = `No aplica para extranjeros`
+      }
+    }
+
+    // Verificar si requiere residencia en Chile
+    if (beca.requiere_residencia_chile !== null && beca.requiere_residencia_chile !== undefined) {
+      const resideEnChile = formData.residencia_chilena === true
+      if (beca.requiere_residencia_chile && !resideEnChile) {
+        elegible = false
+        razon = `Requiere residir en Chile`
+      } else if (!beca.requiere_residencia_chile && resideEnChile) {
+        elegible = false
+        razon = `No aplica para residentes en Chile`
+      }
+    }
+
     // 7. Verificar carrera
     if (beca.carreras_aplicables && beca.carreras_aplicables.length > 0) {
       if (!formData.carrera || !beca.carreras_aplicables.includes(formData.carrera)) {
-        elegible = false
-        razon = `No aplica para la carrera seleccionada`
+        // Caso especial para Beca STEM: aplicar solo a Ingeniería Informática Multimedia para mujeres
+        if (beca.nombre.toLowerCase().includes('stem') && formData.genero === 'Femenino') {
+          // Verificar si la carrera es específicamente "Ingeniería Informática Multimedia"
+          const carreraLower = formData.carrera.toLowerCase()
+          const esIngenieriaInformaticaMultimedia = carreraLower.includes('ingeniería') &&
+                                                   carreraLower.includes('informática') &&
+                                                   carreraLower.includes('multimedia')
+
+          if (!esIngenieriaInformaticaMultimedia) {
+            elegible = false
+            razon = `Beca STEM solo aplica para Ingeniería Informática Multimedia`
+          }
+        } else {
+          elegible = false
+          razon = `No aplica para la carrera seleccionada`
+        }
       }
     }
 
@@ -217,7 +256,45 @@ export function useBecas() {
       }
     }
 
-    // 9. Verificar años de egreso
+    // 8. Verificar programas excluidos
+    if (beca.programas_excluidos && beca.programas_excluidos.length > 0) {
+      if (formData.tipoPrograma && beca.programas_excluidos.includes(formData.tipoPrograma)) {
+        elegible = false
+        razon = `No aplica para programa ${formData.tipoPrograma}`
+      }
+    }
+
+    // 9. Verificar modalidades aplicables
+    if (beca.modalidades_aplicables && beca.modalidades_aplicables.length > 0) {
+      if (formData.carreraId) {
+        const carrera = obtenerCarreraPorId(formData.carreraId)
+        if (!carrera) {
+          elegible = false
+          razon = `No se encontró la carrera seleccionada`
+        } else {
+          // Verificar si la modalidad de la carrera está en las modalidades aplicables
+          if (!carrera.modalidad_programa) {
+            elegible = false
+            razon = `No aplica para la modalidad de la carrera seleccionada`
+          } else {
+            const modalidadCarrera = carrera.modalidad_programa.trim()
+            const esCompatible = beca.modalidades_aplicables.some(modalidad =>
+              modalidad.trim().toLowerCase() === modalidadCarrera.toLowerCase()
+            )
+            if (!esCompatible) {
+              elegible = false
+              razon = `No aplica para la modalidad de la carrera seleccionada`
+            }
+          }
+        }
+      } else {
+        // Si no hay carreraId pero hay modalidades aplicables, no es elegible
+        elegible = false
+        razon = `Requiere una carrera seleccionada para verificar modalidad`
+      }
+    }
+
+    // 10. Verificar años de egreso
     if (beca.max_anos_egreso) {
       const anoActual = new Date().getFullYear()
       const anoEgreso = formData.añoEgreso ? parseInt(formData.añoEgreso) : null
@@ -227,7 +304,7 @@ export function useBecas() {
       }
     }
 
-    // 10. Verificar años PAES
+    // 11. Verificar años PAES
     if (beca.max_anos_paes) {
       const anoActual = new Date().getFullYear()
       // Para PAES, usamos el año de egreso como proxy ya que no tenemos año específico de PAES
@@ -238,7 +315,22 @@ export function useBecas() {
       }
     }
 
-    // 11. Verificar vigencia
+    // 12. Verificar edad requerida (aplica para mayores o iguales a esa edad)
+    if (beca.edad_requerida !== null && beca.edad_requerida !== undefined) {
+      if (!formData.anio_nacimiento) {
+        elegible = false
+        razon = `Requiere edad mínima ${beca.edad_requerida} años (año de nacimiento no proporcionado)`
+      } else {
+        const anoActual = new Date().getFullYear()
+        const edad = anoActual - formData.anio_nacimiento
+        if (edad < beca.edad_requerida) {
+          elegible = false
+          razon = `Requiere edad mínima ${beca.edad_requerida} años (edad actual: ${edad} años)`
+        }
+      }
+    }
+
+    // 13. Verificar vigencia
     const hoy = new Date()
     const vigenciaDesde = new Date(beca.vigencia_desde)
     const vigenciaHasta = beca.vigencia_hasta ? new Date(beca.vigencia_hasta) : null
@@ -253,19 +345,13 @@ export function useBecas() {
       razon = `Beca vencida desde ${vigenciaHasta.toLocaleDateString()}`
     }
 
-    // 12. Verificar modalidad
-    if (beca.modalidades_aplicables && beca.modalidades_aplicables.length > 0) {
-      // Por ahora asumimos que todas las modalidades son válidas
-      // En el futuro se podría agregar selección de modalidad
-    }
-
-    // 13. Verificar cupos
+    // 14. Verificar cupos
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`
     }
 
-    // 14. Verificar institución requerida
+    // 15. Verificar institución requerida
     if (beca.requiere_institucion && beca.institucion_requerida) {
       if (!formData.institucionId || formData.institucionId !== beca.institucion_requerida) {
         elegible = false
@@ -273,13 +359,29 @@ export function useBecas() {
       }
     }
 
-    // Si es elegible, calcular descuento
+    // Si es elegible, calcular descuento inicial
     if (elegible) {
       if (beca.tipo_descuento === 'porcentaje' && beca.descuento_porcentaje) {
         descuento_aplicado = beca.descuento_porcentaje
-        // El monto se calculará en el cálculo principal
       } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto_fijo) {
         monto_descuento = beca.descuento_monto_fijo
+      }
+    }
+
+    // 16. TODO: Deuda técnica - Condición especial para beca EXPERIENCIA
+    // Si el código de la beca es 'EXPERIENCIA' y ya es elegible, ajustar descuento según modalidad
+    if (elegible && beca.codigo_beca === 'EXPERIENCIA' && formData.carreraId) {
+      const carrera = obtenerCarreraPorId(formData.carreraId)
+      if (carrera && carrera.modalidad_programa) {
+        const modalidad = carrera.modalidad_programa.trim()
+        // Aplicar 20% para Diurno, Vespertino o Semipresencial
+        if (modalidad === 'Diurno' || modalidad === 'Vespertino' || modalidad === 'Semipresencial') {
+          descuento_aplicado = 20
+        }
+        // Aplicar 30% para Online
+        else if (modalidad === 'Online') {
+          descuento_aplicado = 30
+        }
       }
     }
 

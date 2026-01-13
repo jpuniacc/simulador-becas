@@ -328,7 +328,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="3">
                         <div class="flex flex-col">
-                            <Results ref="resultsRef" :form-data="formData" />
+                            <Results ref="resultsRef" :form-data="formData" segmentacion="pregrado" />
                         </div>
                         <div class="pt-6">
                             <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"

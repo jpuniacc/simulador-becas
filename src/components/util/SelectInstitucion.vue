@@ -36,6 +36,8 @@ const institucionesStore = useInstitucionesStore()
 const institucionSeleccionada = ref<Institucion | null>(props.modelValue || null)
 const filteredInstituciones = ref<Institucion[]>([])
 const touched = ref(false)
+// Flag para prevenir loops infinitos entre watchers
+const isUpdatingFromProps = ref(false)
 
 // Función para buscar instituciones (usada por Autocomplete)
 const searchInstituciones = (event: { query: string }) => {
@@ -56,16 +58,33 @@ const handleAutocompleteFocus = () => {
 
 // Función para seleccionar institución
 const selectInstitucion = (institucion: Institucion) => {
+    // El watcher se encargará de emitir los eventos
+    isUpdatingFromProps.value = false
     institucionSeleccionada.value = institucion
-    emit('update:modelValue', institucion)
-    emit('change', institucion)
     touched.value = true
 }
 
 // Watcher para sincronizar con props
 watch(() => props.modelValue, (newValue) => {
-    institucionSeleccionada.value = newValue || null
+    if (institucionSeleccionada.value?.id !== newValue?.id) {
+        isUpdatingFromProps.value = true
+        institucionSeleccionada.value = newValue || null
+        // Resetear el flag después de un pequeño delay
+        setTimeout(() => {
+            isUpdatingFromProps.value = false
+        }, 0)
+    }
 }, { immediate: true })
+
+// Watcher para emitir cambios cuando cambia el valor local (desde el Autocomplete)
+watch(institucionSeleccionada, (newValue, oldValue) => {
+    // Solo emitir si el cambio no viene de las props (evitar loops)
+    if (!isUpdatingFromProps.value && newValue?.id !== oldValue?.id) {
+        emit('update:modelValue', newValue)
+        emit('change', newValue)
+        touched.value = true
+    }
+}, { deep: true })
 
 // Lifecycle
 onMounted(async () => {

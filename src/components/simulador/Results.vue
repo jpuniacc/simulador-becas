@@ -27,9 +27,12 @@ import { Card as ShadcnCard, CardContent, CardHeader, CardTitle } from '@/compon
 // Props
 interface Props {
   formData?: Partial<FormData>
+  segmentacion?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  segmentacion: 'pregrado'
+})
 
 // Store y servicios
 const simuladorStore = useSimuladorStore()
@@ -346,7 +349,7 @@ const handleSimulate = async () => {
         try {
           await insertarProspecto(
             simuladorStore.formData as FormData,
-            'pregrado',
+            props.segmentacion,
             becasAplicadas.value,
             crmJson,
             respuestaCRM

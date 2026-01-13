@@ -17,6 +17,9 @@ export interface BecasUniacc {
   nem_minimo: number | null
   requiere_paes: boolean
   paes_minimo: number | null
+  requiere_ranking: boolean | null
+  ranking_minimo: number | null
+  requiere_beca_estado: boolean | null
   requiere_region_especifica: boolean
   region_excluida: string | null
   requiere_genero: 'Masculino' | 'Femenino' | null
@@ -44,6 +47,8 @@ export interface BecasUniacc {
   becas_incompatibles: string[] | null
   activa: boolean
   prioridad: number
+  requiere_institucion: boolean | null
+  institucion_requerida: string | null
   created_at: string
   updated_at: string
 }
@@ -222,7 +227,15 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 3. Verificar región
+    // 3. Verificar ranking
+    if (beca.requiere_ranking && beca.ranking_minimo) {
+      if (!formData.ranking || formData.ranking < beca.ranking_minimo) {
+        elegible = false
+        razon = `Requiere ranking mínimo ${beca.ranking_minimo}`
+      }
+    }
+
+    // 4. Verificar región
     if (beca.requiere_region_especifica) {
       // Si requiere región específica y no hay región de residencia, no es elegible
       if (!formData.regionResidencia || formData.regionResidencia.trim() === '') {
@@ -235,7 +248,15 @@ export const useBecasStore = defineStore('becas', () => {
     }
 
 
-    // 4. Verificar extranjería y residencia
+    // 5. Verificar género
+    if (beca.requiere_genero) {
+      if (formData.genero !== beca.requiere_genero) {
+        elegible = false
+        razon = `Requiere género ${beca.requiere_genero}`
+      }
+    }
+
+    // 6. Verificar extranjería y residencia
     // Verificar si requiere ser extranjero
     if (beca.requiere_extranjeria !== null && beca.requiere_extranjeria !== undefined) {
       const esExtranjero = formData.extranjero === true
@@ -260,7 +281,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 5. Verificar carrera
+    // 7. Verificar carrera
     if (beca.carreras_aplicables && beca.carreras_aplicables.length > 0) {
       if (!formData.carrera || !beca.carreras_aplicables.includes(formData.carrera)) {
         // Caso especial para Beca STEM: aplicar solo a Ingeniería Informática Multimedia para mujeres
@@ -282,7 +303,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 6. Verificar programas excluidos
+    // 8. Verificar programas excluidos
     if (beca.programas_excluidos && beca.programas_excluidos.length > 0) {
       if (formData.tipoPrograma && beca.programas_excluidos.includes(formData.tipoPrograma)) {
         elegible = false
@@ -290,7 +311,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 7. Verificar modalidades aplicables
+    // 9. Verificar modalidades aplicables
     if (beca.modalidades_aplicables && beca.modalidades_aplicables.length > 0) {
       if (formData.carreraId) {
         const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId, beca.modalidades_aplicables)
@@ -305,7 +326,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 8. Verificar años de egreso
+    // 10. Verificar años de egreso
     if (beca.max_anos_egreso) {
       const anoActual = new Date().getFullYear()
       const anoEgreso = formData.añoEgreso ? parseInt(formData.añoEgreso) : null
@@ -315,7 +336,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 9. Verificar años PAES
+    // 11. Verificar años PAES
     if (beca.max_anos_paes) {
       const anoActual = new Date().getFullYear()
       const anoPAES = formData.añoEgreso ? parseInt(formData.añoEgreso) : null // Asumimos que año PAES = año egreso
@@ -325,7 +346,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 10. Verificar edad requerida (aplica para mayores o iguales a esa edad)
+    // 12. Verificar edad requerida (aplica para mayores o iguales a esa edad)
     if (beca.edad_requerida !== null && beca.edad_requerida !== undefined) {
       if (!formData.anio_nacimiento) {
         elegible = false
@@ -340,7 +361,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 11. Verificar vigencia
+    // 13. Verificar vigencia
     const hoy = new Date()
     const vigenciaDesde = new Date(beca.vigencia_desde)
     const vigenciaHasta = beca.vigencia_hasta ? new Date(beca.vigencia_hasta) : null
@@ -355,10 +376,18 @@ export const useBecasStore = defineStore('becas', () => {
       razon = `Beca vencida desde ${vigenciaHasta.toLocaleDateString()}`
     }
 
-    // 12. Verificar cupos
+    // 14. Verificar cupos
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`
+    }
+
+    // 15. Verificar institución requerida
+    if (beca.requiere_institucion && beca.institucion_requerida) {
+      if (!formData.institucionId || formData.institucionId !== beca.institucion_requerida) {
+        elegible = false
+        razon = `Requiere institución específica`
+      }
     }
 
     // Si es elegible, calcular descuento inicial
@@ -370,7 +399,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 13. TODO: Deuda técnica - Condición especial para beca EXPERIENCIA
+    // 16. TODO: Deuda técnica - Condición especial para beca EXPERIENCIA
     // Si el código de la beca es 'EXPERIENCIA' y ya es elegible, ajustar descuento según modalidad
     if (elegible && beca.codigo_beca === 'EXPERIENCIA' && formData.carreraId) {
       const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId)
