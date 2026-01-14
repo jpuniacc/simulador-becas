@@ -200,15 +200,15 @@ export function useCRM() {
     if (formData.tipoIdentificacion === 'rut' && formData.identificacion) {
       // Formatear RUT con puntos y guión (ej: 15.834.697-4)
       const rutLimpio = formData.identificacion.replace(/[^0-9kK]/g, '')
-      if (rutLimpio.length >= 8) {
-        const rutSinDV = rutLimpio.slice(0, -1)
-        const dv = rutLimpio.slice(-1).toUpperCase()
-        // Agregar puntos cada 3 dígitos desde la derecha
-        const rutFormateado = rutSinDV.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-        rut = `${rutFormateado}-${dv}`
-      } else {
-        rut = formData.identificacion
-      }
+
+      const rutSinDV = rutLimpio.slice(0, -1)
+      const dv = rutLimpio.slice(-1).toUpperCase()
+      // Agregar puntos cada 3 dígitos desde la derecha
+      const rutFormateado = rutSinDV.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+      rut = `${rutFormateado}-${dv}`
+
+    } else {
+      rut = formData.identificacion
     }
 
     // Obtener código de la carrera
