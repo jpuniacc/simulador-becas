@@ -32,9 +32,9 @@ export function useProspectos() {
   }
 
   const insertarProspecto = async (
-    form: FormData, 
-    segmentacion?: string, 
-    becasAplicadas?: BecaAplicada[], 
+    form: FormData,
+    segmentacion?: string,
+    becasAplicadas?: BecaAplicada[],
     prospectoCrm?: Record<string, any> | null,
     respuestaCRM?: RespuestaCRM | null
   ): Promise<ProspectoRow | null> => {
@@ -42,7 +42,7 @@ export function useProspectos() {
     // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
     // Funcionamiento: El logger detecta campos sensibles en formData y los reemplaza con asteriscos
     logger.prospecto('Insertando prospecto', { form, segmentacion, becasAplicadas })
-    
+
     loading.value = true
     error.value = null
     try {
@@ -156,6 +156,21 @@ export function useProspectos() {
         } : null
       }
 
+      // Log de debugging para verificar parámetros de campaña
+      if (import.meta.env.DEV) {
+        console.log('📊 useProspectos - Parámetros de campaña en payload:', {
+          utm_source: payload.utm_source,
+          utm_medium: payload.utm_medium,
+          utm_campaign: payload.utm_campaign,
+          utm_term: payload.utm_term,
+          utm_content: payload.utm_content,
+          gclid: payload.gclid,
+          fbclid: payload.fbclid,
+          first_touch_url: payload.first_touch_url,
+          last_touch_url: payload.last_touch_url
+        })
+      }
+
       const { data, error: insertError } = await supabase
         .from('prospectos')
         .insert(payload)
@@ -163,7 +178,17 @@ export function useProspectos() {
         .single()
 
       if (insertError) throw insertError
-      
+
+      // Log de éxito con datos guardados
+      if (import.meta.env.DEV && data) {
+        console.log('✅ useProspectos - Prospecto guardado exitosamente con datos de campaña:', {
+          id: data.id,
+          utm_source: data.utm_source,
+          utm_medium: data.utm_medium,
+          utm_campaign: data.utm_campaign
+        })
+      }
+
       logger.prospecto('Prospecto insertado correctamente', { id: data.id })
       return data
     } catch (e: any) {

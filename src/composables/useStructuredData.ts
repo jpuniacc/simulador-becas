@@ -121,7 +121,7 @@ export const generateWebApplicationSchema = (): WebApplicationSchema => {
     '@type': 'WebApplication',
     name: 'Simulador de Becas UNIACC',
     url: baseURL,
-    description: 'Simulador gratuito para calcular beneficios y becas disponibles en UNIACC',
+    description: 'Simulador gratuito para calcular becas disponibles en UNIACC',
     applicationCategory: 'EducationalApplication',
     operatingSystem: 'Web',
     offers: {

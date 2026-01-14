@@ -1,5 +1,4 @@
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed } from 'vue'
 
 /**
  * Parámetros UTM estándar
@@ -52,7 +51,6 @@ const DEFAULT_EXPIRATION_DAYS = 30
  * Composable para tracking de campañas y parámetros UTM
  */
 export function useCampaignTracking() {
-  const route = useRoute()
   const campaignData = ref<CampaignData>({})
 
   /**
@@ -170,6 +168,14 @@ export function useCampaignTracking() {
     const currentParams = captureFromCurrentURL()
     const storedData = loadFromLocalStorage()
 
+    // Logs de debugging
+    if (import.meta.env.DEV) {
+      console.log('🔍 Campaign Tracking - Initializing...')
+      console.log('🔍 Campaign Tracking - Current URL:', window.location.href)
+      console.log('🔍 Campaign Tracking - Current params from URL:', currentParams)
+      console.log('🔍 Campaign Tracking - Stored data from localStorage:', storedData)
+    }
+
     // Si hay parámetros nuevos en la URL, usar esos (nuevo contacto)
     if (Object.keys(currentParams).length > 0) {
       const mergedData: CampaignData = {
@@ -186,15 +192,32 @@ export function useCampaignTracking() {
 
       campaignData.value = mergedData
       saveToLocalStorage(mergedData, expirationDays)
+
+      if (import.meta.env.DEV) {
+        console.log('✅ Campaign Tracking - New params captured, merged data:', mergedData)
+        console.log('✅ Campaign Tracking - Saved to localStorage')
+      }
+
       return mergedData
     }
 
     // Si no hay parámetros nuevos, usar los almacenados
     if (storedData) {
-      // Limpiar expiresAt antes de asignar
+      // Limpiar expiresAt antes de asignar (no lo necesitamos en el objeto final)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { expiresAt, ...data } = storedData
       campaignData.value = data
+
+      if (import.meta.env.DEV) {
+        console.log('📦 Campaign Tracking - Using stored data from localStorage:', data)
+        console.log('📦 Campaign Tracking - Data persisted from previous visit')
+      }
+
       return data
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('⚠️ Campaign Tracking - No campaign data found (no params in URL, no stored data)')
     }
 
     return {}
@@ -202,9 +225,26 @@ export function useCampaignTracking() {
 
   /**
    * Obtiene los datos de campaña actuales
+   * Si no hay datos en memoria, intenta cargar desde localStorage
    */
   const getCampaignData = (): CampaignData => {
-    return { ...campaignData.value }
+    // Si hay datos en memoria, retornarlos
+    if (Object.keys(campaignData.value).length > 0) {
+      return { ...campaignData.value }
+    }
+    
+    // Si no hay datos en memoria, intentar cargar desde localStorage
+    const storedData = loadFromLocalStorage()
+    if (storedData) {
+      // Limpiar expiresAt antes de retornar
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { expiresAt, ...data } = storedData
+      // Actualizar también el estado en memoria para futuras consultas
+      campaignData.value = data
+      return data
+    }
+    
+    return {}
   }
 
   /**
@@ -240,31 +280,25 @@ export function useCampaignTracking() {
   /**
    * Push a Google Tag Manager dataLayer (si está disponible)
    */
-  const pushToDataLayer = (eventName: string, additionalData?: Record<string, any>): void => {
-    if (typeof window === 'undefined' || !(window as any).dataLayer) {
+  const pushToDataLayer = (eventName: string, additionalData?: Record<string, unknown>): void => {
+    if (typeof window === 'undefined') {
       return
     }
 
-    const dataLayer = (window as any).dataLayer
-    dataLayer.push({
+    const win = window as Window & { dataLayer?: unknown[] }
+    if (!win.dataLayer) {
+      return
+    }
+
+    win.dataLayer.push({
       event: eventName,
       campaign_data: campaignData.value,
       ...additionalData
-    })
+    } as Record<string, unknown>)
   }
 
-  // Inicializar al montar el composable
-  onMounted(() => {
-    initialize()
-    
-    // Push inicial al dataLayer con datos de campaña
-    if (hasCampaignData.value) {
-      pushToDataLayer('campaign_initialized', {
-        page_path: route.path,
-        page_url: window.location.href
-      })
-    }
-  })
+  // Nota: La inicialización se hace manualmente desde App.vue
+  // No usar onMounted aquí para evitar múltiples inicializaciones
 
   return {
     campaignData,

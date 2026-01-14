@@ -15,9 +15,27 @@ const simuladorStore = useSimuladorStore()
 
 // Lifecycle
 onMounted(() => {
-  // Inicializar tracking de campañas
-  initializeCampaignTracking()
-  
+  // Inicializar tracking de campañas (solo una vez al inicio de la app)
+  const campaignData = initializeCampaignTracking()
+
+  // Push inicial al dataLayer con datos de campaña
+  if (typeof window !== 'undefined' && (window as any).dataLayer) {
+    if (Object.keys(campaignData).length > 0) {
+      (window as any).dataLayer.push({
+        event: 'campaign_initialized',
+        campaign_data: campaignData,
+        page_path: window.location.pathname,
+        page_url: window.location.href
+      })
+    }
+  }
+
+  // Log de debugging
+  if (import.meta.env.DEV) {
+    console.log('📊 App.vue - Campaign data initialized:', campaignData)
+    console.log('📊 App.vue - Check localStorage:', localStorage.getItem('simulador-campaign-data'))
+  }
+
   // Inicializar datos de campaña en el store
   simuladorStore.initializeCampaignData()
 

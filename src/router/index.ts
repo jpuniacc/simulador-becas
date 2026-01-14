@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import { updateSEO } from '../composables/useSEO'
-import { injectAllSchemas } from '../composables/useStructuredData'
+import { useCampaignTracking } from '../composables/useCampaignTracking'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -128,21 +128,37 @@ router.beforeEach((to, from, next) => {
 
 // Guard de navegación para analytics y tracking
 router.afterEach((to, from) => {
+  // Inicializar/actualizar tracking de campañas en cada navegación
+  // Esto asegura que si hay parámetros nuevos en la URL, se capturen
+  // o que se carguen datos desde localStorage si no hay parámetros nuevos
+  const { initialize: initializeCampaignTracking } = useCampaignTracking()
+  const campaignData = initializeCampaignTracking()
+
+  // Actualizar datos de campaña en el store en el próximo tick
+  // para asegurar que el componente ya esté montado
+  import('vue').then(({ nextTick }) => {
+    nextTick(() => {
+      // Importar el store dinámicamente para evitar circular dependencies
+      import('../stores/simuladorStore').then(({ useSimuladorStore }) => {
+        try {
+          const store = useSimuladorStore()
+          if (store && typeof store.initializeCampaignData === 'function') {
+            store.initializeCampaignData()
+          }
+        } catch (e) {
+          // Ignorar si el store no está disponible aún
+          if (import.meta.env.DEV) {
+            console.debug('Store no disponible aún para actualizar campaign data')
+          }
+        }
+      }).catch(() => {
+        // Ignorar errores de importación
+      })
+    })
+  })
+
   // Trackear navegación en GTM (si dataLayer está disponible)
   if (typeof window !== 'undefined' && (window as any).dataLayer) {
-    // Obtener datos de campaña desde localStorage si están disponibles
-    let campaignData = {}
-    try {
-      const stored = localStorage.getItem('simulador-campaign-data')
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        const { expiresAt, ...data } = parsed
-        campaignData = data
-      }
-    } catch (e) {
-      // Ignorar errores de parsing
-    }
-
     ;(window as any).dataLayer.push({
       event: 'page_view',
       page_path: to.path,

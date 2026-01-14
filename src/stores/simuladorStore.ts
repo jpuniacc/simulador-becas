@@ -255,8 +255,25 @@ export const useSimuladorStore = defineStore('simulador', () => {
   // Inicializar datos de campaña en formData
   const initializeCampaignData = () => {
     const campaignData = campaignTracking.getCampaignData()
+    if (import.meta.env.DEV) {
+      console.log('🔄 SimuladorStore - Initializing campaign data:', campaignData)
+    }
     if (Object.keys(campaignData).length > 0) {
       formData.value = { ...formData.value, ...campaignData }
+      if (import.meta.env.DEV) {
+        console.log('✅ SimuladorStore - Campaign data added to formData')
+        console.log('📋 SimuladorStore - formData with campaign:', {
+          utm_source: formData.value.utm_source,
+          utm_medium: formData.value.utm_medium,
+          utm_campaign: formData.value.utm_campaign,
+          gclid: formData.value.gclid,
+          fbclid: formData.value.fbclid
+        })
+      }
+    } else {
+      if (import.meta.env.DEV) {
+        console.log('⚠️ SimuladorStore - No campaign data to add')
+      }
     }
   }
 
