@@ -44,24 +44,24 @@ const institucionesStore = useInstitucionesStore()
 // Opciones para el dropdown de Origen
 const origenOptions = [
   {
-    label: 'Aplicarlo directamente en mi trabajo',
-    value: 'aplicacion_directa'
+    label: 'Estoy trabajando actualmente',
+    value: 'trabajando_actualmente'
   },
   {
-    label: 'Actualizar conocimientos en mi área',
-    value: 'actualizacion_conocimientos'
+    label: 'Recién titulado/a',
+    value: 'recien_titulado'
   },
   {
-    label: 'Prepararme para nuevas oportunidades',
-    value: 'nuevas_oportunidades'
+    label: 'No estoy trabajando, pero busco especializarme',
+    value: 'no_trabajando_especializarme'
   },
   {
-    label: 'Interés personal / desarrollo individual',
-    value: 'desarrollo_individual'
+    label: 'Trabajo en el área del programa que me interesa',
+    value: 'trabajo_area_programa'
   },
   {
-    label: 'Aún no lo tengo claro',
-    value: 'otro'
+    label: 'Trabajo en un área distinta',
+    value: 'trabajo_area_distinta'
   }
 ]
 
@@ -236,7 +236,7 @@ watch(() => props.formData, (newData) => {
 
 // Lifecycle
 onMounted(async () => {
-  await inicializarCarreras(13)
+  await inicializarCarreras(12)
   // Cargar instituciones si no están cargadas
   if (institucionesStore.instituciones.length === 0) {
     await institucionesStore.cargarInstituciones()
@@ -265,19 +265,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="diplomados-preferences-container">
+  <div class="magister-preferences-container">
     <div class="form-guide">
       <p class="guide-text">Queremos conocer tu experiencia y lo que buscas hoy</p>
     </div>
-    <form class="diplomados-preferences-form" @submit.prevent>
+    <form class="magister-preferences-form" @submit.prevent>
       <div class="form-grid">
         <!-- Campo Motivación Académica -->
         <div class="form-field col-span-1 md:col-span-1">
           <div class="flex flex-col gap-1">
             <label for="origen" class="block text-sm font-medium text-gray-700 mb-1">
-              Motivación / Objetivo *
+              Objetivo / situación actual *
             </label>
-            <p class="text-sm text-gray-600 italic mb-2">¿Cuál es tu objetivo principal al realizar este programa?</p>
+            <p class="text-sm text-gray-600 italic mb-2">¿Cuál es tu situación profesional actual?</p>
             <Dropdown id="origen" v-model="formData.origen" :options="origenOptions" optionLabel="label"
               optionValue="value" class="w-full" placeholder="Selecciona una opción"
               :class="{ 'p-invalid': (submitted || touched.origen) && !formData.origen }"
@@ -356,7 +356,7 @@ onMounted(async () => {
               <div>
                 <h3 class="carrera-title">Programa de Interés</h3>
                 <p class="carrera-subtitle italic mt-1">
-                  Elige el curso o diplomado que quieres obtener en UNIACC
+                  Elige el programa que quieres obtener en UNIACC
                 </p>
               </div>
             </div>
@@ -364,7 +364,7 @@ onMounted(async () => {
             <!-- Autocomplete de carreras -->
             <div class="form-field">
               <Autocomplete id="carreraInteres" v-model="carreraSeleccionada" :suggestions="filteredCarreras"
-                @complete="searchCarreras" optionLabel="nombre_programa" placeholder="Busca diplomados..."
+                @complete="searchCarreras" optionLabel="nombre_programa" placeholder="Busca programa..."
                 class="w-full carrera-autocomplete"
                 :class="{ 'p-invalid': (submitted || touched.carreraInteres) && (!formData.carreraInteres || formData.carreraInteresId === 0) }"
                 :loading="carrerasLoading" @focus="handleAutocompleteFocus" @blur="touched.carreraInteres = true"
@@ -394,7 +394,7 @@ onMounted(async () => {
 <style scoped>
 @import '@/assets/form-styles.css';
 
-.diplomados-preferences-container {
+.magister-preferences-container {
   @apply form-container;
 }
 
@@ -581,3 +581,4 @@ onMounted(async () => {
   }
 }
 </style>
+

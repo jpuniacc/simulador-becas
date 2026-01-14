@@ -41,6 +41,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/postgrados',
+      name: 'postgrados',
+      component: () => import('../views/MagisterView.vue'),
+      meta: {
+        title: 'Postgrado - UNIACC',
+        description: 'Postgrado en UNIACC'
+      }
+    },
+    {
       path: '/simulador',
       name: 'simulador',
       component: () => import('../views/Simulador2View.vue'),
