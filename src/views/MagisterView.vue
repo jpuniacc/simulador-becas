@@ -131,9 +131,9 @@ const getMissingFieldsStep1 = (): string[] => {
     const missing: string[] = []
     const formDataAny = formData.value as any
 
-    if (!formData.value.origen?.trim()) missing.push('Motivación / Objetivo')
+    if (!formData.value.origen?.trim()) missing.push('Objetivo / situación actual')
 
-    if (!formData.value.nivelEducativo?.trim()) missing.push('Nivel Educativo')
+    if (!formDataAny?.gradoAcademico?.trim()) missing.push('Grado Académico')
 
     if (!formDataAny?.carreraInteres?.trim() || !formDataAny?.carreraInteresId || formDataAny.carreraInteresId === 0) {
         missing.push('Programa de Interés')

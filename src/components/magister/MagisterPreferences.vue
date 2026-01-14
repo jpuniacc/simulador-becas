@@ -65,21 +65,21 @@ const origenOptions = [
   }
 ]
 
-// Opciones de nivel educativo (sin "Educación media incompleta")
-const opcionesNivelEducativo = [
-  { label: 'Educación media completa', value: 'Educación media completa' },
-  { label: 'Educación superior incompleta', value: 'Educación superior incompleta' },
-  { label: 'Educación superior completa', value: 'Educación superior completa' }
+// Opciones de grado académico
+const opcionesGradoAcademico = [
+  { label: 'Sí', value: 'Sí' },
+  { label: 'Estoy en proceso de obtención', value: 'Estoy en proceso de obtención' },
+  { label: 'No (solo informativo)', value: 'No (solo informativo)' }
 ]
 
 // Estado local del formulario
-const formData = ref<Partial<FormData>>({
+const formData = ref<Partial<FormData & { gradoAcademico: string }>>({
   origen: (props.formData as any)?.origen || '',
   carreraTitulo: props.formData?.carreraTitulo || '',
   carreraInteres: (props.formData as any)?.carreraInteres || '',
   carreraInteresId: (props.formData as any)?.carreraInteresId || 0,
   institucionId: (props.formData as any)?.institucionId || '',
-  nivelEducativo: props.formData?.nivelEducativo || ''
+  gradoAcademico: (props.formData as any)?.gradoAcademico || ''
 })
 
 // Estado para la institución seleccionada
@@ -96,7 +96,7 @@ const touched = ref({
   carreraTitulo: false,
   institucion: false,
   carreraInteres: false,
-  nivelEducativo: false
+  gradoAcademico: false
 })
 
 // Función para buscar carreras (usada por Autocomplete)
@@ -132,7 +132,7 @@ const isFormValid = computed(() => {
   return !!formData.value.origen &&
     !!formData.value.carreraInteres &&
     (formData.value.carreraInteresId || 0) > 0 &&
-    !!formData.value.nivelEducativo
+    !!(formData.value as any).gradoAcademico
 })
 
 // Emitir cambios de validación
@@ -176,8 +176,8 @@ watch(formData, (newData) => {
       institucionId: newData.institucionId,
       carreraInteres: newData.carreraInteres,
       carreraInteresId: newData.carreraInteresId,
-      nivelEducativo: newData.nivelEducativo
-    })
+      gradoAcademico: (newData as any).gradoAcademico
+    } as any)
   }
 }, { deep: true })
 
@@ -191,7 +191,7 @@ watch(() => props.formData, (newData) => {
       formData.value.institucionId !== (newDataAny?.institucionId || '') ||
       formData.value.carreraInteres !== (newDataAny?.carreraInteres || '') ||
       formData.value.carreraInteresId !== (newDataAny?.carreraInteresId || 0) ||
-      formData.value.nivelEducativo !== (newData.nivelEducativo || '')
+      (formData.value as any).gradoAcademico !== (newDataAny?.gradoAcademico || '')
 
     if (hasChanges) {
       isUpdatingFromProps.value = true
@@ -201,7 +201,7 @@ watch(() => props.formData, (newData) => {
         institucionId: newDataAny?.institucionId || '',
         carreraInteres: newDataAny?.carreraInteres || '',
         carreraInteresId: newDataAny?.carreraInteresId || 0,
-        nivelEducativo: newData.nivelEducativo || ''
+        gradoAcademico: newDataAny?.gradoAcademico || ''
       }
 
       // Actualizar institución seleccionada si hay un institucionId válido
@@ -267,7 +267,7 @@ onMounted(async () => {
 <template>
   <div class="magister-preferences-container">
     <div class="form-guide">
-      <p class="guide-text">Queremos conocer tu experiencia y lo que buscas hoy</p>
+      <p class="guide-text">Queremos conocer tu formación y proyección profesional</p>
     </div>
     <form class="magister-preferences-form" @submit.prevent>
       <div class="form-grid">
@@ -289,60 +289,62 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Campo Nivel Educativo -->
+        <!-- Campo Grado Académico -->
         <div class="form-field nivel-educativo-field col-span-1 md:col-span-1">
           <div class="flex flex-col gap-1">
-            <label for="nivelEducativo" class="nivel-educativo-label">
-              Nivel Educativo *
+            <label for="gradoAcademico" class="nivel-educativo-label">
+              Grado Académico *
             </label>
+            <p class="text-sm text-gray-600 italic mb-3">¿Tienes grado académico o título profesional?</p>
             <div class="nivel-educativo-checkboxes">
               <div
-                v-for="opcion in opcionesNivelEducativo"
+                v-for="opcion in opcionesGradoAcademico"
                 :key="opcion.value"
                 class="checkbox-option"
               >
                 <Checkbox
-                  :id="`nivelEducativo-${opcion.value}`"
+                  :id="`gradoAcademico-${opcion.value}`"
                   :binary="true"
-                  :modelValue="formData.nivelEducativo === opcion.value"
-                  @update:modelValue="(checked) => { formData.nivelEducativo = checked ? (opcion.value as FormData['nivelEducativo']) : ''; touched.nivelEducativo = true; }"
+                  :modelValue="(formData as any).gradoAcademico === opcion.value"
+                  @update:modelValue="(checked) => { (formData as any).gradoAcademico = checked ? opcion.value : ''; touched.gradoAcademico = true; }"
                 />
                 <label
-                  :for="`nivelEducativo-${opcion.value}`"
+                  :for="`gradoAcademico-${opcion.value}`"
                   class="checkbox-label"
-                  @click="formData.nivelEducativo = formData.nivelEducativo === opcion.value ? '' : (opcion.value as FormData['nivelEducativo']); touched.nivelEducativo = true"
+                  @click="(formData as any).gradoAcademico = (formData as any).gradoAcademico === opcion.value ? '' : opcion.value; touched.gradoAcademico = true"
                 >
                   {{ opcion.label }}
                 </label>
               </div>
             </div>
             <Message
-              v-if="(submitted || touched.nivelEducativo) && !formData.nivelEducativo"
+              v-if="(submitted || touched.gradoAcademico) && !(formData as any).gradoAcademico"
               severity="error"
               variant="simple"
               size="small"
             >
-              Nivel educativo es requerido
+              Grado académico es requerido
             </Message>
           </div>
         </div>
 
         <!-- Campo Institución -->
-        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2">
-          <SelectInstitucion v-model="institucionSeleccionada" label="Institución de Educación Superior"
-            microcopy="Si has estudiado antes, indícanos dónde."
+        <div class="form-field col-span-1 md:col-span-2">
+          <SelectInstitucion v-model="institucionSeleccionada"
+            label="Institución donde realizaste tu último estudio"
+            microcopy="Si has estudiado antes, indícanos dónde. (Opcional)"
             placeholder="Busca una institución..." :required="false"
             :invalid="false"
             @change="handleInstitucionChange" />
         </div>
 
         <!-- Campo Carrera Título (Formación) -->
-        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2">
+        <div class="form-field col-span-1 md:col-span-2">
           <div class="flex flex-col gap-1">
             <label for="carreraTitulo" class="block text-sm font-medium text-gray-700 mb-1">
               Carrera o título obtenido
             </label>
-            <p class="text-sm text-gray-600 italic mb-2">Escribe el nombre de la carrera, título u oficio, si corresponde.</p>
+            <p class="text-sm text-gray-600 italic mb-2">Escribe el nombre de la carrera, título u grado académico</p>
             <InputText id="carreraTitulo" v-model="formData.carreraTitulo" placeholder="Ej: Técnico en Enfermería, Contador" class="form-input"
               @blur="touched.carreraTitulo = true" />
           </div>
@@ -545,7 +547,7 @@ onMounted(async () => {
 }
 
 .nivel-educativo-label {
-  @apply block text-sm font-medium text-gray-700 mb-3;
+  @apply block text-sm font-medium text-gray-700 mb-1;
 }
 
 .nivel-educativo-checkboxes {

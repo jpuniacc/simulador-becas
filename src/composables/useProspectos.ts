@@ -32,9 +32,9 @@ export function useProspectos() {
   }
 
   const insertarProspecto = async (
-    form: FormData, 
-    segmentacion?: string, 
-    becasAplicadas?: BecaAplicada[], 
+    form: FormData,
+    segmentacion?: string,
+    becasAplicadas?: BecaAplicada[],
     prospectoCrm?: Record<string, any> | null,
     respuestaCRM?: RespuestaCRM | null
   ): Promise<ProspectoRow | null> => {
@@ -42,7 +42,7 @@ export function useProspectos() {
     // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
     // Funcionamiento: El logger detecta campos sensibles en formData y los reemplaza con asteriscos
     logger.prospecto('Insertando prospecto', { form, segmentacion, becasAplicadas })
-    
+
     loading.value = true
     error.value = null
     try {
@@ -99,9 +99,10 @@ export function useProspectos() {
 
         // Postgrado
         carreratitulo: form.carreraTitulo || null,
-        area_interes: form.area || null,
+        area_interes: (form as any).area || null,
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
+        grado_academico: (form as any).gradoAcademico || null,
 
         // Beca aplicada (solo puede haber una)
         beca: becaId,
@@ -145,7 +146,7 @@ export function useProspectos() {
         .single()
 
       if (insertError) throw insertError
-      
+
       logger.prospecto('Prospecto insertado correctamente', { id: data.id })
       return data
     } catch (e: any) {

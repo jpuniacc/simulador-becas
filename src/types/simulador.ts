@@ -55,6 +55,7 @@ export interface FormData {
   origen: string,
   carreraInteres: string,
   carreraInteresId: number,
+  gradoAcademico: string,
 
 }
 

@@ -1940,6 +1940,7 @@ export type Database = {
           first_touch_url: string | null
           gclid: string | null
           genero: string | null
+          grado_academico: string | null
           id: string
           last_touch_timestamp: string | null
           last_touch_url: string | null
@@ -1994,6 +1995,7 @@ export type Database = {
           first_touch_url?: string | null
           gclid?: string | null
           genero?: string | null
+          grado_academico?: string | null
           id?: string
           last_touch_timestamp?: string | null
           last_touch_url?: string | null
@@ -2048,6 +2050,7 @@ export type Database = {
           first_touch_url?: string | null
           gclid?: string | null
           genero?: string | null
+          grado_academico?: string | null
           id?: string
           last_touch_timestamp?: string | null
           last_touch_url?: string | null
