@@ -90,7 +90,7 @@
   - Abrir con UTM: `http://localhost:5173/?utm_source=test`
   - Verificar en consola que `formData` contenga los parámetros UTM
   - **Resultado esperado**: `formData.utm_source === 'test'`
-- [x] **Prueba 1.4.2**: Datos disponibles en el formulario ✅
+- [X] **Prueba 1.4.2**: Datos disponibles en el formulario ✅
 
   - Completar el simulador con parámetros UTM
   - Verificar que los datos estén disponibles cuando se guarda el prospecto
@@ -101,31 +101,31 @@
 
 #### ✅ 2.1 Verificación de JSON Enviado al CRM
 
-- [ ] **Prueba 2.1.1**: JSON mínimo (sin parámetros de campaña)
+- [X] **Prueba 2.1.1**: JSON mínimo (sin parámetros de campaña)
 
   - Abrir sin parámetros UTM
   - Completar formulario y enviar
   - Verificar en consola el JSON enviado (`console.log('data CRM', data)`)
   - **Resultado esperado**: JSON sin campos de campaña (solo campos obligatorios)
-- [ ] **Prueba 2.1.2**: JSON con parámetros UTM básicos
+- [X] **Prueba 2.1.2**: JSON con parámetros UTM básicos
 
   - URL: `http://localhost:5173/?utm_source=google&utm_medium=cpc&utm_campaign=test`
   - Completar formulario y enviar
   - Verificar JSON enviado
   - **Resultado esperado**: JSON incluye solo `utm_source`, `utm_medium`, `utm_campaign`
-- [ ] **Prueba 2.1.3**: JSON con Google Ads completo
+- [X] **Prueba 2.1.3**: JSON con Google Ads completo
 
   - URL: `http://localhost:5173/?utm_source=google&utm_medium=cpc&utm_campaign=summer&gclid=TEST123&utm_term=becas`
   - Completar formulario y enviar
   - Verificar JSON enviado
   - **Resultado esperado**: JSON incluye UTM + `gclid`, sin campos vacíos
-- [ ] **Prueba 2.1.4**: JSON con Facebook Ads completo
+- [X] **Prueba 2.1.4**: JSON con Facebook Ads completo
 
   - URL: `http://localhost:5173/?utm_source=facebook&utm_medium=social&fbclid=TEST456&campaign_id=CAMP001`
   - Completar formulario y enviar
   - Verificar JSON enviado
   - **Resultado esperado**: JSON incluye parámetros relevantes, sin campos undefined
-- [ ] **Prueba 2.1.5**: JSON con múltiples plataformas
+- [X] **Prueba 2.1.5**: JSON con múltiples plataformas
 
   - URL: `http://localhost:5173/?utm_source=google&gclid=G123&fbclid=F456&msclkid=M789`
   - Completar formulario y enviar
@@ -134,12 +134,12 @@
 
 #### ✅ 2.2 Verificación de Campos Obligatorios
 
-- [ ] **Prueba 2.2.1**: Campos obligatorios siempre presentes
+- [X] **Prueba 2.2.1**: Campos obligatorios siempre presentes
 
   - Enviar con y sin parámetros UTM
   - Verificar que siempre incluyan: `nombre`, `primerApellido`, `segundoApellido`, `email`, `rut`, `telefono`, `carrera`, `origen`, `User_Agent`
   - **Resultado esperado**: Campos obligatorios presentes en ambos casos
-- [ ] **Prueba 2.2.2**: Formato de datos obligatorios
+- [X] **Prueba 2.2.2**: Formato de datos obligatorios
 
   - Verificar formato de RUT (con puntos y guión)
   - Verificar formato de teléfono (con +56)
@@ -148,16 +148,16 @@
 
 #### ✅ 2.3 Verificación de Exclusion de Campos Vacíos
 
-- [ ] **Prueba 2.3.1**: No incluir campos undefined
+- [X] **Prueba 2.3.1**: No incluir campos undefined
 
   - Enviar sin parámetros UTM
   - Verificar que el JSON no tenga campos como `utm_source: undefined`
   - **Resultado esperado**: JSON sin campos undefined
-- [ ] **Prueba 2.3.2**: No incluir campos null
+- [X] **Prueba 2.3.2**: No incluir campos null
 
   - Verificar que campos null no se incluyan
   - **Resultado esperado**: JSON sin campos null
-- [ ] **Prueba 2.3.3**: No incluir strings vacíos en campaña
+- [X] **Prueba 2.3.3**: No incluir strings vacíos en campaña
 
   - Verificar que `utm_source: ""` no se incluya
   - **Resultado esperado**: JSON sin campos de campaña con strings vacíos
@@ -166,17 +166,17 @@
 
 #### ✅ 3.1 Verificación de Guardado de Prospecto
 
-- [ ] **Prueba 3.1.1**: Guardado con parámetros UTM
+- [X] **Prueba 3.1.1**: Guardado con parámetros UTM
 
   - Completar formulario con UTM
   - Verificar en Supabase que los campos UTM se guarden correctamente
   - **Resultado esperado**: Campos UTM presentes en tabla `prospectos`
-- [ ] **Prueba 3.1.2**: Guardado sin parámetros UTM
+- [X] **Prueba 3.1.2**: Guardado sin parámetros UTM
 
   - Completar formulario sin UTM
   - Verificar en Supabase que los campos UTM sean NULL
   - **Resultado esperado**: Campos UTM como NULL (no undefined)
-- [ ] **Prueba 3.1.3**: Guardado del JSON completo en prospecto_crm
+- [X] **Prueba 3.1.3**: Guardado del JSON completo en prospecto_crm
 
   - Completar formulario con varios parámetros de campaña
   - Verificar en Supabase el campo `prospecto_crm`
@@ -184,17 +184,17 @@
 
 #### ✅ 3.2 Verificación de Touch Points
 
-- [ ] **Prueba 3.2.1**: Guardado de first_touch_url
+- [X] **Prueba 3.2.1**: Guardado de first_touch_url
 
   - Primera visita con UTM
   - Verificar en Supabase campo `first_touch_url`
   - **Resultado esperado**: URL completa de primera visita guardada
-- [ ] **Prueba 3.2.2**: Guardado de last_touch_url
+- [X] **Prueba 3.2.2**: Guardado de last_touch_url
 
   - Múltiples visitas con diferentes UTM
   - Verificar que `last_touch_url` sea la última visita
   - **Resultado esperado**: URL de última interacción guardada
-- [ ] **Prueba 3.2.3**: Timestamps correctos
+- [X] **Prueba 3.2.3**: Timestamps correctos
 
   - Verificar formato ISO 8601 de `first_touch_timestamp` y `last_touch_timestamp`
   - **Resultado esperado**: Timestamps en formato correcto
@@ -203,18 +203,18 @@
 
 #### ✅ 4.1 Pruebas de Endpoint
 
-- [ ] **Prueba 4.1.1**: Envío exitoso al CRM (DEV)
+- [X] **Prueba 4.1.1**: Envío exitoso al CRM (DEV)
 
   - Enviar desde localhost
   - Verificar que llegue al endpoint correcto (proxy Vite)
   - Verificar respuesta del CRM
   - **Resultado esperado**: Respuesta 200 con datos procesados
-- [ ] **Prueba 4.1.2**: JSON recibido en CRM
+- [X] **Prueba 4.1.2**: JSON recibido en CRM
 
   - Revisar logs del backend del CRM
   - Verificar que reciba el JSON dinámico correctamente
   - **Resultado esperado**: CRM recibe JSON con solo campos presentes
-- [ ] **Prueba 4.1.3**: Manejo de campos opcionales en CRM
+- [X] **Prueba 4.1.3**: Manejo de campos opcionales en CRM
 
   - Enviar con diferentes combinaciones de parámetros
   - Verificar que el CRM procese correctamente campos opcionales
@@ -222,12 +222,12 @@
 
 #### ✅ 4.2 Pruebas de Consentimiento
 
-- [ ] **Prueba 4.2.1**: Sin consentimiento no se envía
+- [X] **Prueba 4.2.1**: Sin consentimiento no se envía
 
   - Completar formulario sin marcar consentimiento
   - Verificar que no se haga petición al CRM
   - **Resultado esperado**: No hay petición HTTP al CRM
-- [ ] **Prueba 4.2.2**: Con consentimiento se envía
+- [X] **Prueba 4.2.2**: Con consentimiento se envía
 
   - Completar formulario con consentimiento marcado
   - Verificar que se haga petición al CRM
@@ -237,25 +237,25 @@
 
 #### ✅ 5.1 Escenarios de Campañas
 
-- [ ] **Prueba 5.1.1**: Campaña de Google Ads
+- [X] **Prueba 5.1.1**: Campaña de Google Ads
 
   - URL completa: `http://localhost:5173/?utm_source=google&utm_medium=cpc&utm_campaign=verano2024&utm_term=becas&utm_content=ad1&gclid=EAIaIQobChMI...`
   - Completar flujo completo
   - Verificar JSON final
   - **Resultado esperado**: Todos los parámetros de Google Ads presentes
-- [ ] **Prueba 5.1.2**: Campaña de Facebook Ads
+- [X] **Prueba 5.1.2**: Campaña de Facebook Ads
 
   - URL: `http://localhost:5173/?utm_source=facebook&utm_medium=social&utm_campaign=becas&fbclid=IwAR...`
   - Completar flujo completo
   - Verificar JSON final
   - **Resultado esperado**: Parámetros de Facebook presentes
-- [ ] **Prueba 5.1.3**: Campaña de Email Marketing
+- [X] **Prueba 5.1.3**: Campaña de Email Marketing
 
   - URL: `http://localhost:5173/?utm_source=newsletter&utm_medium=email&utm_campaign=monthly`
   - Completar flujo completo
   - Verificar JSON final
   - **Resultado esperado**: Parámetros de email presentes
-- [ ] **Prueba 5.1.4**: Tráfico directo (sin parámetros)
+- [X] **Prueba 5.1.4**: Tráfico directo (sin parámetros)
 
   - URL: `http://localhost:5173/` (sin parámetros)
   - Completar flujo completo
@@ -264,7 +264,7 @@
 
 #### ✅ 5.2 Pruebas de Múltiples Visitas
 
-- [ ] **Prueba 5.2.1**: Usuario con primera visita de Facebook, segunda de Google
+- [X] **Prueba 5.2.1**: Usuario con primera visita de Facebook, segunda de Google
   - Visita 1: Con `utm_source=facebook`
   - Visita 2: Con `utm_source=google`
   - Completar en segunda visita
