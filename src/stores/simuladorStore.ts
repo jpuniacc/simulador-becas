@@ -24,11 +24,15 @@ import { useSimulation } from '../composables/useSimulation'
 import { useDecilCalculation } from '../composables/useDecilCalculation'
 import { useCarrerasStore } from './carrerasStore'
 import { useBecasStore, type CalculoBecas } from './becasStore'
+import { useCampaignTracking } from '../composables/useCampaignTracking'
 
 export const useSimuladorStore = defineStore('simulador', () => {
   // Integrar stores de carreras y becas
   const carrerasStore = useCarrerasStore()
   const becasStore = useBecasStore()
+
+  // Tracking de campañas
+  const campaignTracking = useCampaignTracking()
 
   // Estado del wizard
   const currentStep = ref(0)
@@ -245,6 +249,31 @@ export const useSimuladorStore = defineStore('simulador', () => {
       3: false,
       4: true,
       5: false
+    }
+  }
+
+  // Inicializar datos de campaña en formData
+  const initializeCampaignData = () => {
+    const campaignData = campaignTracking.getCampaignData()
+    if (import.meta.env.DEV) {
+      console.log('🔄 SimuladorStore - Initializing campaign data:', campaignData)
+    }
+    if (Object.keys(campaignData).length > 0) {
+      formData.value = { ...formData.value, ...campaignData }
+      if (import.meta.env.DEV) {
+        console.log('✅ SimuladorStore - Campaign data added to formData')
+        console.log('📋 SimuladorStore - formData with campaign:', {
+          utm_source: formData.value.utm_source,
+          utm_medium: formData.value.utm_medium,
+          utm_campaign: formData.value.utm_campaign,
+          gclid: formData.value.gclid,
+          fbclid: formData.value.fbclid
+        })
+      }
+    } else {
+      if (import.meta.env.DEV) {
+        console.log('⚠️ SimuladorStore - No campaign data to add')
+      }
     }
   }
 
@@ -665,6 +694,7 @@ export const useSimuladorStore = defineStore('simulador', () => {
     reset,
     validateStep,
     validateCurrentStep,
+    initializeCampaignData,
 
     // Simulación
     simulate,
