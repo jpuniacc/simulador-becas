@@ -431,22 +431,6 @@ export function useBecas() {
       }
     }
 
-    // 16. TODO: Deuda técnica - Condición especial para beca EXPERIENCIA
-    // Si el código de la beca es 'EXPERIENCIA' y ya es elegible, ajustar descuento según modalidad
-    if (elegible && beca.codigo_beca === 'EXPERIENCIA' && formData.carreraId) {
-      const carrera = obtenerCarreraPorId(formData.carreraId)
-      if (carrera && carrera.modalidad_programa) {
-        const modalidad = carrera.modalidad_programa.trim()
-        // Aplicar 20% para Diurno, Vespertino o Semipresencial
-        if (modalidad === 'Diurno' || modalidad === 'Vespertino' || modalidad === 'Semipresencial') {
-          descuento_aplicado = 20
-        }
-        // Aplicar 30% para Online
-        else if (modalidad === 'Online') {
-          descuento_aplicado = 30
-        }
-      }
-    }
 
     return {
       beca,
