@@ -272,7 +272,7 @@ onMounted(async () => {
     <form class="diplomados-preferences-form" @submit.prevent>
       <div class="form-grid">
         <!-- Campo Motivación Académica -->
-        <div class="form-field col-span-1 md:col-span-1">
+        <div class="form-field col-span-1 md:col-span-1 div-enfasis--primary">
           <div class="flex flex-col gap-1">
             <label for="origen" class="block text-sm font-medium text-gray-700 mb-1">
               Motivación / Objetivo *
@@ -290,7 +290,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Nivel Educativo -->
-        <div class="form-field nivel-educativo-field col-span-1 md:col-span-1">
+        <div class="form-field nivel-educativo-field col-span-1 md:col-span-1 div-enfasis--primary">
           <div class="flex flex-col gap-1">
             <label for="nivelEducativo" class="nivel-educativo-label">
               Nivel Educativo *
@@ -328,7 +328,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Institución -->
-        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2">
+        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2 div-enfasis--secondary">
           <SelectInstitucion v-model="institucionSeleccionada" label="Institución de Educación Superior"
             microcopy="Si has estudiado antes, indícanos dónde."
             placeholder="Busca una institución..." :required="false"
@@ -337,7 +337,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Carrera Título (Formación) -->
-        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2">
+        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2 div-enfasis--tertiary">
           <div class="flex flex-col gap-1">
             <label for="carreraTitulo" class="block text-sm font-medium text-gray-700 mb-1">
               Carrera o título obtenido

@@ -178,16 +178,24 @@ const showError = computed(() => {
     @apply border border-gray-200 rounded-lg shadow-lg;
     max-height: 15rem;
     width: 100%;
+    min-width: 100%;
 }
 
 :deep(.institucion-autocomplete .p-autocomplete-items) {
     padding: 0;
+    width: 100%;
+}
+
+:deep(.institucion-autocomplete .p-autocomplete-list) {
+    width: 100%;
 }
 
 /* Estilos para opciones del autocomplete */
 .institucion-option-item {
     @apply px-4 py-3 cursor-pointer border-b last:border-b-0;
     border-color: var(--p-primary-100);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .institucion-option-item:hover {

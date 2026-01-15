@@ -272,7 +272,7 @@ onMounted(async () => {
     <form class="magister-preferences-form" @submit.prevent>
       <div class="form-grid">
         <!-- Campo Motivación Académica -->
-        <div class="form-field col-span-1 md:col-span-1">
+        <div class="form-field col-span-1 md:col-span-1 div-enfasis--primary">
           <div class="flex flex-col gap-1">
             <label for="origen" class="block text-sm font-medium text-gray-700 mb-1">
               Objetivo / situación actual *
@@ -290,7 +290,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Grado Académico -->
-        <div class="form-field nivel-educativo-field col-span-1 md:col-span-1">
+        <div class="form-field nivel-educativo-field col-span-1 md:col-span-1 div-enfasis--primary">
           <div class="flex flex-col gap-1">
             <label for="gradoAcademico" class="nivel-educativo-label">
               Grado Académico *
@@ -329,7 +329,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Institución -->
-        <div class="form-field col-span-1 md:col-span-2">
+        <div class="form-field col-span-1 md:col-span-2 div-enfasis--secondary">
           <SelectInstitucion v-model="institucionSeleccionada"
             label="Institución donde realizaste tu último estudio"
             microcopy="Si has estudiado antes, indícanos dónde. (Opcional)"
@@ -339,7 +339,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Carrera Título (Formación) -->
-        <div class="form-field col-span-1 md:col-span-2">
+        <div class="form-field col-span-1 md:col-span-2 div-enfasis--tertiary">
           <div class="flex flex-col gap-1">
             <label for="carreraTitulo" class="block text-sm font-medium text-gray-700 mb-1">
               Carrera o título obtenido

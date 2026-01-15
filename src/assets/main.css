@@ -386,6 +386,19 @@ body {
     --p-datepicker-date-selected-background: var(--p-primary-500);
   }
 
+  .div-enfasis--primary {
+    border-left: 4px solid var(--p-primary-500);
+    padding: 0.25rem 0.25rem 0.25rem 1rem;
+  }
+  .div-enfasis--secondary {
+    border-left: 4px solid var(--p-secondary-500);
+    padding: 0.25rem 0.25rem 0.25rem 1rem;
+  }
+  .div-enfasis--tertiary {
+    border-left: 4px solid var(--p-tertiary-500);
+    padding: 0.25rem 0.25rem 0.25rem 1rem;
+  }
+
 }
 
 

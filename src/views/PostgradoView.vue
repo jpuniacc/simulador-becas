@@ -234,7 +234,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 <template>
     <div class="main-container">
         <div class="header-container">
-            <h1>Postgrado Advance UNIACC</h1>
+            <h1>Pregrado Advance UNIACC</h1>
         </div>
         <div class="content-container">
             <Stepper value="1" linear class="w-full sm:basis-[40rem] md:basis-[50rem] lg:basis-[72rem]">
@@ -428,14 +428,14 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 6px;
     background: linear-gradient(to right,
-            #FF6B35 0%,
-            #FF6B35 33.33%,
-            #4ECDC4 33.33%,
-            #4ECDC4 66.66%,
-            #FF6B9D 66.66%,
-            #FF6B9D 100%);
+            var(--p-tertiary-500) 0%,
+            var(--p-tertiary-500) 33.33%,
+            var(--p-secondary-500) 33.33%,
+            var(--p-secondary-500) 66.66%,
+            var(--p-primary-500) 66.66%,
+            var(--p-primary-500) 100%);
 }
 
 .header-container h1 {
