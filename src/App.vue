@@ -2,17 +2,48 @@
 import { RouterView } from 'vue-router'
 import { onMounted } from 'vue'
 import Toast from 'primevue/toast'
+import { useSEO } from './composables/useSEO'
+import { useStructuredData } from './composables/useStructuredData'
+import { useCampaignTracking } from './composables/useCampaignTracking'
+import { useSimuladorStore } from './stores/simuladorStore'
+
+// Composables
+const { initialize: initializeSEO } = useSEO()
+const { injectAllSchemas } = useStructuredData()
+const { initialize: initializeCampaignTracking } = useCampaignTracking()
+const simuladorStore = useSimuladorStore()
 
 // Lifecycle
 onMounted(() => {
-  // Configuración global de la aplicación
-  document.title = 'Simulador de Becas UNIACC'
+  // Inicializar tracking de campañas (solo una vez al inicio de la app)
+  const campaignData = initializeCampaignTracking()
 
-  // Configurar meta tags
-  const metaDescription = document.querySelector('meta[name="description"]')
-  if (metaDescription) {
-    metaDescription.setAttribute('content', 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito')
+  // Push inicial al dataLayer con datos de campaña
+  if (typeof window !== 'undefined' && (window as any).dataLayer) {
+    if (Object.keys(campaignData).length > 0) {
+      (window as any).dataLayer.push({
+        event: 'campaign_initialized',
+        campaign_data: campaignData,
+        page_path: window.location.pathname,
+        page_url: window.location.href
+      })
+    }
   }
+
+  // Log de debugging
+  if (import.meta.env.DEV) {
+    console.log('📊 App.vue - Campaign data initialized:', campaignData)
+    console.log('📊 App.vue - Check localStorage:', localStorage.getItem('simulador-campaign-data'))
+  }
+
+  // Inicializar datos de campaña en el store
+  simuladorStore.initializeCampaignData()
+
+  // Inicializar SEO
+  initializeSEO()
+
+  // Inyectar structured data
+  injectAllSchemas()
 })
 </script>
 
