@@ -99,9 +99,10 @@ export function useProspectos() {
 
         // Postgrado
         carreratitulo: form.carreraTitulo || null,
-        area_interes: form.area || null,
+        area_interes: (form as any).area || null,
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
+        grado_academico: (form as any).gradoAcademico || null,
 
         // Beca aplicada (solo puede haber una)
         beca: becaId,

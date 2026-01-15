@@ -43,39 +43,39 @@ interface CarreraConPuntaje extends Carrera {
 // Función para calcular puntaje de una carrera
 const calcularPuntaje = (carrera: Carrera): number => {
     let puntaje = 0
-    
+
     // +1 punto si coincide con el área de interés
     if (props.area && carrera.area && carrera.area.trim() === props.area.trim()) {
         puntaje += 1
     }
-    
+
     // +1 punto si coincide con alguna de las modalidades preferidas
     if (props.modalidadPreferencia && props.modalidadPreferencia.length > 0 && carrera.modalidad_programa) {
         const modalidadCarrera = carrera.modalidad_programa.trim().toLowerCase()
-        
+
         // Verificar si alguna de las modalidades preferidas coincide
-        const coincide = props.modalidadPreferencia.some(modalidad => 
+        const coincide = props.modalidadPreferencia.some(modalidad =>
             modalidad.trim().toLowerCase() === modalidadCarrera
         )
-        
+
         if (coincide) {
             puntaje += 1
         }
     }
-    
+
     return puntaje
 }
 
 // Computed para todas las carreras con puntajes y ordenadas
 const todasLasCarrerasConPuntaje = computed(() => {
     const todasLasCarreras = carrerasStore.carrerasVigentes || []
-    
+
     // Calcular puntajes para cada carrera
     const carrerasConPuntaje: CarreraConPuntaje[] = todasLasCarreras.map(carrera => ({
         ...carrera,
         puntaje: calcularPuntaje(carrera)
     }))
-    
+
     // Ordenar por puntaje (mayor a menor)
     return carrerasConPuntaje.sort((a, b) => b.puntaje - a.puntaje)
 })
@@ -133,7 +133,7 @@ const handleMeInteresa = () => {
 onMounted(async () => {
     isLoading.value = true
     try {
-        await carrerasStore.cargarCarreras(2)
+        await carrerasStore.cargarCarreras()
     } catch (error) {
         console.error('Error al cargar carreras de postgrado:', error)
     } finally {
@@ -165,12 +165,12 @@ onMounted(async () => {
                     <GraduationCap class="w-5 h-5 text-blue-600 mr-2" />
                      Programas de Postgrado Disponibles
                 </h4>
-                
+
                 <!-- Subtítulo -->
                 <p class="suggestions-subtitle">
                     Te sugerimos estos 4 programas según tus intereses
                 </p>
-                
+
                 <!-- Top 4 Carreras -->
                 <div class="carreras-grid">
                     <div
@@ -185,15 +185,15 @@ onMounted(async () => {
                             <div class="carrera-info">
                                 <h4 class="carrera-title">{{ carrera.nombre_programa }}</h4>
                                 <div class="carrera-badges">
-                                    <Tag 
-                                        v-if="carrera.modalidad_programa" 
-                                        :value="carrera.modalidad_programa" 
+                                    <Tag
+                                        v-if="carrera.modalidad_programa"
+                                        :value="carrera.modalidad_programa"
                                         severity="info"
                                         class="badge-modalidad"
                                     />
-                                    <Tag 
-                                        v-if="carrera.duracion_programa" 
-                                        :value="`Duración: ${carrera.duracion_programa}`" 
+                                    <Tag
+                                        v-if="carrera.duracion_programa"
+                                        :value="`Duración: ${carrera.duracion_programa}`"
                                         severity="success"
                                         class="badge-duracion"
                                     />
@@ -212,7 +212,7 @@ onMounted(async () => {
                         </div>
                         <div v-if="carrera.descripcion_programa" class="carrera-description">
                             <p class="description-text">{{ carrera.descripcion_programa }}</p>
-                            <button 
+                            <button
                                 class="ver-mas-button"
                                 @click="openCarreraDetail(carrera)"
                             >
@@ -221,17 +221,17 @@ onMounted(async () => {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Link para ver todas las carreras -->
                 <div v-if="restoCarreras.length > 0" class="ver-todas-container">
-                    <button 
+                    <button
                         class="ver-todas-link"
                         @click="mostrarTodasLasCarreras = !mostrarTodasLasCarreras"
                     >
                         {{ mostrarTodasLasCarreras ? 'Ocultar' : 'Ver todas las carreras' }}
                     </button>
                 </div>
-                
+
                 <!-- Resto de carreras (después del top 4) -->
                 <div v-if="mostrarTodasLasCarreras && restoCarreras.length > 0" class="resto-carreras-section">
                     <h5 class="resto-carreras-title">
@@ -250,15 +250,15 @@ onMounted(async () => {
                                 <div class="carrera-info">
                                     <h4 class="carrera-title">{{ carrera.nombre_programa }}</h4>
                                     <div class="carrera-badges">
-                                        <Tag 
-                                            v-if="carrera.modalidad_programa" 
-                                            :value="carrera.modalidad_programa" 
+                                        <Tag
+                                            v-if="carrera.modalidad_programa"
+                                            :value="carrera.modalidad_programa"
                                             severity="info"
                                             class="badge-modalidad"
                                         />
-                                        <Tag 
-                                            v-if="carrera.duracion_programa" 
-                                            :value="`Duración: ${carrera.duracion_programa}`" 
+                                        <Tag
+                                            v-if="carrera.duracion_programa"
+                                            :value="`Duración: ${carrera.duracion_programa}`"
                                             severity="success"
                                             class="badge-duracion"
                                         />
@@ -277,7 +277,7 @@ onMounted(async () => {
                             </div>
                             <div v-if="carrera.descripcion_programa" class="carrera-description">
                                 <p class="description-text">{{ carrera.descripcion_programa }}</p>
-                                <button 
+                                <button
                                     class="ver-mas-button"
                                     @click="openCarreraDetail(carrera)"
                                 >
@@ -298,9 +298,9 @@ onMounted(async () => {
         </div>
 
         <!-- Modal de Detalle de Carrera -->
-        <Dialog 
-            v-model:visible="isModalOpen" 
-            :modal="true" 
+        <Dialog
+            v-model:visible="isModalOpen"
+            :modal="true"
             :closable="true"
             :style="{ width: '90vw', maxWidth: '800px' }"
             header="Detalle del Programa"
@@ -314,14 +314,14 @@ onMounted(async () => {
                     <div class="modal-title-section">
                         <h3 class="modal-title">{{ selectedCarrera.nombre_programa }}</h3>
                         <div class="modal-badges">
-                            <Tag 
-                                v-if="selectedCarrera.modalidad_programa" 
-                                :value="selectedCarrera.modalidad_programa" 
+                            <Tag
+                                v-if="selectedCarrera.modalidad_programa"
+                                :value="selectedCarrera.modalidad_programa"
                                 severity="info"
                             />
-                            <Tag 
-                                v-if="selectedCarrera.duracion_programa" 
-                                :value="`Duración: ${selectedCarrera.duracion_programa}`" 
+                            <Tag
+                                v-if="selectedCarrera.duracion_programa"
+                                :value="`Duración: ${selectedCarrera.duracion_programa}`"
                                 severity="success"
                             />
                         </div>
@@ -351,8 +351,8 @@ onMounted(async () => {
 
                 <div v-if="selectedCarrera.malla" class="modal-malla">
                     <h4 class="malla-title">Malla Curricular</h4>
-                    <Button 
-                        label="Descargar Malla Curricular (PDF)" 
+                    <Button
+                        label="Descargar Malla Curricular (PDF)"
                         icon="pi pi-download"
                         class="malla-button"
                         outlined
@@ -361,8 +361,8 @@ onMounted(async () => {
                 </div>
 
                 <div class="modal-actions">
-                    <Button 
-                        label="Me interesa" 
+                    <Button
+                        label="Me interesa"
                         icon="pi pi-heart"
                         class="me-interesa-button"
                         @click="handleMeInteresa"
@@ -378,7 +378,7 @@ onMounted(async () => {
 
 <style scoped>
 .results-postgrado-container {
-    @apply w-full px-4 py-6 md:px-6 md:py-8;
+    @apply w-full max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8;
 }
 
 .loading-container {

@@ -27,9 +27,36 @@ const router = createRouter({
       }
     },
     {
-      path: '/postgrado',
-      name: 'postgrado',
+      path: '/elige-tu-camino',
+      name: 'elige-tu-camino',
+      component: () => import('../views/Segmentation.vue'),
+      meta: {
+        title: 'Elige tu camino - UNIACC',
+        description: 'Elige tu camino hacia la universidad en UNIACC'
+      }
+    },
+    {
+      path: '/advance',
+      name: 'advance',
       component: () => import('../views/PostgradoView.vue'),
+      meta: {
+        title: 'Postgrado - UNIACC',
+        description: 'Postgrado en UNIACC'
+      }
+    },
+    {
+      path: '/diplomados',
+      name: 'diplomados',
+      component: () => import('../views/DiplomadosView.vue'),
+      meta: {
+        title: 'Cursos y Diplomados - UNIACC',
+        description: 'Cursos y Diplomados en UNIACC'
+      }
+    },
+    {
+      path: '/postgrados',
+      name: 'postgrados',
+      component: () => import('../views/MagisterView.vue'),
       meta: {
         title: 'Postgrado - UNIACC',
         description: 'Postgrado en UNIACC'

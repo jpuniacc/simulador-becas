@@ -40,7 +40,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
   })
 
   // Acciones
-  const cargarCarreras = async (versionSimulador: number = 1) => {
+  const cargarCarreras = async () => {
     try {
       loading.value = true
       error.value = null
@@ -48,7 +48,6 @@ export const useCarrerasStore = defineStore('carreras', () => {
       const { data, error: supabaseError } = await supabase
         .from('carreras_uniacc')
         .select('*')
-        .eq('version_simulador', versionSimulador)
         .order('nombre_programa')
 
       if (supabaseError) {
@@ -126,6 +125,14 @@ export const useCarrerasStore = defineStore('carreras', () => {
     }
   }
 
+  // Función para extraer nivel académico y modalidad de una carrera
+  const obtenerNivelYModalidad = (carrera: Carrera): Record<string, string> => {
+    return {
+      nivel_academico: carrera.nivel_academico || '',
+      modalidad_programa: carrera.modalidad_programa || ''
+    }
+  }
+
   return {
     // Estado
     carreras,
@@ -142,6 +149,7 @@ export const useCarrerasStore = defineStore('carreras', () => {
     obtenerMatriculaCarrera,
     obtenerCarreraPorNombre,
     obtenerCarreraPorId,
-    obtenerCostosCarrera
+    obtenerCostosCarrera,
+    obtenerNivelYModalidad
   }
 })

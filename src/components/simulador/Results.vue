@@ -27,9 +27,12 @@ import { Card as ShadcnCard, CardContent, CardHeader, CardTitle } from '@/compon
 // Props
 interface Props {
   formData?: Partial<FormData>
+  segmentacion?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  segmentacion: 'pregrado'
+})
 
 // Store y servicios
 const simuladorStore = useSimuladorStore()
@@ -145,7 +148,9 @@ const formData = computed(() => simuladorStore.formData)
 // Computed para información de la carrera
 const carreraInfo = computed(() => {
   if (!formData.value.carreraId) return null
-  return simuladorStore.carrerasStore.obtenerCarreraPorId(formData.value.carreraId)
+  const carrera = simuladorStore.carrerasStore.obtenerCarreraPorId(formData.value.carreraId)
+  console.log('Carrera:', carrera)
+  return carrera
 })
 
 // Computed para becas aplicadas (internas)
@@ -343,9 +348,9 @@ const handleSimulate = async () => {
         // Guardar el prospecto con la respuesta del CRM (si existe)
         try {
           await insertarProspecto(
-            simuladorStore.formData as FormData, 
-            'pregrado', 
-            becasAplicadas.value, 
+            simuladorStore.formData as FormData,
+            props.segmentacion,
+            becasAplicadas.value,
             crmJson,
             respuestaCRM
           )
