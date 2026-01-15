@@ -4,6 +4,7 @@ import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Autocomplete from 'primevue/autocomplete'
 import Dropdown from 'primevue/dropdown'
+import Checkbox from 'primevue/checkbox'
 import { GraduationCap } from 'lucide-vue-next'
 import { useCarreras, type Carrera } from '@/composables/useCarreras'
 import { useInstitucionesStore, type Institucion } from '@/stores/institucionesStore'
@@ -33,7 +34,6 @@ const emit = defineEmits<{
 const {
   carrerasVigentes,
   loading: carrerasLoading,
-  error: carrerasError,
   inicializar: inicializarCarreras,
   buscarCarreras
 } = useCarreras()
@@ -44,21 +44,32 @@ const institucionesStore = useInstitucionesStore()
 // Opciones para el dropdown de Origen
 const origenOptions = [
   {
-    label: 'Tengo enseñanza media completa y quiero iniciar una carrera profesional',
-    value: 'media_completa'
+    label: 'Aplicarlo directamente en mi trabajo',
+    value: 'aplicacion_directa'
   },
   {
-    label: 'Cuento con un título técnico de nivel superior',
-    value: 'tecnico_superior'
+    label: 'Actualizar conocimientos en mi área',
+    value: 'actualizacion_conocimientos'
   },
   {
-    label: 'Soy profesional y busco obtener un grado académico',
-    value: 'profesional_sin_grado'
+    label: 'Prepararme para nuevas oportunidades',
+    value: 'nuevas_oportunidades'
   },
   {
-    label: 'Otro',
+    label: 'Interés personal / desarrollo individual',
+    value: 'desarrollo_individual'
+  },
+  {
+    label: 'Aún no lo tengo claro',
     value: 'otro'
   }
+]
+
+// Opciones de nivel educativo (sin "Educación media incompleta")
+const opcionesNivelEducativo = [
+  { label: 'Educación media completa', value: 'Educación media completa' },
+  { label: 'Educación superior incompleta', value: 'Educación superior incompleta' },
+  { label: 'Educación superior completa', value: 'Educación superior completa' }
 ]
 
 // Estado local del formulario
@@ -67,7 +78,8 @@ const formData = ref<Partial<FormData>>({
   carreraTitulo: props.formData?.carreraTitulo || '',
   carreraInteres: (props.formData as any)?.carreraInteres || '',
   carreraInteresId: (props.formData as any)?.carreraInteresId || 0,
-  institucionId: (props.formData as any)?.institucionId || ''
+  institucionId: (props.formData as any)?.institucionId || '',
+  nivelEducativo: props.formData?.nivelEducativo || ''
 })
 
 // Estado para la institución seleccionada
@@ -83,7 +95,8 @@ const touched = ref({
   origen: false,
   carreraTitulo: false,
   institucion: false,
-  carreraInteres: false
+  carreraInteres: false,
+  nivelEducativo: false
 })
 
 // Función para buscar carreras (usada por Autocomplete)
@@ -118,7 +131,8 @@ const handleInstitucionChange = (institucion: Institucion | null) => {
 const isFormValid = computed(() => {
   return !!formData.value.origen &&
     !!formData.value.carreraInteres &&
-    (formData.value.carreraInteresId || 0) > 0
+    (formData.value.carreraInteresId || 0) > 0 &&
+    !!formData.value.nivelEducativo
 })
 
 // Emitir cambios de validación
@@ -161,7 +175,8 @@ watch(formData, (newData) => {
       carreraTitulo: newData.carreraTitulo,
       institucionId: newData.institucionId,
       carreraInteres: newData.carreraInteres,
-      carreraInteresId: newData.carreraInteresId
+      carreraInteresId: newData.carreraInteresId,
+      nivelEducativo: newData.nivelEducativo
     })
   }
 }, { deep: true })
@@ -175,7 +190,8 @@ watch(() => props.formData, (newData) => {
       formData.value.carreraTitulo !== (newData.carreraTitulo || '') ||
       formData.value.institucionId !== (newDataAny?.institucionId || '') ||
       formData.value.carreraInteres !== (newDataAny?.carreraInteres || '') ||
-      formData.value.carreraInteresId !== (newDataAny?.carreraInteresId || 0)
+      formData.value.carreraInteresId !== (newDataAny?.carreraInteresId || 0) ||
+      formData.value.nivelEducativo !== (newData.nivelEducativo || '')
 
     if (hasChanges) {
       isUpdatingFromProps.value = true
@@ -184,7 +200,8 @@ watch(() => props.formData, (newData) => {
         carreraTitulo: newData.carreraTitulo || '',
         institucionId: newDataAny?.institucionId || '',
         carreraInteres: newDataAny?.carreraInteres || '',
-        carreraInteresId: newDataAny?.carreraInteresId || 0
+        carreraInteresId: newDataAny?.carreraInteresId || 0,
+        nivelEducativo: newData.nivelEducativo || ''
       }
 
       // Actualizar institución seleccionada si hay un institucionId válido
@@ -219,7 +236,7 @@ watch(() => props.formData, (newData) => {
 
 // Lifecycle
 onMounted(async () => {
-  await inicializarCarreras(11)
+  await inicializarCarreras(13)
   // Cargar instituciones si no están cargadas
   if (institucionesStore.instituciones.length === 0) {
     await institucionesStore.cargarInstituciones()
@@ -248,21 +265,21 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="career-postgrado-container">
+  <div class="diplomados-preferences-container">
     <div class="form-guide">
-      <p class="guide-text">Cuéntanos sobre tu experiencia y objetivos</p>
+      <p class="guide-text">Queremos conocer tu experiencia y lo que buscas hoy</p>
     </div>
-    <form class="career-postgrado-form" @submit.prevent>
+    <form class="diplomados-preferences-form" @submit.prevent>
       <div class="form-grid">
         <!-- Campo Motivación Académica -->
         <div class="form-field col-span-1 md:col-span-1 div-enfasis--primary">
           <div class="flex flex-col gap-1">
             <label for="origen" class="block text-sm font-medium text-gray-700 mb-1">
-              Motivación Académica *
+              Motivación / Objetivo *
             </label>
-            <p class="text-sm text-gray-600 italic mb-2">¿Qué te impulsa a iniciar este programa?</p>
+            <p class="text-sm text-gray-600 italic mb-2">¿Cuál es tu objetivo principal al realizar este programa?</p>
             <Dropdown id="origen" v-model="formData.origen" :options="origenOptions" optionLabel="label"
-              optionValue="value" class="w-full" placeholder="Cuéntanos qué te motiva"
+              optionValue="value" class="w-full" placeholder="Selecciona una opción"
               :class="{ 'p-invalid': (submitted || touched.origen) && !formData.origen }"
               @change="touched.origen = true" />
             <Message v-if="(submitted || touched.origen) && !formData.origen" severity="error" variant="simple"
@@ -272,10 +289,46 @@ onMounted(async () => {
           </div>
         </div>
 
-
+        <!-- Campo Nivel Educativo -->
+        <div class="form-field nivel-educativo-field col-span-1 md:col-span-1 div-enfasis--primary">
+          <div class="flex flex-col gap-1">
+            <label for="nivelEducativo" class="nivel-educativo-label">
+              Nivel Educativo *
+            </label>
+            <div class="nivel-educativo-checkboxes">
+              <div
+                v-for="opcion in opcionesNivelEducativo"
+                :key="opcion.value"
+                class="checkbox-option"
+              >
+                <Checkbox
+                  :id="`nivelEducativo-${opcion.value}`"
+                  :binary="true"
+                  :modelValue="formData.nivelEducativo === opcion.value"
+                  @update:modelValue="(checked) => { formData.nivelEducativo = checked ? (opcion.value as FormData['nivelEducativo']) : ''; touched.nivelEducativo = true; }"
+                />
+                <label
+                  :for="`nivelEducativo-${opcion.value}`"
+                  class="checkbox-label"
+                  @click="formData.nivelEducativo = formData.nivelEducativo === opcion.value ? '' : (opcion.value as FormData['nivelEducativo']); touched.nivelEducativo = true"
+                >
+                  {{ opcion.label }}
+                </label>
+              </div>
+            </div>
+            <Message
+              v-if="(submitted || touched.nivelEducativo) && !formData.nivelEducativo"
+              severity="error"
+              variant="simple"
+              size="small"
+            >
+              Nivel educativo es requerido
+            </Message>
+          </div>
+        </div>
 
         <!-- Campo Institución -->
-        <div v-if="formData.origen !== 'media_completa'" class="form-field col-span-1 md:col-span-2 div-enfasis--secondary">
+        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2 div-enfasis--secondary">
           <SelectInstitucion v-model="institucionSeleccionada" label="Institución de Educación Superior"
             microcopy="Si has estudiado antes, indícanos dónde."
             placeholder="Busca una institución..." :required="false"
@@ -284,7 +337,7 @@ onMounted(async () => {
         </div>
 
         <!-- Campo Carrera Título (Formación) -->
-        <div v-if="formData.origen !== 'media_completa'" class="form-field col-span-1 md:col-span-2 div-enfasis--tertiary">
+        <div v-if="formData.nivelEducativo !== 'Educación media completa'" class="form-field col-span-1 md:col-span-2 div-enfasis--tertiary">
           <div class="flex flex-col gap-1">
             <label for="carreraTitulo" class="block text-sm font-medium text-gray-700 mb-1">
               Carrera o título obtenido
@@ -301,9 +354,9 @@ onMounted(async () => {
             <div class="flex items-start space-x-3 mb-4">
               <GraduationCap class="carrera-icon mt-0.5 flex-shrink-0" />
               <div>
-                <h3 class="carrera-title">Carrera de Interés</h3>
+                <h3 class="carrera-title">Programa de Interés</h3>
                 <p class="carrera-subtitle italic mt-1">
-                  Elige la carrera que te gustaría estudiar en UNIACC
+                  Elige el curso o diplomado que quieres obtener en UNIACC
                 </p>
               </div>
             </div>
@@ -311,7 +364,7 @@ onMounted(async () => {
             <!-- Autocomplete de carreras -->
             <div class="form-field">
               <Autocomplete id="carreraInteres" v-model="carreraSeleccionada" :suggestions="filteredCarreras"
-                @complete="searchCarreras" optionLabel="nombre_programa" placeholder="Busca tu carrera..."
+                @complete="searchCarreras" optionLabel="nombre_programa" placeholder="Busca diplomados..."
                 class="w-full carrera-autocomplete"
                 :class="{ 'p-invalid': (submitted || touched.carreraInteres) && (!formData.carreraInteres || formData.carreraInteresId === 0) }"
                 :loading="carrerasLoading" @focus="handleAutocompleteFocus" @blur="touched.carreraInteres = true"
@@ -328,7 +381,7 @@ onMounted(async () => {
               <Message
                 v-if="(submitted || touched.carreraInteres) && (!formData.carreraInteres || formData.carreraInteresId === 0)"
                 severity="error" variant="simple" size="small" class="mt-2">
-                Debes seleccionar una carrera de interés
+                Debes seleccionar una programa de interés
               </Message>
             </div>
           </div>
@@ -341,8 +394,47 @@ onMounted(async () => {
 <style scoped>
 @import '@/assets/form-styles.css';
 
-.career-postgrado-container {
+.diplomados-preferences-container {
   @apply form-container;
+}
+
+/* Grid configurado para permitir control total de col-span */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+/* En móvil, una sola columna */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Asegurar que los form-field respeten las clases col-span */
+.form-field {
+  width: 100%;
+  margin-top: 0;
+}
+
+/* Clases col-span personalizadas para control directo */
+.form-field.col-span-1 {
+  grid-column: span 1 / span 1;
+}
+
+.form-field.col-span-2 {
+  grid-column: span 2 / span 2;
+}
+
+@media (min-width: 768px) {
+  .form-field.md\:col-span-1 {
+    grid-column: span 1 / span 1;
+  }
+
+  .form-field.md\:col-span-2 {
+    grid-column: span 2 / span 2;
+  }
 }
 
 .career-suggestions {
@@ -365,7 +457,8 @@ onMounted(async () => {
 .carrera-container {
   @apply rounded-lg p-6;
   background-color: var(--p-primary-100);
-  border: 1px solid var(--p-primary-300);
+  border: 2px solid var(--p-primary-300);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
 }
 
 .carrera-icon {
@@ -430,5 +523,61 @@ onMounted(async () => {
 
 :deep(.carrera-autocomplete .p-autocomplete-items) {
   padding: 0;
+}
+
+/* Estilos para nivel educativo */
+.nivel-educativo-field {
+  grid-column: span 1 / span 1;
+  margin-left: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .nivel-educativo-field {
+    grid-column: span 1 / span 1;
+    margin-left: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .nivel-educativo-field {
+    margin-left: 0;
+  }
+}
+
+.nivel-educativo-label {
+  @apply block text-sm font-medium text-gray-700 mb-3;
+}
+
+.nivel-educativo-checkboxes {
+  @apply flex flex-col gap-3 ml-5 mb-2;
+}
+
+.checkbox-option {
+  @apply flex items-center gap-2;
+}
+
+.checkbox-label {
+  @apply text-sm text-gray-700 cursor-pointer;
+  @apply flex-1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .nivel-educativo-field {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  .nivel-educativo-checkboxes {
+    @apply gap-2;
+  }
+
+  .form-grid {
+    gap: 1rem;
+  }
+
+  /* En móvil, todos los campos ocupan el ancho completo */
+  .form-field {
+    grid-column: span 1 / span 1 !important;
+  }
 }
 </style>

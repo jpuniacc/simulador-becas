@@ -48,9 +48,33 @@ export interface FormData {
 
   // Datos Postgrado
   carreraTitulo: string,
-  area: string,
   modalidadPreferencia: ('Presencial' | 'Online' | 'Semipresencial')[],
   objetivo: ('mejorar_habilidades' | 'cambiar_carrera' | 'mejorar_empleo' | 'otro')[],
+  institucionId: string,
+  motivacion: string,
+  origen: string,
+  carreraInteres: string,
+  carreraInteresId: number,
+  gradoAcademico: string,
+
+
+  // Datos de Campaña (UTM y tracking)
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  utm_term?: string
+  utm_content?: string
+  campaign_id?: string
+  ad_id?: string
+  gclid?: string
+  fbclid?: string
+  msclkid?: string
+  ttclid?: string
+  li_fat_id?: string
+  first_touch_url?: string
+  first_touch_timestamp?: string
+  last_touch_url?: string
+  last_touch_timestamp?: string
 }
 
 export interface SimulationResults {

@@ -328,7 +328,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="3">
                         <div class="flex flex-col">
-                            <Results ref="resultsRef" :form-data="formData" />
+                            <Results ref="resultsRef" :form-data="formData" segmentacion="pregrado" />
                         </div>
                         <div class="pt-6">
                             <Button label="Atras" class="m-4" severity="secondary" icon="pi pi-arrow-left"
@@ -368,14 +368,14 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 6px;
     background: linear-gradient(to right,
-            #FF6B35 0%,
-            #FF6B35 33.33%,
-            #4ECDC4 33.33%,
-            #4ECDC4 66.66%,
-            #FF6B9D 66.66%,
-            #FF6B9D 100%);
+            var(--p-tertiary-500) 0%,
+            var(--p-tertiary-500) 33.33%,
+            var(--p-secondary-500) 33.33%,
+            var(--p-secondary-500) 66.66%,
+            var(--p-primary-500) 66.66%,
+            var(--p-primary-500) 100%);
 }
 
 .header-container h1 {

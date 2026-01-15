@@ -12,11 +12,24 @@ export interface BecasUniacc {
   descripcion: string
   descuento_porcentaje: number | null
   descuento_monto_fijo: number | null
+  descuento_mixto: {
+    default: number
+    rules: Array<{
+      when: {
+        nivel_academico?: string[]
+        modalidad_programa?: string[]
+      }
+      porcentaje: number
+    }>
+  } | null
   tipo_descuento: 'porcentaje' | 'monto_fijo' | 'mixto'
   requiere_nem: boolean
   nem_minimo: number | null
   requiere_paes: boolean
   paes_minimo: number | null
+  requiere_ranking: boolean | null
+  ranking_minimo: number | null
+  requiere_beca_estado: boolean | null
   requiere_region_especifica: boolean
   region_excluida: string | null
   requiere_genero: 'Masculino' | 'Femenino' | null
@@ -44,6 +57,8 @@ export interface BecasUniacc {
   becas_incompatibles: string[] | null
   activa: boolean
   prioridad: number
+  requiere_institucion: boolean | null
+  institucion_requerida: string | null
   created_at: string
   updated_at: string
 }
@@ -122,6 +137,52 @@ export const useBecasStore = defineStore('becas', () => {
 
   // Integrar con carreras store
   const carrerasStore = useCarrerasStore()
+
+  // Función para resolver descuento mixto basado en reglas
+  // Evalúa dinámicamente todas las condiciones del objeto 'when' sin hardcodear campos
+  const resuelveDescuentoMixto = (
+    descuentoMixto: BecasUniacc['descuento_mixto'],
+    contextoCarrera: Record<string, string>
+  ): number => {
+    if (!descuentoMixto) {
+      return 0
+    }
+
+    // Recorrer las reglas en orden
+    for (const rule of descuentoMixto.rules) {
+      let cumpleTodasLasCondiciones = true
+
+      // Iterar dinámicamente sobre todas las keys del objeto 'when'
+      for (const campo in rule.when) {
+        const valoresEsperados = rule.when[campo as keyof typeof rule.when]
+
+        // Si el campo tiene valores esperados (array no vacío)
+        if (valoresEsperados && Array.isArray(valoresEsperados) && valoresEsperados.length > 0) {
+          // Obtener el valor actual del contexto de la carrera
+          const valorActual = contextoCarrera[campo] || ''
+
+          // Verificar si el valor actual coincide con alguno de los valores esperados
+          const cumpleCondicion = valoresEsperados.some(valorEsperado =>
+            valorEsperado.trim().toLowerCase() === valorActual.trim().toLowerCase()
+          )
+
+          // Si no cumple esta condición, la regla completa no se cumple
+          if (!cumpleCondicion) {
+            cumpleTodasLasCondiciones = false
+            break // Salir del loop de campos, esta regla no aplica
+          }
+        }
+      }
+
+      // Si todas las condiciones se cumplen, devolver el porcentaje de esta regla
+      if (cumpleTodasLasCondiciones) {
+        return rule.porcentaje
+      }
+    }
+
+    // Si ninguna regla coincide, devolver el default
+    return descuentoMixto.default
+  }
 
   // Computed para becas por tipo
   const becasPorTipo = computed(() => {
@@ -222,7 +283,15 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 3. Verificar región
+    // 3. Verificar ranking
+    if (beca.requiere_ranking && beca.ranking_minimo) {
+      if (!formData.ranking || formData.ranking < beca.ranking_minimo) {
+        elegible = false
+        razon = `Requiere ranking mínimo ${beca.ranking_minimo}`
+      }
+    }
+
+    // 4. Verificar región
     if (beca.requiere_region_especifica) {
       // Si requiere región específica y no hay región de residencia, no es elegible
       if (!formData.regionResidencia || formData.regionResidencia.trim() === '') {
@@ -235,7 +304,15 @@ export const useBecasStore = defineStore('becas', () => {
     }
 
 
-    // 4. Verificar extranjería y residencia
+    // 5. Verificar género
+    if (beca.requiere_genero) {
+      if (formData.genero !== beca.requiere_genero) {
+        elegible = false
+        razon = `Requiere género ${beca.requiere_genero}`
+      }
+    }
+
+    // 6. Verificar extranjería y residencia
     // Verificar si requiere ser extranjero
     if (beca.requiere_extranjeria !== null && beca.requiere_extranjeria !== undefined) {
       const esExtranjero = formData.extranjero === true
@@ -260,7 +337,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 5. Verificar carrera
+    // 7. Verificar carrera
     if (beca.carreras_aplicables && beca.carreras_aplicables.length > 0) {
       if (!formData.carrera || !beca.carreras_aplicables.includes(formData.carrera)) {
         // Caso especial para Beca STEM: aplicar solo a Ingeniería Informática Multimedia para mujeres
@@ -282,7 +359,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 6. Verificar programas excluidos
+    // 8. Verificar programas excluidos
     if (beca.programas_excluidos && beca.programas_excluidos.length > 0) {
       if (formData.tipoPrograma && beca.programas_excluidos.includes(formData.tipoPrograma)) {
         elegible = false
@@ -290,7 +367,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 7. Verificar modalidades aplicables
+    // 9. Verificar modalidades aplicables
     if (beca.modalidades_aplicables && beca.modalidades_aplicables.length > 0) {
       if (formData.carreraId) {
         const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId, beca.modalidades_aplicables)
@@ -305,7 +382,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 8. Verificar años de egreso
+    // 10. Verificar años de egreso
     if (beca.max_anos_egreso) {
       const anoActual = new Date().getFullYear()
       const anoEgreso = formData.añoEgreso ? parseInt(formData.añoEgreso) : null
@@ -315,7 +392,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 9. Verificar años PAES
+    // 11. Verificar años PAES
     if (beca.max_anos_paes) {
       const anoActual = new Date().getFullYear()
       const anoPAES = formData.añoEgreso ? parseInt(formData.añoEgreso) : null // Asumimos que año PAES = año egreso
@@ -325,7 +402,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 10. Verificar edad requerida (aplica para mayores o iguales a esa edad)
+    // 12. Verificar edad requerida (aplica para mayores o iguales a esa edad)
     if (beca.edad_requerida !== null && beca.edad_requerida !== undefined) {
       if (!formData.anio_nacimiento) {
         elegible = false
@@ -340,7 +417,7 @@ export const useBecasStore = defineStore('becas', () => {
       }
     }
 
-    // 11. Verificar vigencia
+    // 13. Verificar vigencia
     const hoy = new Date()
     const vigenciaDesde = new Date(beca.vigencia_desde)
     const vigenciaHasta = beca.vigencia_hasta ? new Date(beca.vigencia_hasta) : null
@@ -355,10 +432,18 @@ export const useBecasStore = defineStore('becas', () => {
       razon = `Beca vencida desde ${vigenciaHasta.toLocaleDateString()}`
     }
 
-    // 12. Verificar cupos
+    // 14. Verificar cupos
     if (beca.cupos_disponibles && beca.cupos_utilizados >= beca.cupos_disponibles) {
       elegible = false
       razon = `No hay cupos disponibles`
+    }
+
+    // 15. Verificar institución requerida
+    if (beca.requiere_institucion && beca.institucion_requerida) {
+      if (!formData.institucionId || formData.institucionId !== beca.institucion_requerida) {
+        elegible = false
+        razon = `Requiere institución específica`
+      }
     }
 
     // Si es elegible, calcular descuento inicial
@@ -367,22 +452,12 @@ export const useBecasStore = defineStore('becas', () => {
         descuento_aplicado = beca.descuento_porcentaje
       } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto_fijo) {
         monto_descuento = beca.descuento_monto_fijo
-      }
-    }
-
-    // 13. TODO: Deuda técnica - Condición especial para beca EXPERIENCIA
-    // Si el código de la beca es 'EXPERIENCIA' y ya es elegible, ajustar descuento según modalidad
-    if (elegible && beca.codigo_beca === 'EXPERIENCIA' && formData.carreraId) {
-      const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId)
-      if (carrera && carrera.modalidad_programa) {
-        const modalidad = carrera.modalidad_programa.trim()
-        // Aplicar 20% para Diurno, Vespertino o Semipresencial
-        if (modalidad === 'Diurno' || modalidad === 'Vespertino' || modalidad === 'Semipresencial') {
-          descuento_aplicado = 20
-        }
-        // Aplicar 30% para Online
-        else if (modalidad === 'Online') {
-          descuento_aplicado = 30
+      } else if (beca.tipo_descuento === 'mixto' && beca.descuento_mixto && formData.carreraId) {
+        // Obtener la carrera y extraer su contexto (nivel, modalidad, etc.)
+        const carrera = carrerasStore.obtenerCarreraPorId(formData.carreraId)
+        if (carrera) {
+          const contextoCarrera = carrerasStore.obtenerNivelYModalidad(carrera)
+          descuento_aplicado = resuelveDescuentoMixto(beca.descuento_mixto, contextoCarrera)
         }
       }
     }
@@ -525,10 +600,15 @@ export const useBecasStore = defineStore('becas', () => {
 
       // Aplicar descuento
       let montoDescuento = 0
-      if (beca.tipo_descuento === 'porcentaje' && beca.descuento_porcentaje) {
-        montoDescuento = (arancelActual * beca.descuento_porcentaje) / 100
-      } else if (beca.tipo_descuento === 'monto_fijo' && beca.descuento_monto_fijo) {
-        montoDescuento = beca.descuento_monto_fijo
+      if (beca.tipo_descuento === 'porcentaje' && becaElegible.descuento_aplicado > 0) {
+        // Usar el descuento_aplicado calculado en verificarElegibilidad
+        montoDescuento = (arancelActual * becaElegible.descuento_aplicado) / 100
+      } else if (beca.tipo_descuento === 'mixto' && becaElegible.descuento_aplicado > 0) {
+        // Para descuento mixto, usar el porcentaje resuelto dinámicamente
+        montoDescuento = (arancelActual * becaElegible.descuento_aplicado) / 100
+      } else if (beca.tipo_descuento === 'monto_fijo' && becaElegible.monto_descuento > 0) {
+        // Usar el monto_descuento calculado en verificarElegibilidad
+        montoDescuento = becaElegible.monto_descuento
       }
 
       // Actualizar arancel

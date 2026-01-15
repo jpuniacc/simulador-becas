@@ -1,314 +1,391 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { GraduationCap, BookOpen, Check } from 'lucide-vue-next'
+import { Check } from 'lucide-vue-next'
 
 const router = useRouter()
 const selectedOption = ref<string | null>(null)
+const viewportHeight = ref<number>(window.innerHeight)
+const segmentationViewRef = ref<HTMLElement | null>(null)
+
+const updateViewportHeight = () => {
+  viewportHeight.value = window.innerHeight
+  if (segmentationViewRef.value) {
+    segmentationViewRef.value.style.height = `${viewportHeight.value}px`
+  }
+}
+
+onMounted(() => {
+  updateViewportHeight()
+  window.addEventListener('resize', updateViewportHeight)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateViewportHeight)
+})
 
 interface SegmentOption {
   id: string
   title: string
   subtitle: string
   bullets: string[]
-  icon: any
+  iconClass: string
   colorClass: string
-  iconBgClass: string
+  borderColorClass: string
+  bgColorClass: string
 }
 
 const options: SegmentOption[] = [
   {
-    id: 'primera-carrera',
+    id: 'pregrado',
     title: 'Pregrado',
-    subtitle: 'Comienza tu camino profesional desde cero. Ideal si estás recién egresado de la educación media o buscas cambiar de área completamente.',
+    subtitle: 'Primera formación profesional',
     bullets: [
-      'Egresados de educación media',
-      'Personas sin estudios superiores previos',
-      'Quienes buscan iniciar su carrera profesional'
+      'Egresados de enseñanza media',
+      'Primera carrera universitaria'
     ],
-    icon: GraduationCap,
-    colorClass: 'text-uniacc-blue',
-    iconBgClass: 'bg-gradient-to-br from-uniacc-blue/10 to-uniacc-blue/5'
+    iconClass: 'pi pi-graduation-cap',
+    colorClass: 'text-white',
+    borderColorClass: '',
+    bgColorClass: 'bg-primary-saturated'
   },
   {
-    id: 'especializacion',
-    title: 'Advance',
-    subtitle: 'Profundiza tus conocimientos y avanza en tu carrera. Perfecto si ya tienes una formación previa y quieres especializarte.',
+    id: 'pregrado-advance',
+    title: 'Pregrado Advance',
+    subtitle: 'Carreras para personas que trabajan',
     bullets: [
-      'Profesionales con título técnico o profesional',
-      'Quienes buscan especializarse en su área',
-      'Personas que quieren continuar estudios superiores'
+      'Personas con experiencia laboral',
+      'Técnicos o profesionales que buscan grado académico'
     ],
-    icon: BookOpen,
-    colorClass: 'text-uniacc-pink',
-    iconBgClass: 'bg-gradient-to-br from-uniacc-pink/10 to-uniacc-pink/5'
+    iconClass: 'pi pi-briefcase',
+    colorClass: 'text-white',
+    borderColorClass: '',
+    bgColorClass: 'bg-secondary-saturated'
+  },
+  {
+    id: 'postgrado',
+    title: 'Postgrados',
+    subtitle: 'Especialización y grado académico',
+    bullets: [
+      'Profesionales que buscan profundizar su área',
+      'Magíster y formación avanzada'
+    ],
+    iconClass: 'pi pi-star',
+    colorClass: 'text-white',
+    borderColorClass: '',
+    bgColorClass: 'bg-tertiary-saturated'
+  },
+  {
+    id: 'cursos-diplomados',
+    title: 'Diplomados y Cursos',
+    subtitle: 'Perfeccionamiento de corta duración',
+    bullets: [
+      'Actualización de habilidades específicas',
+      'Poco tiempo, foco práctico'
+    ],
+    iconClass: 'pi pi-bolt',
+    colorClass: 'text-white',
+    borderColorClass: '',
+    bgColorClass: 'bg-black-saturated'
   }
 ]
 
 const selectOption = (optionId: string) => {
   selectedOption.value = optionId
-  if (optionId === 'primera-carrera') {
-    router.push('/simulador')
+
+  // Mapeo de opciones a rutas
+  const routeMap: Record<string, string> = {
+    'pregrado': '/simulador',
+    'pregrado-advance': '/advance',
+    'postgrado': '/postgrados',
+    'cursos-diplomados': '/diplomados'
   }
-  if (optionId === 'especializacion') {
-    router.push('/postgrado')
+
+  const route = routeMap[optionId]
+  if (route) {
+    router.push(route)
   }
 }
 
 const getCardClasses = (option: SegmentOption) => {
   const base = 'segmentation-card'
   const selected = selectedOption.value === option.id ? 'selected' : ''
-  const cardType = `card-${option.id}`
-  return [base, selected, cardType].filter(Boolean).join(' ')
+  return [base, selected, option.bgColorClass].filter(Boolean).join(' ')
 }
 </script>
 
 <template>
-  <div class="segmentation-view">
-    <div class="segmentation-container">
-      <div class="segmentation-header">
-        <h2 class="segmentation-title">¿Qué tipo de carrera buscas?</h2>
-        <p class="segmentation-subtitle">
-          Selecciona la opción que mejor se adapte a tu situación actual
-        </p>
-      </div>
-
-      <div class="segmentation-cards">
-        <Card
-          v-for="option in options"
-          :key="option.id"
-          :class="getCardClasses(option)"
-          @click="selectOption(option.id)"
-        >
-          <CardHeader class="card-header">
-            <div class="card-icon-wrapper" :class="option.iconBgClass">
-              <component :is="option.icon" :class="[option.colorClass, 'icon']" />
-            </div>
-            <CardTitle class="card-title">{{ option.title }}</CardTitle>
-            <CardDescription class="card-subtitle">
-              {{ option.subtitle }}
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="card-content">
-            <ul class="card-bullets">
-              <li v-for="(bullet, index) in option.bullets" :key="index" class="bullet-item">
-                <Check :class="[option.colorClass, 'bullet-icon']" />
-                <span>{{ bullet }}</span>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
+  <div ref="segmentationViewRef" class="segmentation-view" :style="{ height: `${viewportHeight}px` }">
+    <div class="segmentation-cards">
+      <Card
+        v-for="option in options"
+        :key="option.id"
+        :class="getCardClasses(option)"
+        @click="selectOption(option.id)"
+      >
+        <CardHeader class="card-header">
+          <div class="card-icon-wrapper">
+            <i :class="[option.iconClass, option.colorClass, 'icon']"></i>
+          </div>
+          <CardTitle class="card-title">{{ option.title }}</CardTitle>
+          <CardDescription class="card-subtitle">
+            {{ option.subtitle }}
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="card-content">
+          <ul class="card-bullets">
+            <li v-for="(bullet, index) in option.bullets" :key="index" class="bullet-item">
+              <Check :class="[option.colorClass, 'bullet-icon']" />
+              <span>{{ bullet }}</span>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;500;600&display=swap');
+
 .segmentation-view {
-  @apply min-h-screen pb-16 pt-1 px-4 sm:px-8 lg:px-12;
-  background-color: #0d0d0d;
-}
-
-.segmentation-container {
-  @apply max-w-5xl mx-auto;
-}
-
-.segmentation-header {
-  @apply text-center mb-8;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
   position: relative;
-  padding-top: 2rem;
 }
 
-.segmentation-header::before {
-  content: '';
+.segmentation-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+  gap: 0;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 6px;
-  background: linear-gradient(to right,
-    #FF6B35 0%,
-    #FF6B35 33.33%,
-    #4ECDC4 33.33%,
-    #4ECDC4 66.66%,
-    #FF6B9D 66.66%,
-    #FF6B9D 100%);
-  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
-}
-
-.segmentation-title {
-  @apply text-2xl md:text-3xl lg:text-4xl font-bold mb-4;
-  color: #ffffff;
-}
-
-.segmentation-subtitle {
-  @apply text-base md:text-lg max-w-2xl mx-auto;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.segmentation-cards {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8;
+  bottom: 0;
 }
 
 .segmentation-card {
-  @apply cursor-pointer transition-all duration-300;
-  @apply border-2 hover:scale-105;
-  @apply hover:shadow-xl;
-  background-color: #252525;
-  border-color: #3a3a3a;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 3rem 2.5rem;
+  position: relative;
+  overflow: visible;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
 }
 
 .segmentation-card:hover {
-  border-color: #0056b3;
-  box-shadow: 0 20px 25px -5px rgba(0, 86, 179, 0.2), 0 10px 10px -5px rgba(0, 86, 179, 0.1);
+  transform: scale(1.08);
+  z-index: 10;
 }
 
 .segmentation-card.selected {
-  border-color: #0056b3;
-  box-shadow: 0 20px 25px -5px rgba(0, 86, 179, 0.3), 0 10px 10px -5px rgba(0, 86, 179, 0.2);
-  @apply scale-105;
-  @apply ring-4 ring-uniacc-blue/30;
+  transform: scale(1.08);
+  z-index: 10;
+}
+
+/* Colores de fondo saturados */
+.bg-primary-saturated {
+  background-color: var(--p-primary-500);
+}
+
+.bg-secondary-saturated {
+  background-color: var(--p-secondary-500);
+}
+
+.bg-tertiary-saturated {
+  background-color: var(--p-tertiary-500);
+}
+
+.bg-black-saturated {
+  background-color: #000000;
 }
 
 .card-header {
-  @apply text-center pb-4;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .card-icon-wrapper {
-  @apply w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 mx-auto mb-3 md:mb-4 rounded-full flex items-center justify-center;
-  @apply transition-all duration-300;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 .segmentation-card:hover .card-icon-wrapper {
-  @apply scale-110;
-}
-
-.segmentation-card.selected .card-icon-wrapper {
-  @apply scale-110;
+  transform: scale(1.1);
 }
 
 .icon {
-  @apply w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8;
-}
-
-.card-title {
-  @apply text-xl md:text-2xl font-bold mb-3;
+  font-size: 48px;
   color: #ffffff;
 }
 
+.card-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
 .card-subtitle {
-  @apply text-sm md:text-base leading-relaxed;
-  @apply min-h-[4rem];
-  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #ffffff;
+  opacity: 0.95;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .card-content {
-  @apply pt-0;
+  padding-top: 1rem;
+  padding-bottom: 1.5rem;
+  flex-shrink: 0;
+  visibility: visible;
+  opacity: 1;
 }
 
 .card-bullets {
-  @apply space-y-2 md:space-y-3 list-none;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.segmentation-card:hover .card-bullets {
+  opacity: 1;
+  max-height: 200px;
 }
 
 .bullet-item {
-  @apply flex items-start gap-3;
-  @apply transition-all duration-200;
-  @apply text-sm md:text-base;
-  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #ffffff;
+  line-height: 1.5;
+  width: 100%;
 }
 
 .bullet-item span {
-  @apply leading-relaxed;
-}
-
-.segmentation-card:hover .bullet-item {
-  color: rgba(255, 255, 255, 0.95);
+  flex: 1;
 }
 
 .bullet-icon {
-  @apply w-4 h-4 md:w-5 md:h-5 mt-0.5 flex-shrink-0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: #ffffff;
 }
 
-/* Colores específicos para cada card */
-.card-primera-carrera.selected {
-  border-color: #0056b3;
+.text-white {
+  color: #ffffff;
 }
 
-.card-primera-carrera.selected .card-icon-wrapper {
-  background-color: rgba(0, 86, 179, 0.25);
+/* Asegurar que los componentes Card sean visibles */
+:deep(.card-content) {
+  display: block !important;
 }
 
-.card-especializacion.selected {
-  border-color: #e91e63;
-}
-
-.card-especializacion.selected .card-icon-wrapper {
-  background-color: rgba(233, 30, 99, 0.25);
-}
-
-.card-primera-carrera:hover {
-  border-color: #0056b3;
-}
-
-.card-especializacion:hover {
-  border-color: #e91e63;
+:deep(.card-header) {
+  display: block !important;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .segmentation-title {
-    @apply text-xl;
-  }
-
-  .segmentation-subtitle {
-    @apply text-sm;
-  }
-
-  .card-title {
-    @apply text-lg;
-  }
-
-  .card-subtitle {
-    @apply text-xs min-h-[3rem];
-  }
-
-  .bullet-item {
-    @apply text-xs;
-  }
-
-  .bullet-icon {
-    @apply w-3.5 h-3.5;
-  }
-
-  .card-icon-wrapper {
-    @apply w-12 h-12 mb-3;
-  }
-
-  .icon {
-    @apply w-6 h-6;
+  .segmentation-cards {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
   }
 
   .segmentation-card {
-    @apply hover:scale-100;
+    padding: 1.5rem 1rem;
+  }
+
+  .card-title {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .card-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-icon-wrapper {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 1rem;
+  }
+
+  .icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .bullet-item {
+    font-size: 0.9rem;
+  }
+
+  .bullet-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .card-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 1.5rem;
+  }
+
+  .icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .segmentation-card:hover {
+    transform: scale(1.03);
   }
 
   .segmentation-card.selected {
-    @apply scale-100;
+    transform: scale(1.03);
   }
-}
-
-/* Animaciones suaves */
-@keyframes pulse-selected {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(0, 86, 179, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(0, 86, 179, 0);
-  }
-}
-
-.segmentation-card.selected {
-  animation: pulse-selected 2s infinite;
 }
 </style>
