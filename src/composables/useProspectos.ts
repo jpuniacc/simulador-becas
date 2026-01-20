@@ -32,9 +32,9 @@ export function useProspectos() {
   }
 
   const insertarProspecto = async (
-    form: FormData, 
-    segmentacion?: string, 
-    becasAplicadas?: BecaAplicada[], 
+    form: FormData,
+    segmentacion?: string,
+    becasAplicadas?: BecaAplicada[],
     prospectoCrm?: Record<string, any> | null,
     respuestaCRM?: RespuestaCRM | null
   ): Promise<ProspectoRow | null> => {
@@ -42,7 +42,7 @@ export function useProspectos() {
     // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
     // Funcionamiento: El logger detecta campos sensibles en formData y los reemplaza con asteriscos
     logger.prospecto('Insertando prospecto', { form, segmentacion, becasAplicadas })
-    
+
     loading.value = true
     error.value = null
     try {
@@ -99,9 +99,10 @@ export function useProspectos() {
 
         // Postgrado
         carreratitulo: form.carreraTitulo || null,
-        area_interes: form.area || null,
+        area_interes: (form as any).area || null,
         modalidadpreferencia: form.modalidadPreferencia && form.modalidadPreferencia.length > 0 ? form.modalidadPreferencia : null,
         objetivo: form.objetivo && form.objetivo.length > 0 ? form.objetivo : null,
+        grado_academico: (form as any).gradoAcademico || null,
 
         // Beca aplicada (solo puede haber una)
         beca: becaId,
@@ -121,6 +122,24 @@ export function useProspectos() {
         // - Esto permite rastrear desde qué página/URL el usuario inició el proceso de simulación
         url_origen: typeof window !== 'undefined' ? window.location.href : null,
 
+        // Parámetros UTM y de campaña
+        utm_source: form.utm_source || null,
+        utm_medium: form.utm_medium || null,
+        utm_campaign: form.utm_campaign || null,
+        utm_term: form.utm_term || null,
+        utm_content: form.utm_content || null,
+        campaign_id: form.campaign_id || null,
+        ad_id: form.ad_id || null,
+        gclid: form.gclid || null,
+        fbclid: form.fbclid || null,
+        msclkid: form.msclkid || null,
+        ttclid: form.ttclid || null,
+        li_fat_id: form.li_fat_id || null,
+        first_touch_url: form.first_touch_url || null,
+        first_touch_timestamp: form.first_touch_timestamp || null,
+        last_touch_url: form.last_touch_url || null,
+        last_touch_timestamp: form.last_touch_timestamp || null,
+
         // JSON del CRM enviado al sistema de CRM
         prospecto_crm: prospectoCrm || null,
 
@@ -138,6 +157,21 @@ export function useProspectos() {
         } : null
       }
 
+      // Log de debugging para verificar parámetros de campaña
+      if (import.meta.env.DEV) {
+        console.log('📊 useProspectos - Parámetros de campaña en payload:', {
+          utm_source: payload.utm_source,
+          utm_medium: payload.utm_medium,
+          utm_campaign: payload.utm_campaign,
+          utm_term: payload.utm_term,
+          utm_content: payload.utm_content,
+          gclid: payload.gclid,
+          fbclid: payload.fbclid,
+          first_touch_url: payload.first_touch_url,
+          last_touch_url: payload.last_touch_url
+        })
+      }
+
       const { data, error: insertError } = await supabase
         .from('prospectos')
         .insert(payload)
@@ -145,7 +179,17 @@ export function useProspectos() {
         .single()
 
       if (insertError) throw insertError
-      
+
+      // Log de éxito con datos guardados
+      if (import.meta.env.DEV && data) {
+        console.log('✅ useProspectos - Prospecto guardado exitosamente con datos de campaña:', {
+          id: data.id,
+          utm_source: data.utm_source,
+          utm_medium: data.utm_medium,
+          utm_campaign: data.utm_campaign
+        })
+      }
+
       logger.prospecto('Prospecto insertado correctamente', { id: data.id })
       return data
     } catch (e: any) {

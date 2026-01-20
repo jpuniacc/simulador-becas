@@ -107,6 +107,15 @@ interface JSONCRM {
   carrera: string
   origen: number
   User_Agent: string
+  // Parámetros de campaña (opcionales, depende de si el backend del CRM los acepta)
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  utm_term?: string
+  utm_content?: string
+  campaign_id?: string
+  gclid?: string
+  fbclid?: string
 }
 
 export function useCRM() {
@@ -239,7 +248,16 @@ export function useCRM() {
       // origen: 2,
       //JPS se cambia el origen de 2 a 4 a solicitud de Innovadev
       origen: 4,
-      User_Agent: userAgent || ''
+      User_Agent: userAgent || '',
+      // Parámetros de campaña (si están disponibles)
+      utm_source: formData.utm_source,
+      utm_medium: formData.utm_medium,
+      utm_campaign: formData.utm_campaign,
+      utm_term: formData.utm_term,
+      utm_content: formData.utm_content,
+      campaign_id: formData.campaign_id,
+      gclid: formData.gclid,
+      fbclid: formData.fbclid
     }
   }
 

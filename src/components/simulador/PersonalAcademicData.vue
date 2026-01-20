@@ -20,7 +20,7 @@ import { formatRUT, cleanRUT } from '@/utils/formatters'
 // Props
 interface Props {
     formData?: Partial<FormData>
-    modo?: 'primera_carrera' | 'especializacion'
+    modo?: 'primera_carrera' | 'especializacion' | 'postgrado'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -599,7 +599,7 @@ watch(() => formData.value.telefono, (newPhone) => {
 
 // Computed para verificar si el formulario es válido
 const isFormValid = computed(() => {
-    const isEspecializacion = props.modo === 'especializacion'
+    const isEspecializacion = props.modo === 'postgrado'
 
     const hasRequiredFields =
         formData.value.nombre?.trim() !== '' &&
@@ -1069,79 +1069,84 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </OverlayPanel>
                 </div>
 
-                <!-- Año de Egreso (solo para egresados) -->
-                 <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
-                <div v-if="isEgresado" class="form-field">
-                    <FloatLabel>
-                        <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
-                            :useGrouping="false" class="form-input" />
-                        <label for="añoEgreso">Año de Egreso (Opcional)</label>
-                    </FloatLabel>
-                </div>
+                <!-- Campos de egresado (solo si NO es postgrado) -->
+                <template v-if="props.modo !== 'postgrado'">
+                    <!-- Año de Egreso (solo para egresados) -->
+                     <!-- JPS: Agregar validación para que no se muestre si es extranjero y reside fuera del país -->
+                    <div v-if="isEgresado" class="form-field">
+                        <FloatLabel>
+                            <InputNumber id="añoEgreso" v-model="añoEgresoValue" :min="2000" :max="2025"
+                                :useGrouping="false" class="form-input" />
+                            <label for="añoEgreso">Año de Egreso (Opcional)</label>
+                        </FloatLabel>
+                    </div>
 
-                <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
-                <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
-                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
-                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
-                    <FloatLabel>
-                        <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
-                            class="form-input" />
-                        <label for="ranking">Ranking de Notas (Opcional)</label>
-                    </FloatLabel>
-                </div>
+                    <!-- JPS: Ranking de Notas (solo para egresados y NO extranjero que reside fuera del país) -->
+                    <!-- Modificación: Ocultar campo Ranking cuando es extranjero y reside fuera del país -->
+                    <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                    <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
+                        <FloatLabel>
+                            <InputNumber id="ranking" v-model="rankingValue" :min="0" :max="1000" :useGrouping="false"
+                                class="form-input" />
+                            <label for="ranking">Ranking de Notas (Opcional)</label>
+                        </FloatLabel>
+                    </div>
 
-                <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
-                <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
-                <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
-                <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
-                    <FloatLabel>
-                        <InputText
-                            id="nem"
-                            v-model="nemValue"
-                            class="form-input"
-                            placeholder="Ej 5,5"
-                            maxlength="3"
-                            @input="handleNEMInput"
-                            @keydown="handleNEMKeydown"
-                        />
-                        <label for="nem">NEM (Opcional)</label>
-                    </FloatLabel>
-                </div>
+                    <!-- JPS: NEM (solo para egresados y NO extranjero que reside fuera del país) -->
+                    <!-- Modificación: Ocultar campo NEM cuando es extranjero y reside fuera del país -->
+                    <!-- Funcionamiento: Se muestra solo si es egresado Y no es el caso que (es extranjero Y reside fuera del país) -->
+                    <div v-if="isEgresado && !(esExtranjero && resideFueraPais)" class="form-field">
+                        <FloatLabel>
+                            <InputText
+                                id="nem"
+                                v-model="nemValue"
+                                class="form-input"
+                                placeholder="Ej 5,5"
+                                maxlength="3"
+                                @input="handleNEMInput"
+                                @keydown="handleNEMKeydown"
+                            />
+                            <label for="nem">NEM (Opcional)</label>
+                        </FloatLabel>
+                    </div>
+                </template>
 
                 <!-- Campo Selección de Colegio (solo si NO usa pasaporte Y es primera carrera Y (no es extranjero O es extranjero pero reside en Chile)) -->
-                <div v-if="(!esExtranjero || (esExtranjero && !resideFueraPais))" class="form-field colegio-field">
-                    <div class="flex flex-col gap-1">
-                        <label for="colegio" class="colegio-label">
-                            Colegio *
-                        </label>
-                        <div class="colegio-selection-container">
-                            <Button v-if="!formData.colegio" label="Seleccionar Colegio" icon="pi pi-map-marker"
-                                @click="openSchoolModal" class="colegio-button" outlined />
-                            <div v-else class="colegio-selected">
-                                <div class="colegio-info">
-                                    <School class="colegio-icon" />
-                                    <div class="colegio-details">
-                                        <div class="colegio-nombre">{{ formData.colegio }}</div>
-                                        <div class="colegio-location">
-                                            {{ formData.comunaResidencia }}{{ formData.regionResidencia ? `,
-                                            ${formData.regionResidencia}` : '' }}
+                <template v-if="props.modo !== 'postgrado'">
+                    <div v-if="(!esExtranjero || (esExtranjero && !resideFueraPais))" class="form-field colegio-field">
+                        <div class="flex flex-col gap-1">
+                            <label for="colegio" class="colegio-label">
+                                Colegio *
+                            </label>
+                            <div class="colegio-selection-container">
+                                <Button v-if="!formData.colegio" label="Seleccionar Colegio" icon="pi pi-map-marker"
+                                    @click="openSchoolModal" class="colegio-button" outlined />
+                                <div v-else class="colegio-selected">
+                                    <div class="colegio-info">
+                                        <School class="colegio-icon" />
+                                        <div class="colegio-details">
+                                            <div class="colegio-nombre">{{ formData.colegio }}</div>
+                                            <div class="colegio-location">
+                                                {{ formData.comunaResidencia }}{{ formData.regionResidencia ? `,
+                                                ${formData.regionResidencia}` : '' }}
+                                            </div>
                                         </div>
                                     </div>
+                                    <Button label="Cambiar" icon="pi pi-pencil" @click="openSchoolModal"
+                                        class="colegio-change-button colegio-completed" severity="success" text />
                                 </div>
-                                <Button label="Cambiar" icon="pi pi-pencil" @click="openSchoolModal"
-                                    class="colegio-change-button colegio-completed" severity="success" text />
                             </div>
+                            <Message
+                                v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')"
+                                severity="error"
+                                variant="simple"
+                                size="small"
+                            >
+                                Colegio es requerido
+                            </Message>
                         </div>
-                        <Message
-                            v-if="(submitted || touched.colegio) && (!formData.colegio || formData.colegio.trim() === '')"
-                            severity="error"
-                            variant="simple"
-                            size="small"
-                        >
-                            Colegio es requerido
-                        </Message>
                     </div>
-                </div>
+                </template>
 
                 <!-- Campo Consentimiento de Contacto -->
                 <div class="form-field consentimiento-field">

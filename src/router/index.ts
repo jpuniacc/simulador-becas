@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import { updateSEO } from '../composables/useSEO'
+import { useCampaignTracking } from '../composables/useCampaignTracking'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -10,7 +12,9 @@ const router = createRouter({
       component: HomeView,
       meta: {
         title: 'Inicio - Simulador de Becas UNIACC',
-        description: 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito'
+        description: 'Descubre qué beneficios y becas puedes obtener en UNIACC con nuestro simulador gratuito. Calcula tu arancel con descuentos en solo minutos.',
+        keywords: ['simulador becas', 'UNIACC', 'becas universitarias', 'descuentos', 'arancel'],
+        type: 'website'
       }
     },
     // {
@@ -22,22 +26,42 @@ const router = createRouter({
     //     description: 'Elige tu camino hacia la universidad en UNIACC'
     //   }
     // },
-    {
-      path: '/postgrado',
-      name: 'postgrado',
-      component: () => import('../views/PostgradoView.vue'),
-      meta: {
-        title: 'Postgrado - UNIACC',
-        description: 'Postgrado en UNIACC'
-      }
-    },
+    // {
+    //   path: '/advance',
+    //   name: 'advance',
+    //   component: () => import('../views/PostgradoView.vue'),
+    //   meta: {
+    //     title: 'Postgrado - UNIACC',
+    //     description: 'Postgrado en UNIACC'
+    //   }
+    // },
+    // {
+    //   path: '/diplomados',
+    //   name: 'diplomados',
+    //   component: () => import('../views/DiplomadosView.vue'),
+    //   meta: {
+    //     title: 'Cursos y Diplomados - UNIACC',
+    //     description: 'Cursos y Diplomados en UNIACC'
+    //   }
+    // },
+    // {
+    //   path: '/postgrados',
+    //   name: 'postgrados',
+    //   component: () => import('../views/MagisterView.vue'),
+    //   meta: {
+    //     title: 'Postgrado - UNIACC',
+    //     description: 'Postgrado en UNIACC'
+    //   }
+    // },
     {
       path: '/simulador',
       name: 'simulador',
       component: () => import('../views/Simulador2View.vue'),
       meta: {
         title: 'Simulador de Becas - UNIACC',
-        description: 'Simula tus beneficios y becas disponibles en UNIACC en solo 5 minutos'
+        description: 'Simula tus beneficios y becas disponibles en UNIACC en solo 5 minutos. Calcula tu arancel con descuentos y beneficios especiales.',
+        keywords: ['simulador becas', 'calcular arancel', 'becas UNIACC', 'beneficios estudiantiles'],
+        type: 'website'
       }
     },
     {
@@ -101,28 +125,71 @@ const router = createRouter({
   }
 })
 
-// Guard de navegación para actualizar el título de la página
+// Guard de navegación para actualizar SEO
 router.beforeEach((to, from, next) => {
-  // Actualizar título de la página
-  if (to.meta.title) {
-    document.title = to.meta.title as string
-  }
-
-  // Actualizar meta description
-  if (to.meta.description) {
-    const metaDescription = document.querySelector('meta[name="description"]')
-    if (metaDescription) {
-      metaDescription.setAttribute('content', to.meta.description as string)
-    }
+  // Actualizar SEO desde meta de la ruta
+  const meta = to.meta as Record<string, any>
+  if (meta) {
+    updateSEO({
+      title: meta.title as string,
+      description: meta.description as string,
+      image: meta.image as string,
+      type: meta.type as string || 'website',
+      canonical: meta.canonical as string,
+      robots: meta.robots as string,
+      keywords: meta.keywords as string[]
+    })
   }
 
   next()
 })
 
-// Guard de navegación para analytics (preparación futura)
+// Guard de navegación para analytics y tracking
 router.afterEach((to, from) => {
-  // Aquí podrías agregar analytics de navegación
-  console.log(`Navegación: ${from.path} → ${to.path}`)
+  // Inicializar/actualizar tracking de campañas en cada navegación
+  // Esto asegura que si hay parámetros nuevos en la URL, se capturen
+  // o que se carguen datos desde localStorage si no hay parámetros nuevos
+  const { initialize: initializeCampaignTracking } = useCampaignTracking()
+  const campaignData = initializeCampaignTracking()
+
+  // Actualizar datos de campaña en el store en el próximo tick
+  // para asegurar que el componente ya esté montado
+  import('vue').then(({ nextTick }) => {
+    nextTick(() => {
+      // Importar el store dinámicamente para evitar circular dependencies
+      import('../stores/simuladorStore').then(({ useSimuladorStore }) => {
+        try {
+          const store = useSimuladorStore()
+          if (store && typeof store.initializeCampaignData === 'function') {
+            store.initializeCampaignData()
+          }
+        } catch (e) {
+          // Ignorar si el store no está disponible aún
+          if (import.meta.env.DEV) {
+            console.debug('Store no disponible aún para actualizar campaign data')
+          }
+        }
+      }).catch(() => {
+        // Ignorar errores de importación
+      })
+    })
+  })
+
+  // Trackear navegación en GTM (si dataLayer está disponible)
+  if (typeof window !== 'undefined' && (window as any).dataLayer) {
+    ;(window as any).dataLayer.push({
+      event: 'page_view',
+      page_path: to.path,
+      page_url: window.location.href,
+      page_title: to.meta.title as string,
+      campaign_data: campaignData
+    })
+  }
+
+  // Log para debugging (remover en producción si es necesario)
+  if (import.meta.env.DEV) {
+    console.log(`Navegación: ${from.path} → ${to.path}`)
+  }
 })
 
 export default router

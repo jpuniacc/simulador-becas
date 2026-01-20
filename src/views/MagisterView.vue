@@ -8,19 +8,16 @@ import Step from 'primevue/step';
 import StepPanel from 'primevue/steppanel';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
-import CareerPostgrado from '@/components/postgrado/CareerPostgrado.vue';
-import MultipleCareerPostgrado from '@/components/postgrado/MultipleCareerPostgrado.vue';
+import MagisterPreferences from '@/components/magister/MagisterPreferences.vue';
 import PersonalAcademicData from '@/components/simulador/PersonalAcademicData.vue';
 import Results from '@/components/simulador/Results.vue';
 import { validateEmail, validateRUT } from '@/utils/validation';
-import { MODO_CARRERA_POSTGRADO } from '@/utils/config';
 import type { FormData } from '@/types/simulador';
 
 // Estado del formulario
 const formData = ref<Partial<FormData & { carreraInteres: string; carreraInteresId: number }>>({
-    // Datos de postgrado
+    // Datos de magíster
     carreraTitulo: '',
-    area: '',
     modalidadPreferencia: [],
     objetivo: [],
     carreraInteres: '',
@@ -42,8 +39,8 @@ const formData = ref<Partial<FormData & { carreraInteres: string; carreraInteres
     nem: null
 });
 
-// Referencia al componente de carrera postgrado para acceder a la validación
-const careerPostgradoRef = ref<InstanceType<typeof CareerPostgrado> | InstanceType<typeof MultipleCareerPostgrado> | null>(null);
+// Referencia al componente de magíster para acceder a la validación
+const magisterPreferencesRef = ref<InstanceType<typeof MagisterPreferences> | null>(null);
 
 // Referencia al componente de datos personales para acceder a la validación
 const personalDataRef = ref<InstanceType<typeof PersonalAcademicData> | null>(null);
@@ -103,7 +100,6 @@ const mappedFormDataForResults = computed(() => {
     return data;
 });
 
-
 // Toast de PrimeVue
 const toast = useToast();
 
@@ -130,33 +126,27 @@ const handleValidationChangeStep2 = (isValid: boolean) => {
     isStep2Valid.value = isValid;
 };
 
-// Función para recopilar campos faltantes del paso 1 (CareerPostgrado)
+// Función para recopilar campos faltantes del paso 1 (MagisterPreferences)
 const getMissingFieldsStep1 = (): string[] => {
     const missing: string[] = []
     const formDataAny = formData.value as any
 
-    if (!formData.value.carreraTitulo?.trim()) missing.push('Carrera o Título')
+    if (!formData.value.origen?.trim()) missing.push('Objetivo / situación actual')
 
-    // En modo MULTIPLE se requieren campos adicionales
-    if (MODO_CARRERA_POSTGRADO === 'MULTIPLE') {
-        if (!formDataAny?.carreraInteres?.trim() || !formDataAny?.carreraInteresId || formDataAny.carreraInteresId === 0) {
-            missing.push('Carrera de Interés para Nuevo Estudio')
-        }
-    } else {
-        // En modo UNICA se requieren campos adicionales del componente CareerPostgrado
-        if (!formData.value.objetivo || formData.value.objetivo.length === 0) {
-            missing.push('Motivación Académica')
-        }
+    if (!formDataAny?.gradoAcademico?.trim()) missing.push('Grado Académico')
+
+    if (!formDataAny?.carreraInteres?.trim() || !formDataAny?.carreraInteresId || formDataAny.carreraInteresId === 0) {
+        missing.push('Programa de Interés')
     }
 
     return missing
 }
 
-// Función para recopilar campos faltantes del paso 2 (PersonalAcademicData en modo especialización)
+// Función para recopilar campos faltantes del paso 2 (PersonalAcademicData en modo postgrado)
 const getMissingFieldsStep2 = (): string[] => {
     const missing: string[] = []
 
-    // En modo especialización, nivelEducativo y colegio NO son requeridos
+    // En modo postgrado, nivelEducativo y colegio NO son requeridos
     if (!formData.value.nombre?.trim()) missing.push('Nombre')
     if (!formData.value.apellido?.trim()) missing.push('Apellido')
     if (!formData.value.email?.trim()) missing.push('Email')
@@ -234,16 +224,16 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
 <template>
     <div class="main-container">
         <div class="header-container">
-            <h1>Pregrado Advance UNIACC</h1>
+            <h1>Postgrados UNIACC</h1>
         </div>
         <div class="content-container">
             <Stepper value="1" linear class="w-full sm:basis-[40rem] md:basis-[50rem] lg:basis-[72rem]">
                 <StepList class="stepper-header sticky top-0 z-10 bg-white py-4">
                     <Step value="1">
                         <!-- Corto en móvil -->
-                        <span class="md:hidden">Carrera</span>
+                        <span class="md:hidden">Preferencias</span>
                         <!-- Largo en desktop -->
-                        <span class="hidden md:inline">Tu Carrera</span>
+                        <span class="hidden md:inline">Tus Preferencias</span>
                     </Step>
 
                     <Step value="2">
@@ -266,16 +256,8 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                 <StepPanels>
                     <StepPanel v-slot="{ activateCallback }" value="1">
                         <div class="stepper-panel flex flex-col">
-                            <CareerPostgrado
-                                v-if="MODO_CARRERA_POSTGRADO === 'MULTIPLE'"
-                                ref="careerPostgradoRef"
-                                :form-data="formData"
-                                @update:form-data="handleFormDataUpdate"
-                                @validation-change="handleValidationChange"
-                            />
-                            <MultipleCareerPostgrado
-                                v-else-if="MODO_CARRERA_POSTGRADO === 'UNICA'"
-                                ref="careerPostgradoRef"
+                            <MagisterPreferences
+                                ref="magisterPreferencesRef"
                                 :form-data="formData"
                                 @update:form-data="handleFormDataUpdate"
                                 @validation-change="handleValidationChange"
@@ -288,8 +270,8 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                                 @mousedown="() => {
                                     if (isStep1ButtonBlocked) return
 
-                                    if (careerPostgradoRef && 'markAsSubmitted' in careerPostgradoRef && typeof careerPostgradoRef.markAsSubmitted === 'function') {
-                                        careerPostgradoRef.markAsSubmitted()
+                                    if (magisterPreferencesRef && 'markAsSubmitted' in magisterPreferencesRef && typeof magisterPreferencesRef.markAsSubmitted === 'function') {
+                                        magisterPreferencesRef.markAsSubmitted()
                                     }
                                     // Esperar un tick para que se actualicen los errores antes de verificar validación
                                     nextTick(() => {
@@ -383,7 +365,7 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
                     </StepPanel>
                     <StepPanel v-slot="{ activateCallback }" value="3">
                         <div class="flex flex-col">
-                            <Results ref="resultsRef" :form-data="mappedFormDataForResults" segmentacion="pregrado_advance" />
+                            <Results ref="resultsRef" :form-data="mappedFormDataForResults" segmentacion="postgrado" />
                         </div>
                         <div class="pt-6">
                             <Button
@@ -487,3 +469,4 @@ const handleNextToStep3 = async (activateCallback: (step: string) => void) => {
     cursor: not-allowed;
 }
 </style>
+
