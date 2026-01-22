@@ -22,7 +22,7 @@ const featuresSection = ref<HTMLElement>()
 // Métodos
 const goToSimulator = () => {
   router.push('/simulador')                       //     --> para ir directo a formulador de pregrado (pregrado, postgrado, diplomado) segun el nivel academico
-  //router.push('/elige-tu-camino')                //    --> para ir a la segmentacion (pregrado, postgrado, diplomado) segun el nivel academico
+  router.push('/elige-tu-camino')                //    --> para ir a la segmentacion (pregrado, postgrado, diplomado) segun el nivel academico
 }
 
 const goToAbout = () => {
