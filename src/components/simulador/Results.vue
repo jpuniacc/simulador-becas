@@ -17,7 +17,7 @@ import type { FormData } from '@/types/simulador'
 import { useProspectos } from '@/composables/useProspectos'
 import { useCRM } from '@/composables/useCRM'
 import { ANIO_POSTULACION } from '@/utils/config'
-import { Award, CheckCircle, FileText } from 'lucide-vue-next'
+import { Award, CheckCircle, FileText, Info, Clock } from 'lucide-vue-next'
 import html2pdf from 'html2pdf.js'
 import Button from 'primevue/button'
 // JPS: Imports de componentes shadcn para versión mobile con accordion
@@ -925,8 +925,17 @@ defineExpose({
         </Card>
       </div>
 
-      <div class="texto-referencial mt-3">
-        *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
+      <div class="disclaimer-referencial mt-4">
+        <div class="disclaimer-referencial-inner">
+          <Info class="disclaimer-referencial-icon" aria-hidden="true" />
+          <div class="disclaimer-referencial-text">
+            <span class="disclaimer-referencial-main">*Simulación referencial:</span> Un asesor revisará tu caso y confirmará el monto final.
+            <span class="disclaimer-referencial-duration">
+              <Clock class="disclaimer-duration-icon" aria-hidden="true" />
+              Esta simulación tiene una duración de 1 semana a contar de hoy. Una vez excedido ese plazo, deberás volver a simular
+            </span>
+          </div>
+        </div>
       </div>
 
       <!-- Mensaje de contacto con descuento -->
@@ -1436,8 +1445,17 @@ defineExpose({
         </Accordion>
 
         <!-- Texto referencial mobile -->
-        <div class="text-center mt-4 text-sm font-bold text-gray-700">
-          *Simulación referencial: Un asesor revisará tu caso y confirmará el monto final
+        <div class="disclaimer-referencial disclaimer-referencial-mobile mt-4">
+          <div class="disclaimer-referencial-inner">
+            <Info class="disclaimer-referencial-icon" aria-hidden="true" />
+            <div class="disclaimer-referencial-text">
+              <span class="disclaimer-referencial-main">*Simulación referencial:</span> Un asesor revisará tu caso y confirmará el monto final.
+              <span class="disclaimer-referencial-duration">
+                <Clock class="disclaimer-duration-icon" aria-hidden="true" />
+                Duración: 1 semana
+              </span>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Fin versión Mobile -->
@@ -2996,15 +3014,84 @@ defineExpose({
   color: #001122;
 }
 
-.texto-referencial{
+/* Disclaimer referencial con estilo tipo info */
+.disclaimer-referencial {
   font-family: 'Montserrat', sans-serif;
+}
+
+.disclaimer-referencial-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f0f8fb 0%, #e8f4f8 100%);
+  border: 1px solid rgba(26, 59, 102, 0.15);
+  border-left: 4px solid #1a3b66;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(26, 59, 102, 0.06);
+}
+
+.disclaimer-referencial-icon {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #1a3b66;
+  margin-top: 0.15rem;
+}
+
+.disclaimer-referencial-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #1a3b66;
+  font-weight: 500;
+}
+
+.disclaimer-referencial-main {
   font-weight: 700;
-  font-style: bold;
-  font-size: 18px;
-  line-height: 125%;
-  letter-spacing: 0%;
-  color: #1A3B66;
-  text-align: center;
+  color: #001122;
+}
+
+.disclaimer-referencial-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #1a3b66 0%, #0f2847 100%);
+  color: #fff;
+  border: 2px solid #1a3b66;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(26, 59, 102, 0.35);
+  letter-spacing: 0.02em;
+}
+
+.disclaimer-duration-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.disclaimer-referencial-mobile .disclaimer-referencial-inner {
+  padding: 0.875rem 1rem;
+  gap: 0.625rem;
+}
+
+.disclaimer-referencial-mobile .disclaimer-referencial-text {
+  font-size: 0.875rem;
+}
+
+.disclaimer-referencial-mobile .disclaimer-referencial-duration {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: normal;
 }
 
 /* JPS: Estilos Mobile - Optimizaciones para iOS y Android */
