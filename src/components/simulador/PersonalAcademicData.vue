@@ -13,7 +13,7 @@ import DatePicker from 'primevue/datepicker'
 import SchoolSelectionModal from '@/components/modals/SchoolSelectionModal.vue'
 import type { FormData } from '@/types/simulador'
 import type { Region, Comuna, Colegio } from '@/composables/useColegios'
-import { School } from 'lucide-vue-next'
+import { School, Shield } from 'lucide-vue-next'
 import { validateEmail, validateRUT } from '@/utils/validation'
 import { formatRUT, cleanRUT } from '@/utils/formatters'
 
@@ -76,6 +76,8 @@ const handleMobileResize = () => {
 }
 
 onMounted(() => {
+    // Consentimiento siempre true: avisar al padre
+    emit('update:form-data', { consentimiento_contacto: true })
     // Detectar si es móvil basándose en touch support y tamaño de pantalla
     handleMobileResize()
     // Escuchar cambios de tamaño de ventana
@@ -105,7 +107,7 @@ const formData = ref<Partial<FormData>>({
     ranking: props.formData?.ranking || null,
     nem: props.formData?.nem || null,
     anio_nacimiento: props.formData?.anio_nacimiento || null,
-    consentimiento_contacto: props.formData?.consentimiento_contacto || false
+        consentimiento_contacto: true
 })
 
 // Computed para verificar si es egresado (completó educación media)
@@ -728,7 +730,7 @@ watch(() => props.formData, (newData) => {
             formData.value.ranking !== (newData.ranking || null) ||
             formData.value.nem !== (newData.nem || null) ||
             formData.value.anio_nacimiento !== (newData.anio_nacimiento || null) ||
-            formData.value.consentimiento_contacto !== (newData.consentimiento_contacto || false)
+            formData.value.consentimiento_contacto !== true
 
         if (hasChanges) {
             isUpdatingFromProps.value = true
@@ -750,7 +752,7 @@ watch(() => props.formData, (newData) => {
                 ranking: newData.ranking || null,
                 nem: newData.nem || null,
                 anio_nacimiento: newData.anio_nacimiento || null,
-                consentimiento_contacto: newData.consentimiento_contacto || false
+                consentimiento_contacto: true
             }
             // Resetear el flag después de un pequeño delay
             setTimeout(() => {
@@ -1148,31 +1150,21 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
                     </div>
                 </template>
 
-                <!-- Campo Consentimiento de Contacto -->
+                <!-- Disclaimer de consentimiento (siempre true en formulario) -->
                 <div class="form-field consentimiento-field">
-                    <label
-                        for="consentimiento_contacto"
-                        class="consentimiento-label"
-                        :class="{ 'consentimiento-checked': formData.consentimiento_contacto }"
-                    >
-                        <Checkbox
-                            id="consentimiento_contacto"
-                            v-model="formData.consentimiento_contacto"
-                            :binary="true"
-                            class="consentimiento-checkbox"
-                        />
+                    <div class="consentimiento-wrapper">
+                        <span class="consentimiento-asterisco" aria-hidden="true">*</span>
+                        <Shield class="consentimiento-icon" aria-hidden="true" />
                         <div class="consentimiento-content">
                             <p class="consentimiento-title">
-                                Acepto que un/a ejecutivo/a de admisión de UNIACC me contacte
+                                Aceptas que el equipo de admisión de UNIACC te contacte
+                                para orientarte sobre programas y resolver tus dudas, usando los datos que ingresaste.
                             </p>
-                            <p class="consentimiento-subtitle">
-                                para orientarme sobre programas y resolver mis dudas, usando los datos que acabo de ingresar
+                            <p class="consentimiento-disclaimer">
+                                * Solo usamos tus datos con fines de orientación académica.
                             </p>
                         </div>
-                    </label>
-                    <p class="consentimiento-disclaimer">
-                        * Tus datos se usarán solo con fines de orientación académica.
-                    </p>
+                    </div>
                 </div>
             </div>
         </form>
@@ -1325,64 +1317,57 @@ watch(() => formData.value.nivelEducativo, (newNivel) => {
     @apply col-span-1 md:col-span-2;
 }
 
-.consentimiento-label {
-    @apply flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors;
-    @apply border-gray-200 hover:bg-gray-50;
-    @apply relative;
+.consentimiento-wrapper {
+    @apply flex items-start gap-3 rounded-xl border border-gray-200 p-4 relative;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.04) 0%, rgba(147, 197, 253, 0.06) 100%);
+    border-left: 4px solid var(--p-primary-500);
 }
 
-.consentimiento-label.consentimiento-checked {
-    border-color: var(--p-primary-500);
-    background-color: var(--p-primary-100);
+.consentimiento-asterisco {
+    @apply flex-shrink-0 mt-0.5 font-bold text-lg leading-none;
+    color: var(--p-primary-600);
 }
 
-.dark .consentimiento-label.consentimiento-checked {
-    border-color: var(--p-primary-700);
-    background-color: var(--p-primary-500);
+.dark .consentimiento-asterisco {
+    color: var(--p-primary-400);
 }
 
-.consentimiento-checkbox {
-    @apply mt-0.5 flex-shrink-0;
+.dark .consentimiento-wrapper {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(30, 64, 175, 0.06) 100%);
+    border-color: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--p-primary-400);
 }
 
-:deep(.consentimiento-checkbox .p-checkbox-box) {
-    @apply border-gray-300;
+.consentimiento-icon {
+    @apply flex-shrink-0 mt-0.5;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--p-primary-600);
 }
 
-:deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
-    border-color: var(--p-primary-700) !important;
-    background-color: var(--p-primary-500) !important;
-}
-
-.dark :deep(.consentimiento-checkbox .p-checkbox-box.p-highlight) {
-    border-color: var(--p-primary-700) !important;
-    background-color: var(--p-primary-500) !important;
-}
-
-:deep(.consentimiento-checkbox .p-checkbox-icon) {
-    @apply text-white;
+.dark .consentimiento-icon {
+    color: var(--p-primary-400);
 }
 
 .consentimiento-content {
-    @apply flex-1;
+    @apply flex-1 min-w-0;
 }
 
 .consentimiento-title {
-    @apply text-sm font-medium mb-1.5;
+    @apply text-sm leading-relaxed;
     color: var(--p-primary-900);
-    line-height: 1.5;
 }
 
-.consentimiento-subtitle {
-    @apply text-sm font-normal;
-    color: var(--p-primary-900);
-    line-height: 1.5;
-    margin-left: calc(-1.25rem - 0.75rem);
-    padding-left: calc(1.25rem + 0.75rem);
+.dark .consentimiento-title {
+    color: var(--p-primary-100);
 }
 
 .consentimiento-disclaimer {
-    @apply text-sm text-gray-500 italic mt-2;
+    @apply text-xs text-gray-500 italic mt-2.5;
+}
+
+.dark .consentimiento-disclaimer {
+    @apply text-gray-400;
 }
 
 /* Responsive */
