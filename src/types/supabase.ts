@@ -1921,6 +1921,8 @@ export type Database = {
           año_egreso: number | null
           apellido: string
           area_interes: string | null
+          arancel_final: number | null
+          arancel_original: number | null
           beca: string | null
           becas_estado: boolean | null
           cae: boolean | null
@@ -1934,6 +1936,7 @@ export type Database = {
           created_at: string | null
           curso: string
           decil: string | null
+          descuento_total: number | null
           email: string
           fbclid: string | null
           first_touch_timestamp: string | null
@@ -1946,10 +1949,14 @@ export type Database = {
           last_touch_url: string | null
           li_fat_id: string | null
           matematica1: number | null
+          matricula_final: number | null
+          matricula_original: number | null
+          medio_pago: string | null
           modalidadpreferencia: Json | null
           msclkid: string | null
           nem: number | null
           nombre: string
+          numero_cuotas: number | null
           objetivo: Json | null
           paes: boolean | null
           pasaporte: string | null
@@ -1961,6 +1968,7 @@ export type Database = {
           rut: string | null
           segmentacion: string | null
           telefono: string | null
+          total_final: number | null
           ttclid: string | null
           updated_at: string | null
           url_origen: string | null
@@ -1969,6 +1977,7 @@ export type Database = {
           utm_medium: string | null
           utm_source: string | null
           utm_term: string | null
+          valor_mensual: number | null
         }
         Insert: {
           ad_id?: string | null
@@ -1976,6 +1985,8 @@ export type Database = {
           año_egreso?: number | null
           apellido: string
           area_interes?: string | null
+          arancel_final?: number | null
+          arancel_original?: number | null
           beca?: string | null
           becas_estado?: boolean | null
           cae?: boolean | null
@@ -1989,6 +2000,7 @@ export type Database = {
           created_at?: string | null
           curso: string
           decil?: string | null
+          descuento_total?: number | null
           email: string
           fbclid?: string | null
           first_touch_timestamp?: string | null
@@ -2001,10 +2013,14 @@ export type Database = {
           last_touch_url?: string | null
           li_fat_id?: string | null
           matematica1?: number | null
+          matricula_final?: number | null
+          matricula_original?: number | null
+          medio_pago?: string | null
           modalidadpreferencia?: Json | null
           msclkid?: string | null
           nem?: number | null
           nombre: string
+          numero_cuotas?: number | null
           objetivo?: Json | null
           paes?: boolean | null
           pasaporte?: string | null
@@ -2016,6 +2032,7 @@ export type Database = {
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null
+          total_final?: number | null
           ttclid?: string | null
           updated_at?: string | null
           url_origen?: string | null
@@ -2024,6 +2041,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          valor_mensual?: number | null
         }
         Update: {
           ad_id?: string | null
@@ -2031,6 +2049,8 @@ export type Database = {
           año_egreso?: number | null
           apellido?: string
           area_interes?: string | null
+          arancel_final?: number | null
+          arancel_original?: number | null
           beca?: string | null
           becas_estado?: boolean | null
           cae?: boolean | null
@@ -2044,6 +2064,7 @@ export type Database = {
           created_at?: string | null
           curso?: string
           decil?: string | null
+          descuento_total?: number | null
           email?: string
           fbclid?: string | null
           first_touch_timestamp?: string | null
@@ -2056,10 +2077,14 @@ export type Database = {
           last_touch_url?: string | null
           li_fat_id?: string | null
           matematica1?: number | null
+          matricula_final?: number | null
+          matricula_original?: number | null
+          medio_pago?: string | null
           modalidadpreferencia?: Json | null
           msclkid?: string | null
           nem?: number | null
           nombre?: string
+          numero_cuotas?: number | null
           objetivo?: Json | null
           paes?: boolean | null
           pasaporte?: string | null
@@ -2071,6 +2096,7 @@ export type Database = {
           rut?: string | null
           segmentacion?: string | null
           telefono?: string | null
+          total_final?: number | null
           ttclid?: string | null
           updated_at?: string | null
           url_origen?: string | null
@@ -2079,6 +2105,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          valor_mensual?: number | null
         }
         Relationships: [
           {
