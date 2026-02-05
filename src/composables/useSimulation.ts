@@ -1,5 +1,7 @@
 // Composable para simulación de beneficios
 import { ref, computed, watch } from 'vue'
+import { supabase } from '@/lib/supabase/client'
+import type { Database } from '@/types/supabase'
 import type {
   FormData,
   SimulationResults,
@@ -70,6 +72,12 @@ export function useSimulation(
   const results = ref<SimulationResults | null>(null)
   const error = ref<string | null>(null)
   const lastSimulation = ref<Date | null>(null)
+  
+  // JPS: Estados para guardado de simulación
+  // Modificación: Agregar estados para manejar el guardado de simulaciones en la base de datos
+  // Funcionamiento: savedSimulationId almacena el ID de la simulación guardada, isSaving indica si se está guardando
+  const savedSimulationId = ref<string | null>(null)
+  const isSaving = ref(false)
 
   // Configuración de simulación
   const config = ref<SimulationConfig>({
@@ -409,11 +417,178 @@ export function useSimulation(
     }
   }
 
+  // JPS: Validar si existe una simulación válida para el mismo RUT y carrera
+  // Modificación: Agregar método para verificar si ya existe una simulación válida (no expirada) para el mismo RUT y carrera
+  // Funcionamiento: Consulta primero prospectos por RUT y carrera, luego busca simulaciones válidas para esos prospectos
+  const checkExistingSimulation = async (rut: string, carreraId: number): Promise<boolean> => {
+    if (!rut || !carreraId) {
+      return false
+    }
+
+    try {
+      // JPS: Primero buscar prospectos con el mismo RUT y carrera
+      // Modificación: Buscar prospectos que tengan el mismo RUT y carrera para luego buscar sus simulaciones
+      // Funcionamiento: Esto permite encontrar todas las simulaciones asociadas a prospectos con el mismo RUT y carrera
+      const { data: prospectos, error: prospectosError } = await supabase
+        .from('prospectos')
+        .select('id')
+        .eq('rut', rut)
+        .eq('carrera', carreraId)
+
+      if (prospectosError) {
+        console.error('Error al buscar prospectos:', prospectosError)
+        return false
+      }
+
+      if (!prospectos || prospectos.length === 0) {
+        return false
+      }
+
+      // JPS: Buscar simulaciones válidas para estos prospectos
+      // Modificación: Buscar simulaciones donde el prospecto tenga el mismo RUT y carrera, y la simulación no haya expirado
+      // Funcionamiento: 
+      // 1. Filtra por prospecto_id en la lista de prospectos encontrados
+      // 2. Filtra por fecha_simulacion >= NOW() - INTERVAL '7 days'
+      // 3. Verifica que la fecha de validez (en resultados->>'fechaValidez') no haya expirado
+      const fechaLimite = new Date()
+      fechaLimite.setDate(fechaLimite.getDate() - 7)
+      const fechaLimiteISO = fechaLimite.toISOString()
+
+      const prospectoIds = prospectos.map(p => p.id)
+
+      const { data: simulaciones, error: simulacionesError } = await supabase
+        .from('simulaciones')
+        .select('id, fecha_simulacion, resultados')
+        .in('prospecto_id', prospectoIds)
+        .gte('fecha_simulacion', fechaLimiteISO)
+
+      if (simulacionesError) {
+        console.error('Error al verificar simulaciones existentes:', simulacionesError)
+        return false
+      }
+
+      if (!simulaciones || simulaciones.length === 0) {
+        return false
+      }
+
+      // JPS: Verificar que la fecha de validez no haya expirado
+      // Modificación: Revisar el campo fechaValidez en el JSON de resultados para asegurar que la simulación sigue siendo válida
+      // Funcionamiento: Si la fecha de validez es posterior a la fecha actual, la simulación es válida
+      const ahora = new Date()
+      for (const simulacion of simulaciones) {
+        if (simulacion.resultados && typeof simulacion.resultados === 'object') {
+          const resultados = simulacion.resultados as any
+          if (resultados.fechaValidez) {
+            const fechaValidez = new Date(resultados.fechaValidez)
+            if (fechaValidez > ahora) {
+              // Existe una simulación válida
+              return true
+            }
+          }
+        }
+        // JPS: Si no tiene fechaValidez en resultados, usar fecha_simulacion + 7 días
+        // Modificación: Calcular fecha de validez basada en fecha_simulacion si no está en resultados
+        // Funcionamiento: Por defecto, las simulaciones tienen validez de 7 días desde fecha_simulacion
+        if (simulacion.fecha_simulacion) {
+          const fechaSimulacion = new Date(simulacion.fecha_simulacion)
+          const fechaValidezCalculada = new Date(fechaSimulacion)
+          fechaValidezCalculada.setDate(fechaValidezCalculada.getDate() + 7)
+          if (fechaValidezCalculada > ahora) {
+            return true
+          }
+        }
+      }
+
+      return false
+    } catch (err: any) {
+      console.error('Error en checkExistingSimulation:', err)
+      return false
+    }
+  }
+
+  // JPS: Guardar simulación en la base de datos con validez de 7 días
+  // Modificación: Agregar método para guardar la simulación completa en la tabla simulaciones
+  // Funcionamiento: 
+  // 1. Valida que existan resultados de simulación
+  // 2. Calcula fecha de validez (7 días desde hoy)
+  // 3. Guarda datos_entrada, resultados (con metadata de validez), beneficios_aplicables
+  // 4. Retorna el ID de la simulación guardada
+  const saveSimulation = async (prospectoId: string): Promise<string | null> => {
+    if (!results.value) {
+      throw new Error('No hay resultados de simulación para guardar')
+    }
+
+    if (!prospectoId) {
+      throw new Error('Se requiere el ID del prospecto para guardar la simulación')
+    }
+
+    isSaving.value = true
+    error.value = null
+
+    try {
+      type SimulacionInsert = Database['public']['Tables']['simulaciones']['Insert']
+
+      // JPS: Calcular fecha de validez (7 días desde hoy)
+      // Modificación: Agregar metadata de validez a los resultados de simulación
+      // Funcionamiento: La simulación tiene validez de 7 días, se guarda esta información en el JSON de resultados
+      const fechaSimulacion = new Date()
+      const fechaValidez = new Date(fechaSimulacion)
+      fechaValidez.setDate(fechaValidez.getDate() + 7)
+
+      // JPS: Agregar información de validez a los resultados
+      // Modificación: Incluir fechaValidez y diasValidez en el objeto de resultados
+      // Funcionamiento: Esto permite verificar fácilmente si una simulación sigue siendo válida
+      const resultadosConValidez = {
+        ...results.value,
+        fechaValidez: fechaValidez.toISOString(),
+        diasValidez: 7
+      }
+
+      const payload: SimulacionInsert = {
+        prospecto_id: prospectoId,
+        datos_entrada: formData as any,
+        resultados: resultadosConValidez as any,
+        beneficios_aplicables: results.value.beneficiosAplicables as any,
+        fecha_simulacion: fechaSimulacion.toISOString()
+      }
+
+      const { data, error: insertError } = await supabase
+        .from('simulaciones')
+        .insert(payload)
+        .select('id')
+        .single()
+
+      if (insertError) throw insertError
+
+      savedSimulationId.value = data.id
+
+      if (import.meta.env.DEV) {
+        console.log('✅ Simulación guardada exitosamente:', { 
+          id: data.id, 
+          prospectoId,
+          fechaValidez: fechaValidez.toISOString()
+        })
+      }
+
+      return data.id
+    } catch (err: any) {
+      error.value = err?.message || 'Error al guardar la simulación'
+      console.error('Error al guardar simulación:', err)
+      return null
+    } finally {
+      isSaving.value = false
+    }
+  }
+
   // Limpiar resultados
   const clearResults = () => {
     results.value = null
     error.value = null
     lastSimulation.value = null
+    // JPS: Limpiar también el ID de simulación guardada
+    // Modificación: Agregar limpieza de savedSimulationId cuando se limpian los resultados
+    // Funcionamiento: Al limpiar resultados, también se resetea el estado de simulación guardada
+    savedSimulationId.value = null
   }
 
   // Actualizar configuración
@@ -439,6 +614,11 @@ export function useSimulation(
     error,
     lastSimulation,
     config,
+    // JPS: Exponer estados de guardado de simulación
+    // Modificación: Agregar savedSimulationId e isSaving al return del composable
+    // Funcionamiento: Permite a los componentes saber si la simulación fue guardada y si se está guardando
+    savedSimulationId,
+    isSaving,
 
     // Computed
     canSimulate,
@@ -457,7 +637,12 @@ export function useSimulation(
     getBenefitsSummary,
     getSimulationProgress,
     clearResults,
-    updateConfig
+    updateConfig,
+    // JPS: Exponer métodos de guardado de simulación
+    // Modificación: Agregar checkExistingSimulation y saveSimulation al return
+    // Funcionamiento: Permite validar y guardar simulaciones desde los componentes
+    checkExistingSimulation,
+    saveSimulation
   }
 }
 
