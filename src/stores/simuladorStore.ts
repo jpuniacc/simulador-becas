@@ -93,6 +93,20 @@ export const useSimuladorStore = defineStore('simulador', () => {
   const calculoBecas = ref<CalculoBecas | null>(null)
   const costosCarrera = ref<any>(null)
 
+  // JPS: Datos de simulación de cuotas y medios de pago
+  // Modificación: Agregar estados para almacenar los datos de simulación (medio de pago, cuotas, montos)
+  // Funcionamiento: Estos datos se capturan cuando el usuario selecciona medio de pago y número de cuotas,
+  // y se usan al guardar la simulación en la base de datos
+  const medioPago = ref<string | null>(null)
+  const numeroCuotas = ref<number>(10) // Valor por defecto: 10 cuotas
+  const arancelOriginal = ref<number | null>(null)
+  const matriculaOriginal = ref<number | null>(null)
+  const descuentoTotal = ref<number | null>(null)
+  const arancelFinal = ref<number | null>(null)
+  const matriculaFinal = ref<number | null>(null)
+  const totalFinal = ref<number | null>(null)
+  const valorMensual = ref<number | null>(null)
+
   // Validación por paso
   const stepValidation = ref<StepValidation>({
     0: true,  // Bienvenida
@@ -199,8 +213,10 @@ export const useSimuladorStore = defineStore('simulador', () => {
     validateOnMount: false
   })
 
-  // Inicializar simulación (se recreará en cada simulación con datos actuales)
-  let simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
+  // JPS: Inicializar simulación como ref para que sea reactivo y accesible
+  // Modificación: Cambiar de let a ref para que simulation sea reactivo y se pueda exponer en el store
+  // Funcionamiento: Se recrea en cada simulación con datos actuales, pero se mantiene como ref para acceso desde componentes
+  const simulation = ref(useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value))
 
   // Inicializar cálculo de decil
   const decilCalculation = useDecilCalculation({
@@ -477,11 +493,13 @@ export const useSimuladorStore = defineStore('simulador', () => {
       // Calcular becas del estado elegibles
       // becasStore.calcularBecasElegiblesEstado(formData.value) // No se calcula becas del estado en la simulación
 
-      // Recrear simulación con datos actuales
-      simulation = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
+      // JPS: Recrear simulación con datos actuales
+      // Modificación: Actualizar el valor de simulation ref con nueva instancia
+      // Funcionamiento: Se recrea la instancia de simulación con los datos actuales del formulario
+      simulation.value = useSimulation(formData.value, beneficios.value, deciles.value, simulationConfig.value)
 
       // Ejecutar simulación
-      const resultados = await simulation.simulate()
+      const resultados = await simulation.value.simulate()
 
       results.value = resultados
       lastSimulation.value = new Date()
@@ -668,6 +686,19 @@ export const useSimuladorStore = defineStore('simulador', () => {
     calculoBecas,
     costosCarrera,
 
+    // JPS: Exponer datos de simulación de cuotas y medios de pago
+    // Modificación: Agregar datos de simulación al return del store
+    // Funcionamiento: Permite que los componentes accedan a los datos de simulación (medio de pago, cuotas, montos)
+    medioPago,
+    numeroCuotas,
+    arancelOriginal,
+    matriculaOriginal,
+    descuentoTotal,
+    arancelFinal,
+    matriculaFinal,
+    totalFinal,
+    valorMensual,
+
     // Datos de referencia
     deciles,
     beneficios,
@@ -699,6 +730,35 @@ export const useSimuladorStore = defineStore('simulador', () => {
     // Simulación
     simulate,
     clearResults,
+    // JPS: Exponer instancia de simulation
+    // Modificación: Agregar simulation al return del store para acceso desde componentes
+    // Funcionamiento: Permite que los componentes accedan a los métodos de simulation (checkExistingSimulation, saveSimulation)
+    simulation,
+
+    // JPS: Métodos para actualizar datos de simulación
+    // Modificación: Agregar métodos para actualizar los datos de simulación de cuotas y medios de pago
+    // Funcionamiento: Permite actualizar los valores de medio de pago, cuotas y montos calculados
+    updateSimulationData: (data: {
+      medioPago?: string | null
+      numeroCuotas?: number
+      arancelOriginal?: number | null
+      matriculaOriginal?: number | null
+      descuentoTotal?: number | null
+      arancelFinal?: number | null
+      matriculaFinal?: number | null
+      totalFinal?: number | null
+      valorMensual?: number | null
+    }) => {
+      if (data.medioPago !== undefined) medioPago.value = data.medioPago
+      if (data.numeroCuotas !== undefined) numeroCuotas.value = data.numeroCuotas
+      if (data.arancelOriginal !== undefined) arancelOriginal.value = data.arancelOriginal
+      if (data.matriculaOriginal !== undefined) matriculaOriginal.value = data.matriculaOriginal
+      if (data.descuentoTotal !== undefined) descuentoTotal.value = data.descuentoTotal
+      if (data.arancelFinal !== undefined) arancelFinal.value = data.arancelFinal
+      if (data.matriculaFinal !== undefined) matriculaFinal.value = data.matriculaFinal
+      if (data.totalFinal !== undefined) totalFinal.value = data.totalFinal
+      if (data.valorMensual !== undefined) valorMensual.value = data.valorMensual
+    },
 
     // Carga de datos
     loadDeciles,

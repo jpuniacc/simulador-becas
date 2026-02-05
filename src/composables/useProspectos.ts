@@ -31,12 +31,25 @@ export function useProspectos() {
     [key: string]: any
   }
 
+  // JPS: Agregar parámetros opcionales para datos de simulación
+  // Modificación: Agregar parámetros para guardar datos de simulación (medio de pago, cuotas, montos)
+  // Funcionamiento: Estos datos se capturan al hacer clic en "Guardar Simulación" y se guardan en la tabla prospectos
   const insertarProspecto = async (
     form: FormData,
     segmentacion?: string,
     becasAplicadas?: BecaAplicada[],
     prospectoCrm?: Record<string, any> | null,
-    respuestaCRM?: RespuestaCRM | null
+    respuestaCRM?: RespuestaCRM | null,
+    // JPS: Nuevos parámetros para datos de simulación
+    medioPago?: string | null,
+    numeroCuotas?: number | null,
+    arancelOriginal?: number | null,
+    matriculaOriginal?: number | null,
+    descuentoTotal?: number | null,
+    arancelFinal?: number | null,
+    matriculaFinal?: number | null,
+    totalFinal?: number | null,
+    valorMensual?: number | null
   ): Promise<ProspectoRow | null> => {
     // JPS: Logging seguro con ofuscación de datos sensibles
     // Modificación: Usar logger.prospecto() que ofusca automáticamente RUT, email, teléfono
@@ -154,7 +167,21 @@ export function useProspectos() {
           URL_Endpoint_crm: respuestaCRM._crmEndpointUrl || null,
           codigo_respuesta_crm: respuestaCRM.cod_respuesta ?? null,
           descripcion_respuesta: respuestaCRM.des_respuesta || null
-        } : null
+        } : null,
+
+        // JPS: Campos de simulación de cuotas y medios de pago
+        // Modificación: Agregar campos para guardar datos de la simulación de cuotas y medios de pago
+        // Funcionamiento: Estos campos se capturan cuando el usuario hace clic en "Guardar Simulación"
+        // y representan la configuración de pago seleccionada por el usuario
+        medio_pago: medioPago || null,
+        numero_cuotas: numeroCuotas || null,
+        arancel_original: arancelOriginal || null,
+        matricula_original: matriculaOriginal || null,
+        descuento_total: descuentoTotal || null,
+        arancel_final: arancelFinal || null,
+        matricula_final: matriculaFinal || null,
+        total_final: totalFinal || null,
+        valor_mensual: valorMensual || null
       }
 
       // Log de debugging para verificar parámetros de campaña

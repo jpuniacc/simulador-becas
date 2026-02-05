@@ -764,8 +764,7 @@ defineExpose({
                 </div>
                 <div
                   v-if="carreraInfo?.anio_arancel_referencia && carreraInfo.anio_arancel_referencia < ANIO_POSTULACION">
-                  <p>*Los valores mostrados corresponden al arancel de referencia CAE 2025. El Mineduc publicará los
-                    nuevos aranceles de referencia durante el mes de enero 2026</p>
+                  <p>*Los valores mostrados corresponden al arancel de referencia CAE 2026. </p>
                 </div>
               </template>
               <template #content>

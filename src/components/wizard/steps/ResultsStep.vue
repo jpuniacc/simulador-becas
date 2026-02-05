@@ -16,7 +16,9 @@ import {
   BookOpen,
   Calendar,
   MapPin,
-  FileText
+  FileText,
+  Save,
+  Clock
 } from 'lucide-vue-next'
 import type { SimulationResults } from '@/types/simulador'
 import { formatCurrency } from '@/utils/formatters'
@@ -47,6 +49,15 @@ const { createJSONcrm, enviarCRM } = useCRM()
 
 // Ref para el elemento a capturar
 const pdfContentRef = ref<HTMLElement | null>(null)
+
+// JPS: Estados para guardado de simulación
+// Modificación: Agregar estados para manejar el proceso de guardado de simulación
+// Funcionamiento: Estos estados controlan el flujo de guardado y muestran mensajes al usuario
+const prospectoId = ref<string | null>(null)
+const isSavingSimulation = ref(false)
+const simulationSaved = ref(false)
+const savingError = ref<string | null>(null)
+const hasExistingSimulation = ref(false)
 
 // Computed
 const calculoBecas = computed(() => simuladorStore.calculoBecas)
@@ -254,6 +265,53 @@ const ahorroTotalReal = computed(() => {
   return descuentoTotalRealConCae.value
 })
 
+// JPS: Computed values para datos de simulación
+// Modificación: Agregar computed values para calcular los montos de simulación necesarios para guardar
+// Funcionamiento: Estos valores se calculan basándose en los datos disponibles (calculoBecas, carreraInfo)
+// y se usan al guardar la simulación en la base de datos
+const arancelOriginalComputed = computed(() => {
+  return calculoBecas.value?.arancel_base || 0
+})
+
+const matriculaOriginalComputed = computed(() => {
+  return carreraInfo.value?.matricula || 0
+})
+
+const descuentoTotalComputed = computed(() => {
+  return descuentoTotalRealConCae.value
+})
+
+// JPS: Arancel final después de todos los descuentos
+// Modificación: Calcular arancel final considerando todos los descuentos aplicados
+// Funcionamiento: Arancel base menos descuento total (becas internas + becas estado + CAE)
+const arancelFinalComputed = computed(() => {
+  if (!calculoBecas.value) return 0
+  return Math.max(0, calculoBecas.value.arancel_base - descuentoTotalRealConCae.value)
+})
+
+// JPS: Matrícula final (sin descuentos adicionales por ahora)
+// Modificación: Calcular matrícula final (por ahora sin descuentos adicionales de modo de pago)
+// Funcionamiento: Matrícula original sin descuentos adicionales
+const matriculaFinalComputed = computed(() => {
+  return matriculaOriginalComputed.value
+})
+
+// JPS: Total final (arancel + matrícula después de descuentos)
+// Modificación: Calcular el total final a pagar
+// Funcionamiento: Suma de arancel final y matrícula final
+const totalFinalComputed = computed(() => {
+  return arancelFinalComputed.value + matriculaFinalComputed.value
+})
+
+// JPS: Valor mensual según número de cuotas
+// Modificación: Calcular el valor mensual dividiendo el total final por el número de cuotas
+// Funcionamiento: Total final dividido por número de cuotas del store (por defecto 10)
+const valorMensualComputed = computed(() => {
+  const cuotas = simuladorStore.numeroCuotas || 10
+  if (cuotas <= 0) return totalFinalComputed.value
+  return Math.round(totalFinalComputed.value / cuotas)
+})
+
 // Computed para detectar si es estudiante sin NEM/PAES
 const esEstudianteSinResultados = computed(() => {
   return formData.value.nivelEducativo !== 'Egresado' ||
@@ -331,43 +389,234 @@ const handleExportPDF = async () => {
 }
 
 // JPS: Guardar prospecto al montar el step de resultados
-// Modificación: Ejecutar primero el envío al CRM para obtener la respuesta
-// Funcionamiento: Se envía primero al CRM (si hay consentimiento), se obtiene la respuesta, y luego se guarda el prospecto
-// con la respuesta del CRM incluida en el campo respuesta_crm
-onMounted(async () => {
+// Modificación: COMENTADO - Ya no se guarda automáticamente, ahora se guarda al hacer clic en "Guardar Simulación"
+// Funcionamiento: El guardado ahora es manual mediante el botón "Guardar Simulación" que ejecuta handleSaveSimulation
+// onMounted(async () => {
+//   try {
+//     // Generar el JSON del CRM si hay consentimiento de contacto
+//     let crmJson = null
+//     let respuestaCRM = null
+//     
+//     if (formData.value.consentimiento_contacto) {
+//       const userAgent = navigator.userAgent
+//       const carreraInfoValue = carreraInfo.value
+//       crmJson = createJSONcrm(formData.value, carreraInfoValue, userAgent)
+//       
+//       // Enviar al CRM para obtener la respuesta
+//       try {
+//         respuestaCRM = await enviarCRM(formData.value, carreraInfoValue, userAgent)
+//       } catch (error) {
+//         console.warn('No se pudo enviar al CRM:', error)
+//         // Continuar aunque falle el CRM, pero sin respuesta
+//       }
+//     }
+//
+//     // Insertar usando los datos actuales del formulario con la respuesta del CRM
+//     await insertarProspecto(formData.value, undefined, undefined, crmJson, respuestaCRM)
+//     if (insertError.value) {
+//       console.warn('No se pudo guardar el prospecto:', insertError.value)
+//     }
+//   } catch (e) {
+//     console.warn('Fallo al guardar prospecto:', e)
+//   }
+// })
+
+// JPS: Función para guardar simulación con validación y flujo completo
+// Modificación: Agregar función que valida simulación existente, guarda prospecto, simulación y envía al CRM
+// Funcionamiento: 
+// 1. Valida si existe simulación válida para el mismo RUT + carrera
+// 2. Si no existe, guarda prospecto con datos de simulación
+// 3. Guarda simulación en BD con validez de 7 días
+// 4. Envía al CRM si hay consentimiento
+const handleSaveSimulation = async () => {
+  // JPS: Validar que existan resultados de simulación
+  // Modificación: Verificar que haya resultados antes de guardar
+  // Funcionamiento: Solo se puede guardar si hay resultados de simulación disponibles
+  if (!simuladorStore.results) {
+    savingError.value = 'No hay resultados de simulación para guardar. Por favor, completa la simulación primero.'
+    return
+  }
+
+  isSavingSimulation.value = true
+  savingError.value = null
+  hasExistingSimulation.value = false
+
   try {
-    // Generar el JSON del CRM si hay consentimiento de contacto
-    let crmJson = null
-    let respuestaCRM = null
-    
-    if (formData.value.consentimiento_contacto) {
-      const userAgent = navigator.userAgent
-      const carreraInfoValue = carreraInfo.value
-      crmJson = createJSONcrm(formData.value, carreraInfoValue, userAgent)
-      
-      // Enviar al CRM para obtener la respuesta
+    // JPS: Paso 0: Validar si existe simulación válida
+    // Modificación: Verificar si ya existe una simulación válida para el mismo RUT y carrera en los últimos 7 días
+    // Funcionamiento: Previene guardar simulaciones duplicadas antes de que expire la validez
+    const rut = formData.value.tipoIdentificacion === 'rut' ? formData.value.identificacion : null
+    const carreraId = formData.value.carreraId
+
+    // JPS: Acceder a simulation.value porque es un ref
+    // Modificación: Acceder correctamente a simulation que ahora es un ref en el store
+    // Funcionamiento: simulation es un ref, por lo que se accede con .value
+    if (rut && carreraId && simuladorStore.simulation?.value) {
       try {
-        respuestaCRM = await enviarCRM(formData.value, carreraInfoValue, userAgent)
+        const existeSimulacion = await simuladorStore.simulation.value.checkExistingSimulation(rut, carreraId)
+        if (existeSimulacion) {
+          hasExistingSimulation.value = true
+          savingError.value = 'Ya existe una simulación válida para este RUT y carrera. La simulación tiene una validez de 7 días. Debes esperar hasta que expire para crear una nueva simulación.'
+          return
+        }
       } catch (error) {
-        console.warn('No se pudo enviar al CRM:', error)
-        // Continuar aunque falle el CRM, pero sin respuesta
+        console.warn('Error al verificar simulación existente:', error)
+        // Continuar aunque falle la validación
       }
     }
 
-    // Insertar usando los datos actuales del formulario con la respuesta del CRM
-    await insertarProspecto(formData.value, undefined, undefined, crmJson, respuestaCRM)
-    if (insertError.value) {
-      console.warn('No se pudo guardar el prospecto:', insertError.value)
+    // JPS: Paso 1: Obtener datos de simulación y guardar prospecto
+    // Modificación: Capturar datos de simulación actuales y guardar prospecto con estos datos
+    // Funcionamiento: Los datos se capturan al hacer clic en "Guardar", usando valores del store o computed
+    const datosSimulacion = {
+      medioPago: simuladorStore.medioPago || null,
+      numeroCuotas: simuladorStore.numeroCuotas || 10,
+      arancelOriginal: arancelOriginalComputed.value,
+      matriculaOriginal: matriculaOriginalComputed.value,
+      descuentoTotal: descuentoTotalComputed.value,
+      arancelFinal: arancelFinalComputed.value,
+      matriculaFinal: matriculaFinalComputed.value,
+      totalFinal: totalFinalComputed.value,
+      valorMensual: valorMensualComputed.value
     }
-  } catch (e) {
-    console.warn('Fallo al guardar prospecto:', e)
+
+    // JPS: Guardar prospecto con datos de simulación
+    // Modificación: Llamar a insertarProspecto incluyendo los datos de simulación
+    // Funcionamiento: Guarda el prospecto con todos los datos incluyendo medio de pago, cuotas y montos
+    let prospectoGuardado = null
+    try {
+      prospectoGuardado = await insertarProspecto(
+        formData.value,
+        undefined,
+        undefined,
+        null, // crmJson se enviará después
+        null, // respuestaCRM se obtendrá después
+        datosSimulacion.medioPago,
+        datosSimulacion.numeroCuotas,
+        datosSimulacion.arancelOriginal,
+        datosSimulacion.matriculaOriginal,
+        datosSimulacion.descuentoTotal,
+        datosSimulacion.arancelFinal,
+        datosSimulacion.matriculaFinal,
+        datosSimulacion.totalFinal,
+        datosSimulacion.valorMensual
+      )
+      
+      if (!prospectoGuardado || !prospectoGuardado.id) {
+        throw new Error('No se pudo obtener el ID del prospecto guardado')
+      }
+      
+      prospectoId.value = prospectoGuardado.id
+    } catch (error) {
+      console.error('Error al guardar prospecto:', error)
+      savingError.value = 'Error al guardar el prospecto. Por favor, intente nuevamente.'
+      return
+    }
+
+    // JPS: Paso 2: Guardar simulación en BD
+    // Modificación: Guardar la simulación completa en la tabla simulaciones con validez de 7 días
+    // Funcionamiento: Guarda datos_entrada, resultados (con metadata de validez), beneficios_aplicables
+    try {
+      // JPS: Acceder a simulation.value porque es un ref
+      // Modificación: Acceder correctamente a simulation que ahora es un ref en el store
+      // Funcionamiento: simulation es un ref, por lo que se accede con .value
+      if (simuladorStore.simulation?.value && simuladorStore.simulation.value.saveSimulation) {
+        const simulacionId = await simuladorStore.simulation.value.saveSimulation(prospectoId.value)
+        if (!simulacionId) {
+          throw new Error('No se pudo obtener el ID de la simulación guardada')
+        }
+        simulationSaved.value = true
+      } else {
+        throw new Error('No se encontró el método saveSimulation')
+      }
+    } catch (error) {
+      console.error('Error al guardar simulación:', error)
+      savingError.value = 'Error al guardar la simulación. Por favor, intente nuevamente.'
+      return
+    }
+
+    // JPS: Paso 3: Enviar al CRM (solo si hay consentimiento)
+    // Modificación: Enviar al CRM después de guardar la simulación exitosamente
+    // Funcionamiento: Si hay consentimiento, se envía al CRM y se actualiza el prospecto con la respuesta
+    if (formData.value.consentimiento_contacto && prospectoId.value) {
+      try {
+        const userAgent = navigator.userAgent
+        const carreraInfoValue = carreraInfo.value
+        const crmJson = createJSONcrm(formData.value, carreraInfoValue, userAgent)
+        
+        // JPS: Enviar al CRM
+        // Modificación: Enviar datos al CRM después de guardar la simulación
+        // Funcionamiento: Obtiene la respuesta del CRM para guardarla en el prospecto
+        const respuestaCRM = await enviarCRM(formData.value, carreraInfoValue, userAgent)
+        
+        if (import.meta.env.DEV) {
+          console.log('✅ CRM enviado exitosamente:', respuestaCRM)
+        }
+      } catch (error) {
+        console.warn('No se pudo enviar al CRM:', error)
+        // Continuar aunque falle el CRM
+      }
+    }
+
+  } catch (err: any) {
+    savingError.value = err?.message || 'Error al guardar la simulación'
+    console.error('Error en handleSaveSimulation:', err)
+  } finally {
+    isSavingSimulation.value = false
   }
-})
+}
 </script>
 
 <template>
   <div class="results-step p-8 animate-fade-in min-h-full bg-white">
     <div ref="pdfContentRef" class="step-content">
+      <!-- JPS: Botón y mensajes de guardado de simulación -->
+      <!-- Modificación: Agregar UI para guardar simulación con botón, mensajes de éxito/error y validación -->
+      <!-- Funcionamiento: Permite al usuario guardar la simulación manualmente, con validación de simulación existente -->
+      
+      <!-- Mensaje de simulación existente -->
+      <div v-if="hasExistingSimulation" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
+        <Clock class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <p class="text-yellow-800 font-semibold mb-1">Simulación ya guardada</p>
+          <p class="text-yellow-700 text-sm">{{ savingError || 'Ya existe una simulación válida para este RUT y carrera. La simulación tiene una validez de 7 días. Debes esperar hasta que expire para crear una nueva simulación.' }}</p>
+        </div>
+      </div>
+
+      <!-- JPS: Botón de guardar simulación -->
+      <!-- Modificación: Botón siempre visible para guardar la simulación manualmente -->
+      <!-- Funcionamiento: Permite al usuario guardar la simulación cuando lo desee, con estados de carga y deshabilitado -->
+      <div class="mb-6 flex justify-center">
+        <Button
+          @click="handleSaveSimulation"
+          :disabled="isSavingSimulation || simulationSaved || hasExistingSimulation || !simuladorStore.results"
+          variant="default"
+          size="lg"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Save class="w-5 h-5" />
+          <span>{{ isSavingSimulation ? 'Guardando...' : simulationSaved ? 'Simulación Guardada' : 'Guardar Simulación' }}</span>
+        </Button>
+      </div>
+
+      <!-- Mensaje de éxito -->
+      <div v-if="simulationSaved" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+        <CheckCircle class="w-5 h-5 text-green-600 flex-shrink-0" />
+        <div class="flex-1">
+          <p class="text-green-800 font-semibold">Simulación guardada exitosamente</p>
+          <p class="text-green-700 text-sm">Tu simulación ha sido guardada y tiene una validez de 7 días a contar de hoy.</p>
+        </div>
+      </div>
+
+      <!-- Mensaje de error -->
+      <div v-if="savingError && !hasExistingSimulation" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+        <XCircle class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <p class="text-red-800 font-semibold mb-1">Error al guardar</p>
+          <p class="text-red-700 text-sm">{{ savingError }}</p>
+        </div>
+      </div>
+
       <!-- Header de resultados -->
       <div class="results-header">
         <div v-if="mensajePersonalizado" class="personalized-header">
