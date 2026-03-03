@@ -75,20 +75,20 @@ const options: SegmentOption[] = [
     colorClass: 'text-white',
     borderColorClass: '',
     bgColorClass: 'bg-tertiary-saturated'
-  },
-  {
-    id: 'cursos-diplomados',
-    title: 'Diplomados y Cursos',
-    subtitle: 'Perfeccionamiento de corta duración',
-    bullets: [
-      'Actualización de habilidades específicas',
-      'Poco tiempo, foco práctico'
-    ],
-    iconClass: 'pi pi-bolt',
-    colorClass: 'text-white',
-    borderColorClass: '',
-    bgColorClass: 'bg-black-saturated'
   }
+  // {
+  //   id: 'cursos-diplomados',
+  //   title: 'Diplomados y Cursos',
+  //   subtitle: 'Perfeccionamiento de corta duración',
+  //   bullets: [
+  //     'Actualización de habilidades específicas',
+  //     'Poco tiempo, foco práctico'
+  //   ],
+  //   iconClass: 'pi pi-bolt',
+  //   colorClass: 'text-white',
+  //   borderColorClass: '',
+  //   bgColorClass: 'bg-black-saturated'
+  // }
 ]
 
 const selectOption = (optionId: string) => {
